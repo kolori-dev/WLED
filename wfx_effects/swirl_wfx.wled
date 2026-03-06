@@ -1,0 +1,31 @@
+// Swirl — Rotating spiral pattern with palette colors.
+
+effect "Swirl WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Arms"
+    type 2D
+    palette true
+  }
+
+  render {
+    step_val = NOW / 15
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let dx = x - WIDTH / 2
+        let dy = y - HEIGHT / 2
+        let dist = abs(dx) + abs(dy) + 1
+        dx = noise2(dx * 32 + 128, dy * 32 + 128)
+        dy = intensity / 32 + 2
+        dy = dx + dist * dy - step_val
+        dx = palette(dy)
+        dy = min(dist * 24, 255)
+        pixel2d(x, y, color_fade(dx, dy))
+      }
+    }
+
+    blur2d(16)
+    frame()
+  }
+}

@@ -1,0 +1,39 @@
+// Juggle — Multiple bouncing dots with different hues and speeds.
+// They leave fading trails that blend where they overlap.
+
+effect "Juggle WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    let fadeAmt = 255 - intensity
+    if fadeAmt < 16 {
+      fadeAmt = 16
+    }
+    fade(fadeAmt)
+
+    let base = speed / 8 + 5
+    let span = LEN - 1
+
+    // Reuse pos/hue for each dot
+    let pos = beat8(base, 0, 255) * span / 255
+    pixel(pos, color_add(get_pixel(pos), palette(0)))
+
+    pos = beat8(base + 2, 0, 255) * span / 255
+    pixel(pos, color_add(get_pixel(pos), palette(36)))
+
+    pos = beat8(base + 5, 0, 255) * span / 255
+    pixel(pos, color_add(get_pixel(pos), palette(72)))
+
+    pos = beat8(base + 8, 0, 255) * span / 255
+    pixel(pos, color_add(get_pixel(pos), palette(108)))
+
+    pos = beat8(base + 11, 0, 255) * span / 255
+    pixel(pos, color_add(get_pixel(pos), palette(144)))
+
+    frame(16)
+  }
+}

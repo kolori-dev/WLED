@@ -1,0 +1,23 @@
+effect "Twinkle WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+    palette true
+  }
+
+  render {
+    fade(240)
+
+    // Light up random pixels
+    let count = intensity / 32 + 1
+    for j in 0..count {
+      let pos = random(LEN)
+      let bright = random(128, 255)
+      let c = palette(random(255))
+      let faded = color_fade(c, bright)
+      pixel(pos, faded)
+    }
+
+    frame()
+  }
+}

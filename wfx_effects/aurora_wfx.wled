@@ -1,0 +1,32 @@
+// Aurora Borealis — Northern lights curtains drifting across the strip.
+// Two sine waves set the palette color, a third creates dark gaps
+// between bright curtains by squaring the brightness.
+
+effect "Aurora WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Curtain Width"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 1024
+
+    for i in 0..LEN {
+      let pos = i * 256 / LEN
+
+      // Two drifting waves determine palette hue
+      let w1 = sin8(pos * 2 + t)
+      let w2 = sin8(pos + t / 3 + 64)
+      let idx = (w1 + w2) / 2
+
+      // Brightness from a third wave — squared for sharp curtain edges
+      let bri = sin8(pos * intensity / 64 + t / 2)
+      bri = bri * bri / 255
+
+      pixel(i, color_fade(palette(idx), bri))
+    }
+
+    frame()
+  }
+}

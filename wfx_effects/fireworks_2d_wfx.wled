@@ -1,0 +1,56 @@
+// Fireworks 2D — Dots launch upward, then explode into expanding
+// circles that fade out. Uses data buffers for particle state.
+
+effect "Fireworks 2D WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Frequency"
+    type 2D
+    palette true
+  }
+
+  // Particle storage: up to 8 fireworks
+  // px[i] = x, py[i] = y, pr[i] = radius (0=inactive), pc[i] = color index
+  data px[8]
+  data py[8]
+  data pr[8]
+  data pc[8]
+
+  render {
+    fade(200)
+    blur2d(32)
+
+    // Maybe launch a new firework
+    if random(255) < intensity / 4 + 2 {
+      // Find an inactive slot
+      for i in 0..8 {
+        if pr[i] == 0 {
+          px[i] = random(WIDTH)
+          py[i] = random(HEIGHT / 2)
+          pr[i] = 1
+          pc[i] = random(255)
+          i = 8
+        }
+      }
+    }
+
+    // Update and draw active fireworks
+    for i in 0..8 {
+      if pr[i] > 0 {
+        let r = pr[i]
+        let col = color_fade(palette(pc[i]), 255 - r * 8)
+        draw_circle(px[i], py[i], r, col)
+
+        // Expand radius
+        pr[i] = r + 1 + speed / 128
+
+        // Fade out when too big
+        if pr[i] > 15 {
+          pr[i] = 0
+        }
+      }
+    }
+
+    frame()
+  }
+}

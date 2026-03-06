@@ -923,7 +923,7 @@ function populateEffects()
 	for (let ef of effects) {
 		// add slider and color control to setFX (used by requestjson)
 		let id = ef.id;
-		let nm = ef.name+" ";
+		let nm = ef.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')+" ";
 		let fd = "";
 		if (ef.name.indexOf("RSVD") < 0) {
 			if (Array.isArray(fxdata) && fxdata.length>id) {
@@ -942,7 +942,9 @@ function populateEffects()
 					if (m.includes('f')) nm += "&#9835;"; // frequency effects
 				}
 			}
-			html += generateListItemHtml('fx',id,nm,'setFX','',fd);
+			// Add file menu for dynamically loaded bytecode effects
+			let extra = (typeof deleteFx === 'function' && id > 0) ? `<span class="e-icon flr" title="Options" style="cursor:pointer;font-size:14px;padding:10px;" onclick="event.stopPropagation();tglFxMenu(event,${id})">&#9660;</span>` : '';
+			html += generateListItemHtml('fx',id,nm,'setFX',extra,fd);
 		}
 	}
 
@@ -2378,6 +2380,61 @@ function setFX(ind = null)
 
 	var obj = {"seg": {"fx": parseInt(ind), "fxdef": cfg.comp.fxdef}}; // fxdef sets effect parameters to default values
 	requestJson(obj);
+}
+
+function toggleFxUpload() {
+	var panel = gId('fxUploadPanel');
+	panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function uploadFx() {
+	var input = gId('fxFileInput');
+	var status = gId('fxUploadStatus');
+	if (!input.files.length) { status.textContent = 'No file selected'; return; }
+	var remaining = input.files.length;
+	status.textContent = 'Uploading...';
+	for (var i = 0; i < input.files.length; i++) {
+		var file = input.files[i];
+		var formData = new FormData();
+		formData.append('file', file, '/fx/' + file.name);
+		fetch(getURL('/upload'), {method: 'POST', body: formData})
+			.then(function(r) {
+				remaining--;
+				if (remaining <= 0) {
+					status.textContent = 'Done!';
+					input.value = '';
+					loadFX().then(function() { return loadFXData(); }).then(function() { populateEffects(); });
+				}
+			})
+			.catch(function(e) { status.textContent = 'Error: ' + e; });
+	}
+}
+
+function tglFxMenu(e, id) {
+	var m = gId('fxctx');
+	if (m) { var prev = m.dataset.id; m.remove(); if (prev == id) return; }
+	m = d.createElement('div');
+	m.id = 'fxctx';
+	m.dataset.id = id;
+	m.innerHTML = '<span onclick="deleteFx(' + id + ')">Delete</span>';
+	var r = e.target.getBoundingClientRect();
+	m.style.top = (r.bottom + 2) + 'px';
+	m.style.right = (window.innerWidth - r.right) + 'px';
+	d.body.appendChild(m);
+	setTimeout(function(){ d.addEventListener('click', function rm(){ var x=gId('fxctx'); if(x) x.remove(); d.removeEventListener('click',rm); }); }, 0);
+}
+
+function deleteFx(id) {
+	var m = gId('fxctx'); if (m) m.remove();
+	if (!confirm('Delete this effect?')) return;
+	fetch(getURL('/fx/delete'), {
+		method: 'POST',
+		headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+		body: 'id=' + id
+	})
+		.then(function(r) { return r.text(); })
+		.then(function(t) { showToast(t); loadFX(); })
+		.catch(function(e) { showToast('Error: ' + e); });
 }
 
 function setPalette(paletteId = null)

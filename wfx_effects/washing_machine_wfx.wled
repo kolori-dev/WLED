@@ -1,0 +1,29 @@
+// Washing Machine — Palette colors sloshing back and forth.
+
+effect "Washing Machine WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Color Spread"
+    palette true
+  }
+
+  render {
+    let t = NOW / (5 + 255 - speed)
+    let slosh = sin8(t) - 128
+    let turb = (sin8(t * 3 + 100) - 128) / 4
+    let spread = 1 + scale8(intensity, 4)
+
+    for i in 0..LEN {
+      let pos = i * 256 / LEN
+      let sh = (pos + slosh + turb) * spread
+      let w2 = sin8(pos * 2 + t * 2) / 4
+      let cidx = (sh + w2) % 256
+      if cidx < 0 {
+        cidx = cidx + 256
+      }
+      pixel(i, palette(cidx))
+    }
+
+    frame()
+  }
+}

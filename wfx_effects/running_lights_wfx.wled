@@ -1,0 +1,20 @@
+effect "Running Lights WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Wave size"
+    palette true
+  }
+
+  render {
+    let offset = NOW * speed / 256
+
+    for i in 0..LEN {
+      let wave = sin8(i * intensity / 4 + offset)
+      let c = palette(i * 255 / LEN)
+      let faded = color_fade(c, wave)
+      pixel(i, faded)
+    }
+
+    frame()
+  }
+}

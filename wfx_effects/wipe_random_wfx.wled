@@ -1,0 +1,40 @@
+// Wipe Random — Like color wipe but with a random color each cycle.
+// Fills the strip one pixel at a time, then wipes back to black.
+// A new random color is chosen each full wipe cycle.
+
+effect "Wipe Random WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Smoothness"
+    palette false
+  }
+
+  render {
+    let cycle = (NOW * speed / 1024) % (LEN * 2)
+
+    // Pick a new random hue each full cycle using step_val as persistent hue
+    if cycle == 0 {
+      step_val = random(256)
+    }
+
+    let hue = step_val
+    let c = color_wheel(hue)
+
+    for i in 0..LEN {
+      if cycle < LEN {
+        // Wipe forward with the random color
+        if i <= cycle {
+          pixel(i, c)
+        }
+      } else {
+        // Wipe backward with black
+        let rev = cycle - LEN
+        if i <= rev {
+          pixel(i, rgb(0, 0, 0))
+        }
+      }
+    }
+
+    frame()
+  }
+}

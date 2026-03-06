@@ -1,0 +1,36 @@
+// Puddlepeak — Peak-triggered puddle splashes at random positions.
+
+effect "Puddlepeak WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Spread"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    fade(speed / 4 + 16)
+
+    if peak > 0 {
+      step_val = step_val + 37
+      let pos = random(LEN)
+      let c = palette(step_val)
+      let bri = volume
+      let w = intensity / 16 + 2
+      for i in 0..w {
+        let p = pos + i
+        let q = pos - i
+        let fb = bri - i * bri / max(w, 1)
+        if p >= 0 and p < LEN {
+          pixel(p, color_fade(c, fb))
+        }
+        if q >= 0 and q < LEN {
+          pixel(q, color_fade(c, fb))
+        }
+      }
+    }
+
+    frame()
+  }
+}

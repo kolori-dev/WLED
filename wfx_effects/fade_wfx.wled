@@ -1,0 +1,13 @@
+effect "Fade WFX" {
+  meta {
+    slider speed "Speed"
+    palette true
+  }
+
+  render {
+    let phase = (NOW * speed / 1024) % 256
+    let c = palette(phase)
+    fill(c)
+    frame()
+  }
+}

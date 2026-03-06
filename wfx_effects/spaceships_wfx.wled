@@ -1,0 +1,58 @@
+// Spaceships — Bright dots zooming along the strip at different speeds,
+// like tiny spacecraft streaking through space. Each ship has a short
+// fading trail. Uses data buffer for ship positions.
+
+effect "Spaceships WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Ship Count"
+    palette true
+  }
+
+  data pos[32]
+  data spd[32]
+
+  render {
+    let count = intensity / 32 + 2
+    if count > 32 {
+      count = 32
+    }
+
+    // Initialize ships on first frame
+    if step_val == 0 {
+      for i in 0..count {
+        pos[i] = random(LEN)
+        spd[i] = random(1, 5)
+      }
+      step_val = 1
+    }
+
+    fade(200)
+
+    // Move and draw each ship
+    for i in 0..count {
+      let p = pos[i]
+      let s = spd[i]
+
+      // Advance position
+      p = p + s
+      if p >= LEN {
+        p = 0
+        spd[i] = random(1, 5)
+      }
+      pos[i] = p
+
+      // Draw bright head
+      pixel(p, palette(i * 255 / count))
+
+      // Draw dim trail pixel behind
+      let trail = p - 1
+      if trail < 0 {
+        trail = LEN - 1
+      }
+      pixel(trail, color_fade(palette(i * 255 / count), 100))
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,34 @@
+// Waterfall — Scrolling audio spectrogram on 2D matrix.
+
+effect "Waterfall WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Gain"
+    type 2D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    // Shift rows down (copy from bottom up to avoid overwrites)
+    for y in 1..HEIGHT {
+      let ry = HEIGHT - y
+      for x in 0..WIDTH {
+        let c = get_pixel2d(x, ry - 1)
+        pixel2d(x, ry, c)
+      }
+    }
+
+    // Write new top row from FFT data
+    for x in 0..WIDTH {
+      let bin = x * 16 / max(WIDTH, 1)
+      let val = fft(bin)
+      val = val * intensity / 128
+      if val > 255 { val = 255 }
+      bin = palette(val)
+      pixel2d(x, 0, bin)
+    }
+
+    frame()
+  }
+}

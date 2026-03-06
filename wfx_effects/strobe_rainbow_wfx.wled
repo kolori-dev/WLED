@@ -1,0 +1,26 @@
+// Strobe Rainbow — Strobe but each flash is a different rainbow color.
+// The hue advances with each flash cycle.
+
+effect "Strobe Rainbow WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Flash length"
+  }
+
+  render {
+    let t = NOW * speed / 128
+    let cycle = t % 256
+    let flash = intensity / 8 + 4
+
+    // Hue changes based on which flash cycle we are on
+    let hue = (t / 256) * 37 % 256
+
+    if cycle < flash {
+      fill(color_wheel(hue))
+    } else {
+      fill(rgb(0, 0, 0))
+    }
+
+    frame()
+  }
+}

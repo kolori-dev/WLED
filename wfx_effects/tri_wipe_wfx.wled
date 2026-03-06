@@ -1,0 +1,38 @@
+// Tri Wipe — Three-color sequential wipe effect.
+// Fills the strip with color0, then color1, then color2, and repeats.
+// Each wipe fills one pixel at a time from start to end.
+
+effect "Tri Wipe WFX" {
+  meta {
+    slider speed "Speed"
+    palette false
+  }
+
+  render {
+    let total = LEN * 3
+    let progress = (NOW * speed / 1024) % total
+    let phase = progress / LEN
+    let pos = progress % LEN
+
+    // Determine the current wipe color and the background color
+    let wipe = color0
+    let bg = color2
+    if phase == 1 {
+      wipe = color1
+      bg = color0
+    } else if phase == 2 {
+      wipe = color2
+      bg = color1
+    }
+
+    for i in 0..LEN {
+      if i <= pos {
+        pixel(i, wipe)
+      } else {
+        pixel(i, bg)
+      }
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,51 @@
+// Two Dots — Two dots bouncing from opposite ends, meeting in the
+// middle. One dot starts from position 0 moving right, the other
+// starts from the end moving left. They bounce when they reach
+// the edges.
+
+effect "Two Dots WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    fade(intensity)
+
+    let cycle = (NOW * speed / 512) % (LEN * 2)
+
+    // Dot 1: bounces from left
+    let pos1 = cycle
+    if pos1 >= LEN {
+      pos1 = LEN * 2 - pos1 - 1
+    }
+
+    // Dot 2: bounces from right (opposite phase)
+    let pos2 = LEN - 1 - pos1
+
+    // Draw dot 1 with color0
+    pixel(pos1, color0)
+    if pos1 > 0 {
+      let p = pos1 - 1
+      pixel(p, color_fade(color0, 96))
+    }
+    if pos1 < LEN - 1 {
+      let p = pos1 + 1
+      pixel(p, color_fade(color0, 96))
+    }
+
+    // Draw dot 2 with color1
+    pixel(pos2, color1)
+    if pos2 > 0 {
+      let p = pos2 - 1
+      pixel(p, color_fade(color1, 96))
+    }
+    if pos2 < LEN - 1 {
+      let p = pos2 + 1
+      pixel(p, color_fade(color1, 96))
+    }
+
+    frame()
+  }
+}

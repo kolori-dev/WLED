@@ -1,0 +1,40 @@
+// Pride 2015 — Flowing rainbow waves with variable brightness and speed.
+// Multiple overlapping sine waves create a shimmering, organic rainbow.
+// Inspired by Mark Kriegsman's Pride2015 for FastLED.
+
+effect "Pride WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Brightness"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+
+    for i in 0..LEN {
+      let pos = i * 256 / LEN
+
+      // Multiple sine waves create the flowing hue pattern
+      let hue = pos * 3 + t
+      let w1 = sin8(pos * 5 + t / 2)
+      let w2 = sin8(pos * 7 + t / 3 + 64)
+      let w3 = sin8(pos * 2 + t + 128)
+
+      // Combine waves to modulate the hue
+      hue = hue + (w1 - 128) / 4
+      hue = hue + (w2 - 128) / 6
+
+      // Brightness comes from overlapping waves
+      let bri = (w1 + w2 + w3) / 3
+      bri = scale8(bri, intensity)
+      // Ensure minimum brightness
+      bri = bri / 2 + 128
+
+      let idx = hue % 256
+      pixel(i, color_fade(palette(idx), bri))
+    }
+
+    frame()
+  }
+}

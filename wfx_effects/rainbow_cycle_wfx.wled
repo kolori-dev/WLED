@@ -1,0 +1,18 @@
+effect "Rainbow Cycle WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+    palette false
+  }
+
+  render {
+    let offset = NOW * speed / 512
+
+    for i in 0..LEN {
+      let hue = (i * intensity + offset) % 256
+      pixel(i, color_wheel(hue))
+    }
+
+    frame()
+  }
+}

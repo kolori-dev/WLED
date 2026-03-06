@@ -1,0 +1,26 @@
+// Blink Rainbow — Like blink but the color changes with each on cycle
+// through the rainbow color wheel.
+
+effect "Blink Rainbow WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Duty cycle"
+  }
+
+  render {
+    let t = NOW * speed / 255
+    let cycle = t % 512
+    let on = cycle < intensity * 2
+
+    // Hue advances each full blink cycle
+    let hue = (t / 512) * 29 % 256
+
+    if on {
+      fill(color_wheel(hue))
+    } else {
+      fill(rgb(0, 0, 0))
+    }
+
+    frame()
+  }
+}

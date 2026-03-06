@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WFX Simulator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+  #app {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---- Left: Editor panel ---- */
+  #editor-panel {
+    width: 50%;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    border-right: 2px solid #333;
+    background: #16213e;
+  }
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: #1a1a2e;
+    border-bottom: 1px solid #333;
+    flex-wrap: wrap;
+  }
+  .editor-toolbar .btn { font-size: 12px; padding: 4px 10px; }
+  .editor-toolbar select {
+    background: #2a2a4a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    max-width: 220px;
+  }
+  .editor-toolbar .spacer { flex: 1; }
+  .editor-toolbar .filename {
+    font-size: 12px;
+    color: #7fdbca;
+    font-family: monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
+  .editor-toolbar .modified { color: #ff9f43; }
+
+  #editor {
+    flex: 1;
+    width: 100%;
+    background: #0d1117;
+    color: #c9d1d9;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 12px;
+    tab-size: 2;
+  }
+
+  .compile-status {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: monospace;
+    border-top: 1px solid #333;
+    background: #1a1a2e;
+    min-height: 28px;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+  .compile-status.ok { color: #c3e88d; }
+  .compile-status.err { color: #ff6b6b; }
+
+  /* ---- Right: Simulator panel ---- */
+  #sim-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 12px;
+    min-width: 380px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .header h1 {
+    font-size: 18px;
+    color: #7fdbca;
+    font-weight: 600;
+  }
+  .header-btns {
+    display: flex;
+    gap: 6px;
+  }
+  .effect-info {
+    width: 100%;
+    font-size: 12px;
+    color: #999;
+  }
+  .effect-info span { color: #c3e88d; }
+
+  /* Buttons */
+  .btn {
+    padding: 5px 12px;
+    border: 1px solid #555;
+    background: #2a2a4a;
+    color: #e0e0e0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .btn:hover { background: #3a3a5a; }
+  .btn.primary { background: #3d5a80; border-color: #5a8ab4; }
+  .btn.primary:hover { background: #4d6a90; }
+  .btn.success { background: #2d6a4f; border-color: #52b788; }
+  .btn.success:hover { background: #3d7a5f; }
+  .btn.danger { border-color: #ff6b6b; color: #ff6b6b; }
+  .btn.danger:hover { background: #3a2a2a; }
+
+  /* Canvas area */
+  #canvas-wrap {
+    background: #111;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #333;
+    position: relative;
+    min-height: 160px;
+  }
+  #canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    border-radius: 4px;
+  }
+  #drop-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(61, 90, 128, 0.8);
+    border-radius: 8px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #fff;
+    pointer-events: none;
+  }
+
+  /* Playback controls */
+  .playback {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 1px solid #333;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .stats {
+    margin-left: auto;
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+  }
+
+  /* Controls grid */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .control-group label {
+    font-size: 11px;
+    color: #999;
+    display: flex;
+    justify-content: space-between;
+  }
+  .control-group label span { color: #7fdbca; font-family: monospace; }
+  .control-group input[type="range"] {
+    width: 100%;
+    accent-color: #7fdbca;
+  }
+  .control-group input[type="number"] {
+    background: #2a2a4a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 3px 6px;
+    border-radius: 4px;
+    width: 70px;
+    font-size: 12px;
+  }
+  .control-group input[type="color"] {
+    width: 44px;
+    height: 26px;
+    border: 1px solid #444;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .control-group input[type="text"] {
+    background: #2a2a4a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .control-group select {
+    background: #2a2a4a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .row label { font-size: 11px; color: #999; }
+
+  .control-wide { grid-column: 1 / -1; }
+
+  .mode-toggle {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .mode-toggle label {
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .mode-toggle input { accent-color: #7fdbca; }
+
+  .check-row {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+  .check-row label {
+    font-size: 11px;
+    color: #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .check-row input { accent-color: #7fdbca; }
+
+  .colors-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .colors-row label { font-size: 11px; color: #999; }
+
+  /* Hidden file input */
+  #file-input { display: none; }
+
+  /* Resize handle */
+  #resize-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: #333;
+    transition: background 0.2s;
+  }
+  #resize-handle:hover { background: #7fdbca; }
+
+  /* Keyboard shortcut hint */
+  .shortcut {
+    font-size: 10px;
+    color: #666;
+    padding: 4px 10px;
+    border-top: 1px solid #333;
+    background: #1a1a2e;
+  }
+  .shortcut kbd {
+    background: #2a2a4a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid #444;
+    font-family: monospace;
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Left: Editor Panel -->
+  <div id="editor-panel">
+    <div class="editor-toolbar">
+      <select id="file-browser" title="Open effect from wfx_effects/">
+        <option value="">-- Open Effect --</option>
+      </select>
+      <button class="btn success" id="btn-compile" title="Compile & Run (Ctrl+Enter)">Compile & Run</button>
+      <button class="btn" id="btn-save" title="Save (Ctrl+S)">Save</button>
+      <button class="btn" id="btn-new">New</button>
+      <span class="spacer"></span>
+      <span class="filename" id="current-file">untitled.wled</span>
+    </div>
+    <textarea id="editor" spellcheck="false" placeholder="// Write your WLED-Lang effect here...
+// Then press Compile & Run (Ctrl+Enter)
+
+effect &quot;My Effect&quot; {
+  meta {
+    slider speed &quot;Speed&quot;
+    palette true
+  }
+
+  render {
+    for i in 0..LEN {
+      pixel(i, palette((i * 8 + NOW * speed / 256) % 256))
+    }
+    frame(speed)
+  }
+}"></textarea>
+    <div class="compile-status" id="compile-status">Ready</div>
+    <div class="shortcut"><kbd>Ctrl+Enter</kbd> Compile & Run | <kbd>Ctrl+S</kbd> Save | <kbd>Tab</kbd> Indent</div>
+  </div>
+
+  <!-- Resize handle -->
+  <div id="resize-handle"></div>
+
+  <!-- Right: Simulator Panel -->
+  <div id="sim-panel">
+    <div class="header">
+      <h1>WFX Simulator</h1>
+      <div class="header-btns">
+        <button class="btn primary" id="btn-load">Load File</button>
+      </div>
+      <div class="effect-info" id="effect-info">No effect loaded</div>
+    </div>
+
+    <div id="canvas-wrap">
+      <canvas id="led-canvas" width="880" height="200"></canvas>
+      <div id="drop-overlay">Drop .wfx or .wled file here</div>
+    </div>
+
+    <div class="playback">
+      <button class="btn primary" id="btn-play">Play</button>
+      <button class="btn" id="btn-step">Step</button>
+      <button class="btn danger" id="btn-reset">Reset</button>
+      <div class="stats" id="stats">FPS: -- | Frame: 0</div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group control-wide">
+        <div class="row">
+          <div class="mode-toggle">
+            <label><input type="radio" name="mode" value="1d" checked> 1D</label>
+            <label><input type="radio" name="mode" value="2d"> 2D</label>
+          </div>
+          <label>Width: <input type="number" id="seg-width" value="30" min="1" max="256"></label>
+          <label>Height: <input type="number" id="seg-height" value="1" min="1" max="256" disabled></label>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Speed <span id="val-speed">128</span></label>
+        <input type="range" id="seg-speed" min="0" max="255" value="128">
+      </div>
+      <div class="control-group">
+        <label>Intensity <span id="val-intensity">128</span></label>
+        <input type="range" id="seg-intensity" min="0" max="255" value="128">
+      </div>
+      <div class="control-group">
+        <label>Custom 1 <span id="val-c1">0</span></label>
+        <input type="range" id="seg-c1" min="0" max="255" value="0">
+      </div>
+      <div class="control-group">
+        <label>Custom 2 <span id="val-c2">0</span></label>
+        <input type="range" id="seg-c2" min="0" max="255" value="0">
+      </div>
+      <div class="control-group">
+        <label>Custom 3 <span id="val-c3">0</span></label>
+        <input type="range" id="seg-c3" min="0" max="255" value="0">
+      </div>
+      <div class="control-group">
+        <label>Palette</label>
+        <select id="seg-palette"></select>
+      </div>
+
+      <div class="control-group control-wide">
+        <div class="check-row">
+          <label><input type="checkbox" id="seg-check1"> Check 1</label>
+          <label><input type="checkbox" id="seg-check2"> Check 2</label>
+          <label><input type="checkbox" id="seg-check3"> Check 3</label>
+        </div>
+      </div>
+
+      <div class="control-group control-wide">
+        <div class="colors-row">
+          <label>Color 1: <input type="color" id="seg-color1" value="#ffffff"></label>
+          <label>Color 2: <input type="color" id="seg-color2" value="#000000"></label>
+          <label>Color 3: <input type="color" id="seg-color3" value="#000000"></label>
+        </div>
+      </div>
+
+      <div class="control-group control-wide">
+        <label>Segment Name</label>
+        <input type="text" id="seg-name" placeholder="Enter segment name (for text effects)">
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".wfx,.wled">
+
+<script type="module">
+import { SimEngine, extractBytecode, createState } from './sim-engine.js';
+import { LEDRenderer } from './renderer.js';
+import { PALETTES } from './palettes.js';
+
+// ---- State ----
+let bytecode = null;
+let effectMeta = null;
+let effectFlags = 0;
+let effectDataSize = 0;
+let simState = null;
+let playing = false;
+let frameCount = 0;
+let startTime = 0;
+let lastFrameTime = 0;
+let pendingDelay = 0;
+
+// Editor state
+let currentFilename = 'untitled.wled';
+let savedSource = '';  // last saved content (to detect modifications)
+
+const engine = new SimEngine();
+const canvas = document.getElementById('led-canvas');
+const renderer = new LEDRenderer(canvas);
+const editor = document.getElementById('editor');
+const statusEl = document.getElementById('compile-status');
+const fileLabel = document.getElementById('current-file');
+const fileBrowser = document.getElementById('file-browser');
+
+// ---- Populate palette selector ----
+const palSelect = document.getElementById('seg-palette');
+for (const p of PALETTES) {
+  const opt = document.createElement('option');
+  opt.value = p.id;
+  opt.textContent = `${p.id}: ${p.name}`;
+  palSelect.appendChild(opt);
+}
+
+// ---- Populate file browser ----
+async function refreshFileList() {
+  try {
+    const resp = await fetch('/effects');
+    if (!resp.ok) return;
+    const files = await resp.json();
+    // Keep the placeholder option, remove old entries
+    while (fileBrowser.options.length > 1) fileBrowser.remove(1);
+    for (const f of files) {
+      const opt = document.createElement('option');
+      opt.value = f;
+      opt.textContent = f;
+      fileBrowser.appendChild(opt);
+    }
+  } catch (e) {
+    // Server may not support /effects — ignore
+  }
+}
+refreshFileList();
+
+// ---- Helpers ----
+function hexToRGBW32(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r << 16) | (g << 8) | b;
+}
+
+function is2D() {
+  return document.querySelector('input[name="mode"]:checked').value === '2d';
+}
+
+function getWidth() {
+  return parseInt(document.getElementById('seg-width').value) || 30;
+}
+
+function getHeight() {
+  return is2D() ? (parseInt(document.getElementById('seg-height').value) || 16) : 1;
+}
+
+function getSegOpts() {
+  return {
+    speed: parseInt(document.getElementById('seg-speed').value),
+    intensity: parseInt(document.getElementById('seg-intensity').value),
+    custom1: parseInt(document.getElementById('seg-c1').value),
+    custom2: parseInt(document.getElementById('seg-c2').value),
+    custom3: parseInt(document.getElementById('seg-c3').value),
+    check1: document.getElementById('seg-check1').checked,
+    check2: document.getElementById('seg-check2').checked,
+    check3: document.getElementById('seg-check3').checked,
+    palette: parseInt(palSelect.value),
+    colors: [
+      hexToRGBW32(document.getElementById('seg-color1').value),
+      hexToRGBW32(document.getElementById('seg-color2').value),
+      hexToRGBW32(document.getElementById('seg-color3').value),
+    ],
+    name: document.getElementById('seg-name').value,
+    NOW: 0,
+  };
+}
+
+function resetState() {
+  const w = getWidth();
+  const h = getHeight();
+  const len = is2D() ? (w * h) : w;
+  simState = createState({
+    LEN: len,
+    WIDTH: w,
+    HEIGHT: h,
+    is2D: is2D(),
+  });
+  frameCount = 0;
+  startTime = performance.now();
+  lastFrameTime = startTime;
+  pendingDelay = 0;
+  updateStats();
+  renderFrame();
+}
+
+function renderFrame() {
+  if (!simState) return;
+  renderer.render(
+    simState.pixels1d, simState.pixels2d,
+    simState.is2D, simState.WIDTH, simState.HEIGHT
+  );
+}
+
+function updateStats() {
+  const elapsed = (performance.now() - startTime) / 1000;
+  const fps = elapsed > 0 ? Math.round(frameCount / elapsed) : 0;
+  document.getElementById('stats').textContent = `FPS: ${fps} | Frame: ${frameCount}`;
+}
+
+function executeOneFrame() {
+  if (!bytecode || !simState) return 0;
+  const opts = getSegOpts();
+  opts.NOW = Math.floor(performance.now() - startTime);
+  const result = engine.executeFrame(bytecode, simState, opts);
+  frameCount++;
+  updateStats();
+  renderFrame();
+  return result.delay || 42;
+}
+
+// ---- Animation loop ----
+let animId = null;
+let nextFrameAt = 0;
+
+function animLoop(timestamp) {
+  if (!playing) return;
+  if (timestamp >= nextFrameAt) {
+    const delay = executeOneFrame();
+    nextFrameAt = timestamp + delay;
+  }
+  animId = requestAnimationFrame(animLoop);
+}
+
+function play() {
+  if (!bytecode) return;
+  playing = true;
+  nextFrameAt = 0;
+  document.getElementById('btn-play').textContent = 'Pause';
+  animId = requestAnimationFrame(animLoop);
+}
+
+function pause() {
+  playing = false;
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+  document.getElementById('btn-play').textContent = 'Play';
+}
+
+// ---- Load effect ----
+function loadWfx(arrayBuffer) {
+  try {
+    const result = extractBytecode(arrayBuffer);
+    bytecode = result.bytecode;
+    effectMeta = result.metadata;
+    effectFlags = result.flags;
+    effectDataSize = result.dataSize;
+
+    const name = effectMeta.split(';')[0] || 'Unknown';
+    const flags = [];
+    if (effectFlags & 0x01) flags.push('2D');
+    if (effectFlags & 0x02) flags.push('Palette');
+    if (effectFlags & 0x04) flags.push('Audio');
+    document.getElementById('effect-info').innerHTML =
+      `Effect: <span>${escapeHtml(name)}</span>` +
+      (flags.length ? ` [${flags.join(', ')}]` : '') +
+      ` | ${bytecode.length} bytes`;
+
+    // Auto-switch to 2D if flag set
+    if (effectFlags & 0x01) {
+      document.querySelector('input[name="mode"][value="2d"]').checked = true;
+      document.getElementById('seg-height').disabled = false;
+      if (getHeight() <= 1) document.getElementById('seg-height').value = '16';
+      canvas.height = 400;
+    }
+
+    resetState();
+    if (!playing) play();
+  } catch (e) {
+    alert('Error loading WFX: ' + e.message);
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function compileSource(source) {
+  const resp = await fetch('/compile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: source,
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(err);
+  }
+  return resp.arrayBuffer();
+}
+
+async function loadWled(source) {
+  try {
+    const buf = await compileSource(source);
+    statusEl.textContent = 'Compiled OK';
+    statusEl.className = 'compile-status ok';
+    loadWfx(buf);
+  } catch (e) {
+    statusEl.textContent = e.message;
+    statusEl.className = 'compile-status err';
+  }
+}
+
+// ---- Editor functions ----
+function setEditorSource(source, filename) {
+  editor.value = source;
+  savedSource = source;
+  currentFilename = filename || 'untitled.wled';
+  fileLabel.textContent = currentFilename;
+  fileLabel.classList.remove('modified');
+  statusEl.textContent = 'Ready';
+  statusEl.className = 'compile-status';
+}
+
+function updateModifiedIndicator() {
+  if (editor.value !== savedSource) {
+    fileLabel.classList.add('modified');
+  } else {
+    fileLabel.classList.remove('modified');
+  }
+}
+
+async function compileAndRun() {
+  const source = editor.value.trim();
+  if (!source) {
+    statusEl.textContent = 'Editor is empty';
+    statusEl.className = 'compile-status err';
+    return;
+  }
+  await loadWled(source);
+}
+
+async function saveFile() {
+  const source = editor.value;
+  if (!currentFilename || currentFilename === 'untitled.wled') {
+    const name = prompt('Save as (filename):', 'my_effect_wfx.wled');
+    if (!name) return;
+    currentFilename = name.endsWith('.wled') ? name : name + '.wled';
+  }
+  try {
+    const resp = await fetch('/effects/' + encodeURIComponent(currentFilename), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'text/plain' },
+      body: source,
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      statusEl.textContent = 'Save failed: ' + err;
+      statusEl.className = 'compile-status err';
+      return;
+    }
+    savedSource = source;
+    fileLabel.textContent = currentFilename;
+    fileLabel.classList.remove('modified');
+    statusEl.textContent = 'Saved: ' + currentFilename;
+    statusEl.className = 'compile-status ok';
+    refreshFileList();
+  } catch (e) {
+    statusEl.textContent = 'Save failed: ' + e.message;
+    statusEl.className = 'compile-status err';
+  }
+}
+
+async function openFile(filename) {
+  try {
+    const resp = await fetch('/effects/' + encodeURIComponent(filename));
+    if (!resp.ok) {
+      statusEl.textContent = 'Load failed';
+      statusEl.className = 'compile-status err';
+      return;
+    }
+    const source = await resp.text();
+    setEditorSource(source, filename);
+    // Auto-compile and run
+    await compileAndRun();
+  } catch (e) {
+    statusEl.textContent = 'Load failed: ' + e.message;
+    statusEl.className = 'compile-status err';
+  }
+}
+
+function newFile() {
+  const template = `effect "My Effect" {
+  meta {
+    slider speed "Speed"
+    palette true
+  }
+
+  render {
+    for i in 0..LEN {
+      pixel(i, palette((i * 8 + NOW * speed / 256) % 256))
+    }
+    frame(speed)
+  }
+}
+`;
+  setEditorSource(template, 'untitled.wled');
+}
+
+// ---- Event handlers ----
+document.getElementById('btn-compile').addEventListener('click', compileAndRun);
+document.getElementById('btn-save').addEventListener('click', saveFile);
+document.getElementById('btn-new').addEventListener('click', newFile);
+
+fileBrowser.addEventListener('change', async () => {
+  const filename = fileBrowser.value;
+  if (filename) {
+    await openFile(filename);
+  }
+  fileBrowser.value = '';
+});
+
+editor.addEventListener('input', updateModifiedIndicator);
+
+// Tab key inserts spaces in editor
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = start + 2;
+    updateModifiedIndicator();
+  }
+  // Ctrl+Enter: Compile & Run
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    compileAndRun();
+  }
+  // Ctrl+S: Save
+  if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    saveFile();
+  }
+});
+
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (playing) pause(); else play();
+});
+
+document.getElementById('btn-step').addEventListener('click', () => {
+  pause();
+  if (bytecode) {
+    if (!simState) resetState();
+    executeOneFrame();
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  pause();
+  resetState();
+});
+
+document.getElementById('btn-load').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.name.endsWith('.wled')) {
+    const text = await file.text();
+    setEditorSource(text, file.name);
+    await compileAndRun();
+  } else {
+    const buf = await file.arrayBuffer();
+    loadWfx(buf);
+  }
+  e.target.value = '';
+});
+
+// Drag and drop
+const canvasWrap = document.getElementById('canvas-wrap');
+const dropOverlay = document.getElementById('drop-overlay');
+
+canvasWrap.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropOverlay.style.display = 'flex';
+});
+canvasWrap.addEventListener('dragleave', () => {
+  dropOverlay.style.display = 'none';
+});
+canvasWrap.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dropOverlay.style.display = 'none';
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  if (file.name.endsWith('.wled')) {
+    const text = await file.text();
+    setEditorSource(text, file.name);
+    await compileAndRun();
+  } else {
+    const buf = await file.arrayBuffer();
+    loadWfx(buf);
+  }
+});
+
+// Slider value displays
+for (const [id, valId] of [
+  ['seg-speed', 'val-speed'], ['seg-intensity', 'val-intensity'],
+  ['seg-c1', 'val-c1'], ['seg-c2', 'val-c2'], ['seg-c3', 'val-c3'],
+]) {
+  document.getElementById(id).addEventListener('input', (e) => {
+    document.getElementById(valId).textContent = e.target.value;
+  });
+}
+
+// Mode toggle
+document.querySelectorAll('input[name="mode"]').forEach(el => {
+  el.addEventListener('change', () => {
+    const two = is2D();
+    document.getElementById('seg-height').disabled = !two;
+    if (two && getHeight() <= 1) {
+      document.getElementById('seg-height').value = '16';
+    }
+    canvas.height = two ? 400 : 200;
+    resetState();
+  });
+});
+
+// Dimension changes require reset
+document.getElementById('seg-width').addEventListener('change', resetState);
+document.getElementById('seg-height').addEventListener('change', resetState);
+
+// Document-level drag prevention
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => e.preventDefault());
+
+// ---- Resize handle ----
+const resizeHandle = document.getElementById('resize-handle');
+const editorPanel = document.getElementById('editor-panel');
+let isResizing = false;
+
+resizeHandle.addEventListener('mousedown', (e) => {
+  isResizing = true;
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isResizing) return;
+  const newWidth = Math.max(280, Math.min(e.clientX, window.innerWidth - 380));
+  editorPanel.style.width = newWidth + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+});
+</script>
+</body>
+</html>

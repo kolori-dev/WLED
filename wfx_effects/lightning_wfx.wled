@@ -1,0 +1,51 @@
+// Lightning — Random bright white flashes at random positions with brief afterglow.
+// speed controls flash frequency, intensity controls flash width.
+
+effect "Lightning WFX" {
+  meta {
+    slider speed "Frequency"
+    slider intensity "Width"
+    palette true
+  }
+
+  render {
+    // Fade previous flashes
+    fade(200)
+
+    // Random chance to trigger a lightning bolt
+    if random(255) < speed / 8 + 2 {
+      let center = random(LEN)
+      let width = random(intensity / 8 + 2, intensity / 4 + 4)
+      let bright = random(200, 255)
+      let c = rgb(255, 255, 255)
+
+      // Draw lightning bolt section
+      for i in 0..width {
+        let p = center - width / 2 + i
+        if p >= 0 and p < LEN {
+          let dist = abs(i - width / 2)
+          let bri = bright - dist * 40
+          if bri < 50 { bri = 50 }
+          pixel(p, color_fade(c, bri))
+        }
+      }
+
+      // Secondary smaller flash nearby
+      if random(255) < 128 {
+        let p2 = center + random(5, 15)
+        if p2 < LEN {
+          let w2 = width / 3 + 1
+          c = rgb(220, 220, 255)
+          for j in 0..w2 {
+            let pp = p2 + j
+            if pp >= 0 and pp < LEN {
+              pixel(pp, color_fade(c, 180))
+            }
+          }
+        }
+      }
+    }
+
+    frame()
+  }
+}

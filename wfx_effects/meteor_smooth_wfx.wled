@@ -1,0 +1,40 @@
+// Meteor Smooth — A smooth meteor with a gradient trail.
+// Unlike regular Meteor which uses random fade, this version
+// smoothly fades the trail for a cleaner look.
+// Speed controls fall rate, intensity controls trail length.
+
+effect "Meteor Smooth WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    // Smooth uniform fade for trail
+    let fadeAmt = 255 - intensity
+    if fadeAmt < 32 {
+      fadeAmt = 32
+    }
+    fade(fadeAmt)
+
+    // Meteor head position
+    let t = NOW * speed / 256
+    let pos = t % LEN
+
+    // Draw meteor head — gradient from bright to dim
+    let headLen = 8
+    for h in 0..headLen {
+      let p = pos - h
+      if p < 0 {
+        p = p + LEN
+      }
+      // Smooth brightness gradient for the head
+      let bri = 255 - h * 255 / headLen
+      let hue = t / 4 + h * 8
+      pixel(p, color_fade(palette(hue), bri))
+    }
+
+    frame()
+  }
+}

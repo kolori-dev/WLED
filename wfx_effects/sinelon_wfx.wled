@@ -1,0 +1,28 @@
+// Sinelon — A dot sweeps back and forth via sine wave with a fading trail.
+// speed controls sweep rate, intensity controls trail length.
+
+effect "Sinelon WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    // Fade existing pixels for trail effect
+    let fadeAmt = 255 - intensity
+    if fadeAmt < 16 {
+      fadeAmt = 16
+    }
+    fade(fadeAmt)
+
+    // Sine wave position across the strip
+    let t = NOW * speed / 256
+    let wave = sin8(t)
+    let pos = wave * (LEN - 1) / 255
+
+    pixel(pos, palette(t))
+
+    frame()
+  }
+}

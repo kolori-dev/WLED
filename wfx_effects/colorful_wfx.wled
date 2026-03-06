@@ -1,0 +1,26 @@
+// Colorful — Each pixel gets a palette color based on its position,
+// slowly cycling over time. The colors shift and drift, creating
+// a living gradient that continuously evolves.
+
+effect "Colorful WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Color Spread"
+    palette true
+  }
+
+  render {
+    let offset = NOW * speed / 1024
+
+    for i in 0..LEN {
+      // Each pixel gets a unique palette index based on position
+      // with a noise-like variation for organic feel
+      let base = i * intensity / 4 + offset
+      let wobble = sin8(i * 16 + offset / 2)
+      let idx = (base + wobble / 4) % 256
+      pixel(i, palette(idx))
+    }
+
+    frame()
+  }
+}

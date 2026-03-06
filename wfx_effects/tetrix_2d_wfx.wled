@@ -1,0 +1,74 @@
+// Tetrix 2D — Tetris-like blocks falling from the top and stacking
+// at the bottom. Each column has an independent falling block.
+
+effect "Tetrix 2D WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Columns"
+    type 2D
+    palette true
+  }
+
+  // Track the Y position of the falling block in each column (up to 32 cols)
+  data fall_y[32]
+  // Track the stack height in each column
+  data stack[32]
+  // Color index per column
+  data col_hue[32]
+
+  render {
+    // Initialize on first call
+    if step_val == 0 {
+      for i in 0..WIDTH {
+        fall_y[i] = 0
+        stack[i] = 0
+        col_hue[i] = random(255)
+      }
+      step_val = 1
+    }
+
+    // Clear the area above stacks (use 0 = black instead of rgb(0,0,0) to save temps)
+    for x in 0..WIDTH {
+      let sh = stack[x]
+      let top = HEIGHT - sh
+      for y in 0..top {
+        pixel2d(x, y, 0)
+      }
+    }
+
+    // Active columns count
+    let cols = intensity / 16 + 1
+    if cols > WIDTH {
+      cols = WIDTH
+    }
+
+    // Update falling blocks
+    for x in 0..cols {
+      let fy = fall_y[x]
+      let sh = stack[x]
+      let bottom = HEIGHT - sh - 1
+
+      if fy < bottom {
+        // Draw falling block
+        pixel2d(x, fy, palette(col_hue[x]))
+        fall_y[x] = fy + 1
+      } else {
+        // Block landed — add to stack
+        if bottom >= 0 {
+          pixel2d(x, bottom, palette(col_hue[x]))
+          stack[x] = sh + 1
+        }
+        // Reset with new color
+        fall_y[x] = 0
+        col_hue[x] = random(255)
+
+        // If stack is full, clear it
+        if stack[x] >= HEIGHT {
+          stack[x] = 0
+        }
+      }
+    }
+
+    frame()
+  }
+}

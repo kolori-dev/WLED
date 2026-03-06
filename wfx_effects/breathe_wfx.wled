@@ -1,0 +1,14 @@
+effect "Breathe WFX" {
+  meta {
+    slider speed "Speed"
+    palette true
+  }
+
+  render {
+    let wave = sin8(NOW * speed / 512)
+    let c = palette(wave)
+    let faded = color_fade(c, wave)
+    fill(faded)
+    frame()
+  }
+}

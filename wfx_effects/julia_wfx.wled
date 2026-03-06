@@ -1,0 +1,30 @@
+// Julia — Animated Julia-set-like fractal with palette.
+
+effect "Julia WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Zoom"
+    type 2D
+    palette true
+  }
+
+  render {
+    step_val = NOW * speed / 1024
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let sc = max(intensity, 16)
+        let zx = (x * 256 / WIDTH - 128) * 128 / sc
+        let zy = (y * 256 / HEIGHT - 128) * 128 / sc
+        let cr = (sin8(step_val) - 128) / 4
+        let tx = zx * zx / 256 - zy * zy / 256 + cr
+        zy = zx * zy / 128 + (cos8(step_val / 2) - 128) / 4
+        cr = tx * tx / 256 + zy * zy / 256
+        cr = palette(cr % 256)
+        pixel2d(x, y, cr)
+      }
+    }
+
+    frame()
+  }
+}

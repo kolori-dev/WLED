@@ -1,0 +1,28 @@
+// Drift — Drifting Perlin noise pattern on 2D matrix.
+
+effect "Drift WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 2D
+    palette true
+  }
+
+  render {
+    step_val = NOW * speed / 256
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let sc = max(intensity / 4 + 8, 4)
+        let nx = x * sc + step_val / 4
+        let ny = y * sc + step_val / 6
+        let val = noise2(nx, ny)
+        sc = palette(val)
+        nx = max(val, 32)
+        pixel2d(x, y, color_fade(sc, nx))
+      }
+    }
+
+    frame()
+  }
+}

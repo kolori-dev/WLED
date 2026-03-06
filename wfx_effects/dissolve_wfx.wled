@@ -1,0 +1,72 @@
+// Dissolve — Random pixels dissolve from one color to another.
+// Each frame a few pixels switch from the old color to the new target color.
+// Once all pixels have dissolved, the cycle starts again with a new target.
+
+effect "Dissolve WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+    palette true
+  }
+
+  data state[256]
+
+  render {
+    // aux0 tracks the current palette phase
+    // aux1 counts how many pixels have dissolved
+    // step_val holds the target palette index
+
+    // Initialize on first run: aux1 == 0 and step_val == 0
+    if aux1 >= LEN {
+      // All pixels dissolved — advance to next color
+      aux0 = step_val
+      step_val = aux0 + 64
+      if step_val > 255 {
+        step_val = step_val - 256
+      }
+      aux1 = 0
+      // Reset state buffer
+      for i in 0..LEN {
+        state[i] = 0
+      }
+    }
+
+    let target = palette(step_val)
+    let current = palette(aux0)
+    let count = intensity / 16 + 1
+
+    for j in 0..count {
+      if aux1 < LEN {
+        let pos = random(LEN)
+        // Find an undissolved pixel near this position
+        let found = 0
+        let tries = 0
+        while found == 0 and tries < LEN {
+          if state[pos] == 0 {
+            state[pos] = 1
+            pixel(pos, target)
+            aux1 = aux1 + 1
+            found = 1
+          } else {
+            pos = pos + 1
+            if pos >= LEN {
+              pos = 0
+            }
+          }
+          tries = tries + 1
+        }
+      }
+    }
+
+    // Redraw all pixels with their current state
+    for i in 0..LEN {
+      if state[i] == 0 {
+        pixel(i, current)
+      } else {
+        pixel(i, target)
+      }
+    }
+
+    frame()
+  }
+}

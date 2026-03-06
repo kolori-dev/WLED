@@ -1,0 +1,92 @@
+// Drip — Water drips falling from the top, splashing at the bottom.
+// Data buffer stores drip positions and velocities.
+// speed controls drip rate, intensity controls gravity.
+
+effect "Drip WFX" {
+  meta {
+    slider speed "Drip Rate"
+    slider intensity "Gravity"
+    palette true
+  }
+
+  // Layout: 0-5 = drip height (255=top, 0=bottom), 6-11 = velocity
+  // 12-17 = splash timer (0=inactive drip, >0 = splash fading)
+  data drips[24]
+
+  render {
+    fade(32)
+
+    let maxDrips = 4
+    let grav = intensity / 64 + 1
+
+    // Spawn new drips at the top
+    if random(255) < speed / 4 + 2 {
+      for d in 0..maxDrips {
+        if drips[d + 12] == 0 and drips[d] == 0 {
+          drips[d] = 255
+          drips[d + 6] = 128
+          d = maxDrips
+        }
+      }
+    }
+
+    for d in 0..maxDrips {
+      let splash = drips[d + 12]
+      if splash > 0 {
+        // Draw fading splash at the bottom
+        let bri = splash * 8
+        if bri > 255 {
+          bri = 255
+        }
+        let spos = random(3)
+        pixel(spos, color_fade(palette(d * 64), bri))
+        splash = splash - 1
+        drips[d + 12] = splash
+      }
+
+      let h = drips[d]
+      if h > 0 {
+        let v = drips[d + 6]
+
+        // Apply gravity — increase downward velocity
+        v = v - grav
+        if v < 0 {
+          v = 0
+        }
+
+        // Apply velocity
+        let sv = v - 128
+        h = h + sv
+
+        if h <= 0 {
+          // Hit bottom — create splash
+          h = 0
+          drips[d + 12] = 20
+        }
+
+        if h > 255 {
+          h = 255
+        }
+
+        drips[d] = h
+        drips[d + 6] = v
+
+        // Draw drip
+        if h > 0 {
+          let pos = h * (LEN - 1) / 255
+          if pos >= LEN {
+            pos = LEN - 1
+          }
+          let c = palette(d * 64)
+          pixel(pos, c)
+          // Trailing drop above
+          if pos < LEN - 1 {
+            pixel(pos + 1, color_fade(c, 80))
+          }
+        }
+      }
+    }
+
+    frame()
+  }
+}

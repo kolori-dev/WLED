@@ -186,6 +186,14 @@
 					</label>
 				</div>
 			</div>
+			<div id="fxUploadSection" class="staytop" style="padding:4px 0;">
+				<button class="btn btn-fx" onclick="toggleFxUpload()" title="Upload .wfx bytecode effects">Add Effects</button>
+				<div id="fxUploadPanel" style="display:none; padding:4px 0;">
+					<input type="file" id="fxFileInput" accept=".wfx" multiple style="font-size:12px;">
+					<button class="btn btn-fx" onclick="uploadFx()">Upload</button>
+					<span id="fxUploadStatus" style="font-size:12px;"></span>
+				</div>
+			</div>
 			<div id="fxlist" class="list">
 				<div class="lstI">
 					<label class="radio schkl" onclick="loadFX()">

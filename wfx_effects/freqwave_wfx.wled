@@ -1,0 +1,26 @@
+// Freqwave — Frequency-driven scrolling wave with palette.
+
+effect "Freqwave WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    step_val = step_val + volume / 4
+
+    for i in 0..LEN {
+      let pos = i * 16 / max(LEN, 1)
+      let val = fft(pos)
+      val = val * intensity / 128
+      if val > 255 { val = 255 }
+      pos = palette(i * 255 / LEN + step_val)
+      pixel(i, color_fade(pos, val))
+    }
+
+    frame()
+  }
+}

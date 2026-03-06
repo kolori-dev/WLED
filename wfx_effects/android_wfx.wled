@@ -1,0 +1,47 @@
+// Android — A growing/shrinking segment that moves like the Android
+// loading indicator. The segment grows as it moves right and shrinks
+// as it moves left, creating a smooth elastic animation.
+
+effect "Android WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Max Width"
+    palette true
+  }
+
+  render {
+    let maxw = max(intensity * LEN / 512, 3)
+    let period = LEN * 4
+    let t = (NOW * speed / 256) % period
+    let pos = 0
+    let width = 0
+
+    // Phase 1: grow while moving right (0 to LEN*2)
+    // Phase 2: shrink while moving right (LEN*2 to LEN*4)
+    if t < period / 2 {
+      // Growing phase
+      let phase = t * 256 / (period / 2)
+      pos = t * LEN / (period / 2)
+      pos = pos % LEN
+      width = maxw * phase / 256
+    } else {
+      // Shrinking phase
+      let pt = t - period / 2
+      let phase = pt * 256 / (period / 2)
+      pos = pt * LEN / (period / 2)
+      pos = pos % LEN
+      width = maxw - maxw * phase / 256
+    }
+
+    width = max(width, 1)
+
+    fill(rgb(0, 0, 0))
+
+    for j in 0..width {
+      let idx = (pos + j) % LEN
+      pixel(idx, palette(j * 255 / width))
+    }
+
+    frame()
+  }
+}

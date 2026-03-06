@@ -1,0 +1,27 @@
+// Polar Lights — Aurora borealis effect using noise and palette.
+
+effect "Polar Lights WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 2D
+    palette true
+  }
+
+  render {
+    step_val = NOW / 30
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let sc = intensity / 12 + 6
+        let nx = x * sc + step_val
+        let val = noise2(nx, y * sc / 2)
+        let bri = val * (HEIGHT - y) / HEIGHT
+        pixel2d(x, y, color_fade(palette(val), bri))
+      }
+    }
+
+    blur2d(intensity / 8 + 20)
+    frame()
+  }
+}

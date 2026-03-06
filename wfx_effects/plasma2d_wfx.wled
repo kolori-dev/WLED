@@ -1,0 +1,24 @@
+effect "Plasma 2D WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 2D
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let v1 = sin8(x * intensity / 4 + t)
+        let v2 = cos8(y * intensity / 4 + t)
+        let v3 = sin8((x + y) * intensity / 8 + t / 2)
+        let idx = (v1 + v2 + v3) / 3
+        pixel2d(x, y, palette(idx))
+      }
+    }
+
+    frame()
+  }
+}

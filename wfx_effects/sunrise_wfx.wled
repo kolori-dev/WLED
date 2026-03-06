@@ -1,0 +1,79 @@
+effect "Sunrise" {
+  meta {
+    slider speed "Duration"
+    slider intensity "Brightness"
+    palette false
+    type 1D
+  }
+  render {
+    // Sunrise: gradual color temperature transition
+    // speed controls the cycle duration
+    // Use step_val as persistent phase counter (0-255)
+    let phase = step_val
+    // Advance phase slowly based on speed
+    if CALL % (2 + (255 - speed) / 8) == 0 {
+      phase = phase + 1
+      if phase > 255 {
+        phase = 0
+      }
+      step_val = phase
+    }
+    // Color stages based on phase:
+    // 0-50: dark to deep red (night to first light)
+    // 50-100: deep red to orange (dawn)
+    // 100-150: orange to yellow (sunrise)
+    // 150-200: yellow to warm white (morning)
+    // 200-255: warm white to bright white (day)
+    for i in 0..LEN {
+      // Add slight gradient across strip
+      let adj = (i * 20) / LEN
+      let p = phase + adj
+      if p > 255 { p = 255 }
+      let r = 0
+      let g = 0
+      let b = 0
+      if p < 50 {
+        // Night to deep red
+        r = p * 3
+        g = 0
+        b = p / 4
+      } else {
+        if p < 100 {
+          // Deep red to orange
+          let t = p - 50
+          r = 150 + t * 2
+          g = t * 2
+          b = 0
+        } else {
+          if p < 150 {
+            // Orange to yellow
+            let t = p - 100
+            r = 255
+            g = 100 + t * 3
+            b = t / 2
+          } else {
+            if p < 200 {
+              // Yellow to warm white
+              let t = p - 150
+              r = 255
+              g = 250
+              b = 25 + t * 4
+            } else {
+              // Warm white to bright white
+              let t = p - 200
+              r = 255
+              g = 250 + t / 20
+              b = 225 + t / 10
+            }
+          }
+        }
+      }
+      // Apply intensity as overall brightness
+      r = scale8(r, intensity)
+      g = scale8(g, intensity)
+      b = scale8(b, intensity)
+      pixel(i, rgb(r, g, b))
+    }
+    frame(50)
+  }
+}

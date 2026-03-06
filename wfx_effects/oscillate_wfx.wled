@@ -1,0 +1,51 @@
+// Oscillate — Three colored segments oscillate back and forth,
+// overlapping and blending with additive color mixing.
+
+effect "Oscillate WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette false
+  }
+
+  render {
+    let w = intensity / 16 + 2
+    let t = NOW * speed / 256
+    let span = LEN - w
+
+    fill(rgb(0, 0, 0))
+
+    let c = color_fade(color0, 200)
+    let pos = sin8(t) * span / 255
+    for j in 0..w {
+      let idx = pos + j
+      if idx < LEN {
+        let cur = get_pixel(idx)
+        pixel(idx, color_add(cur, c))
+      }
+    }
+
+    c = color_fade(color1, 200)
+    pos = sin8(t + t / 3) * span / 255
+    for j in 0..w {
+      let idx = pos + j
+      if idx < LEN {
+        let cur = get_pixel(idx)
+        pixel(idx, color_add(cur, c))
+      }
+    }
+
+    c = color_fade(color2, 200)
+    let phase = t + t / 2 + 85
+    pos = sin8(phase) * span / 255
+    for j in 0..w {
+      let idx = pos + j
+      if idx < LEN {
+        let cur = get_pixel(idx)
+        pixel(idx, color_add(cur, c))
+      }
+    }
+
+    frame()
+  }
+}

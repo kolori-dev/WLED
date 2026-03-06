@@ -1,0 +1,22 @@
+effect "Theater Chase WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Gap size"
+    palette true
+  }
+
+  render {
+    let gap = max(intensity / 32, 2)
+    let offset = (NOW * speed / 512) % gap
+
+    fill(rgb(0, 0, 0))
+
+    for i in 0..LEN {
+      if (i + offset) % gap == 0 {
+        pixel(i, palette(i * 255 / LEN))
+      }
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,27 @@
+// Chase Rainbow — A chase effect where the moving segment is
+// rainbow colored. The segment cycles through rainbow hues as it
+// moves around the strip.
+
+effect "Chase Rainbow WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette false
+  }
+
+  render {
+    let width = max(intensity / 16, 3)
+    let pos = (NOW * speed / 512) % LEN
+    let offset = NOW * speed / 256
+
+    fill(rgb(0, 0, 0))
+
+    for j in 0..width {
+      let idx = (pos + j) % LEN
+      let hue = (j * 255 / width + offset) % 256
+      pixel(idx, color_wheel(hue))
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,33 @@
+// Lissajous — Animated Lissajous curve on a 2D matrix.
+
+effect "Lissajous WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Complexity"
+    type 2D
+    palette true
+  }
+
+  render {
+    fade(intensity / 4 + 16)
+
+    step_val = NOW / 10
+    aux0 = WIDTH * 2 + 8
+
+    for i in 0..aux0 {
+      let ph = i * 256 / aux0
+      let fx = intensity / 64 + 2
+      let px = sin8(ph * fx + step_val)
+      px = px * WIDTH / 256
+      let py = cos8(ph * (intensity / 48 + 3) + step_val / 2)
+      py = py * HEIGHT / 256
+      if px >= WIDTH { px = WIDTH - 1 }
+      if py >= HEIGHT { py = HEIGHT - 1 }
+      fx = ph + step_val / 3
+      pixel2d(px, py, palette(fx))
+    }
+
+    blur2d(16)
+    frame()
+  }
+}

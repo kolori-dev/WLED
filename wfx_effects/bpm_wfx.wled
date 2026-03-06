@@ -1,0 +1,28 @@
+// BPM — Beats per minute: palette colors pulsing at a rhythmic rate.
+// Uses beat8 to create a synchronized pulsing effect across the strip.
+// Speed controls BPM, intensity controls color spread.
+
+effect "BPM WFX" {
+  meta {
+    slider speed "BPM"
+    slider intensity "Spread"
+    palette true
+  }
+
+  render {
+    let bpm = speed / 4 + 20
+
+    // beat8 provides the rhythmic pulse
+    let beat = beat8(bpm, 0, 255)
+
+    for i in 0..LEN {
+      // Each pixel gets a different palette color based on position
+      let pos = i * intensity / LEN + beat
+      let bri = sin8(i * 256 / LEN + beat)
+
+      pixel(i, color_fade(palette(pos), bri))
+    }
+
+    frame(16)
+  }
+}

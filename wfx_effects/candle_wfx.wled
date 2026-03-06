@@ -1,0 +1,59 @@
+// Candle — Warm flickering candle flame simulation.
+
+effect "Candle WFX" {
+  meta {
+    slider speed "Flicker Speed"
+    slider intensity "Flicker Intensity"
+    palette false
+  }
+
+  data flame[4]
+
+  render {
+    let flick = 40 + scale8(intensity, 80)
+    let half = flick / 2
+
+    // Update flame levels with random flicker
+    let val = flame[0]
+    if random(255) < 180 {
+      val = val + random(flick) - half
+    }
+    if val < 80 { val = 80 }
+    if val > 255 { val = 255 }
+    flame[0] = val
+
+    val = flame[1]
+    if random(255) < 160 {
+      val = val + random(flick) - half
+    }
+    if val < 60 { val = 60 }
+    if val > 240 { val = 240 }
+    flame[1] = val
+
+    val = flame[2]
+    if random(255) < 140 {
+      val = val + random(flick) - half
+    }
+    if val < 40 { val = 40 }
+    if val > 200 { val = 200 }
+    flame[2] = val
+
+    val = flame[3]
+    if random(255) < 120 {
+      val = val + random(flick) - half
+    }
+    if val < 20 { val = 20 }
+    if val > 160 { val = 160 }
+    flame[3] = val
+
+    // Render warm candle color
+    for i in 0..LEN {
+      let b = flame[i * 4 / LEN]
+      let g = b * 45 / 100
+      let r2 = b * 8 / 100
+      pixel(i, rgb(b, g, r2))
+    }
+
+    frame(15 + (255 - speed) / 8)
+  }
+}

@@ -1,0 +1,38 @@
+// Wave Interference — Simulates constructive/destructive interference
+// from three drifting point sources, like ripples on water or the
+// double-slit experiment projected onto a 1D strip.
+
+effect "Interference WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Wavelength"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 256
+
+    for i in 0..LEN {
+      let pos = i * 256 / LEN
+
+      // Source 1: signed sine wave from a drifting origin
+      let d = abs(pos - sin8(t / 4))
+      let wave = sin8(d * intensity / 64 + t) - 128
+
+      // Source 2: different drift rate and phase offset
+      d = abs(pos - sin8(t / 6 + 85))
+      wave = wave + sin8(d * intensity / 64 + t * 2) - 128
+
+      // Source 3: slowest drift, widest separation
+      d = abs(pos - sin8(t / 9 + 170))
+      wave = wave + sin8(d * intensity / 64 + t * 3) - 128
+
+      // Color from phase, brightness from amplitude
+      let idx = wave / 3 + 128
+      let bri = min(abs(wave) * 2 / 3, 255)
+      pixel(i, color_fade(palette(idx), bri))
+    }
+
+    frame()
+  }
+}

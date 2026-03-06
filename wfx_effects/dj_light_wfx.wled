@@ -1,0 +1,32 @@
+// DJ Light — Frequency bands mapped to strip sections with palette.
+
+effect "DJ Light WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Sensitivity"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    fade(speed / 4 + 8)
+
+    let bass = audio_bass() * intensity / 128
+    let mid = audio_mid() * intensity / 128
+    let treb = audio_treble() * intensity / 128
+
+    for i in 0..LEN {
+      let pos = i * 255 / LEN
+      let bri = 0
+      if pos < 85 { bri = bass }
+      if pos >= 85 and pos < 170 { bri = mid }
+      if pos >= 170 { bri = treb }
+      if bri > 255 { bri = 255 }
+      let c = palette(pos)
+      pixel(i, color_fade(c, bri))
+    }
+
+    frame()
+  }
+}

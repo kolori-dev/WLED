@@ -1,0 +1,40 @@
+// Lighthouse — A bright beam sweeps around the strip like a lighthouse beacon.
+// The beam has a bright center that falls off to darkness, giving the
+// appearance of a rotating light. Speed controls rotation rate,
+// intensity controls beam width.
+
+effect "Lighthouse WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Beam Width"
+    palette true
+  }
+
+  render {
+    let beamW = intensity / 8 + 3
+    let pos = (NOW * speed / 512) % LEN
+
+    for i in 0..LEN {
+      // Distance from beam center, wrapping around
+      let dist = i - pos
+      if dist < 0 {
+        dist = 0 - dist
+      }
+      // Handle wrap-around distance
+      let wrapDist = LEN - dist
+      if wrapDist < dist {
+        dist = wrapDist
+      }
+
+      if dist < beamW {
+        // Brightness falls off with distance from center
+        let bri = 255 - dist * 255 / beamW
+        pixel(i, color_fade(palette(i * 255 / LEN), bri))
+      } else {
+        pixel(i, rgb(0, 0, 0))
+      }
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,30 @@
+effect "Plasma 1D" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Complexity"
+    palette true
+    type 1D
+  }
+  render {
+    // Time-based animation phase
+    let t = NOW / (20 + (255 - speed))
+    // Intensity controls additional wave complexity
+    let waves = 2 + scale8(intensity, 3)
+    for i in 0..LEN {
+      // Multiple overlapping sine waves for plasma look
+      let pos = (i * 256) / LEN
+      let v1 = sin8(pos * 3 + t)
+      let v2 = sin8(pos * 5 - t * 2)
+      let v3 = cos8(pos * 2 + t / 2)
+      // Combine waves
+      let combined = v1 / 3 + v2 / 3 + v3 / 3
+      // Add more complex wave if intensity is high
+      if waves > 3 {
+        let v4 = sin8(pos * 7 + t * 3)
+        combined = combined * 3 / 4 + v4 / 4
+      }
+      pixel(i, palette(combined % 256))
+    }
+    frame()
+  }
+}

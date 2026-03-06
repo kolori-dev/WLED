@@ -1,0 +1,37 @@
+// Plasmoid — Plasma ball: a bright center with tendrils of light extending
+// outward using overlapping sine waves. Intensity controls tendril reach.
+
+effect "Plasmoid WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Tendrils"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+    let center = LEN / 2
+
+    for i in 0..LEN {
+      let dist = abs(i - center)
+
+      // Multiple sine tendrils radiating from center
+      let wave = sin8(dist * 8 + t * 3)
+      let w = sin8(dist * 12 + t * 2 + 64)
+      wave = (wave + w) / 2
+      w = sin8(i * 1024 / LEN + t)
+      wave = (wave * 2 + w) / 3
+
+      // Brightness falls off with distance from center
+      let bri = 255 - dist * intensity / center
+      if bri < 0 { bri = 0 }
+
+      bri = wave * bri / 255
+      if bri > 255 { bri = 255 }
+
+      pixel(i, color_fade(palette(wave), bri))
+    }
+
+    frame()
+  }
+}

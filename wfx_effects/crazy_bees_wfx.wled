@@ -1,0 +1,55 @@
+// Crazy Bees — Multiple bright dots buzz around randomly like bees.
+// Each bee moves in a random direction each frame, occasionally
+// reversing or jumping. Uses data buffers for positions and colors.
+
+effect "Crazy Bees WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Bee Count"
+    palette true
+  }
+
+  data pos[16]
+  data hue[16]
+
+  render {
+    let count = intensity / 32 + 2
+    if count > 16 {
+      count = 16
+    }
+
+    // Initialize bees on first frame
+    if step_val == 0 {
+      for i in 0..count {
+        pos[i] = random(LEN)
+        hue[i] = random(255)
+      }
+      step_val = 1
+    }
+
+    fade(220)
+
+    // Move and draw each bee
+    for i in 0..count {
+      let p = pos[i]
+
+      // Random walk: move -2 to +2
+      let dir = random(5) - 2
+      p = p + dir
+
+      // Wrap around
+      if p < 0 {
+        p = p + LEN
+      }
+      if p >= LEN {
+        p = p - LEN
+      }
+      pos[i] = p
+
+      // Draw bee as a bright pixel
+      pixel(p, palette(hue[i]))
+    }
+
+    frame()
+  }
+}

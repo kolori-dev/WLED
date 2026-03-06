@@ -1,0 +1,39 @@
+// Comet — A bright head bounces back and forth leaving a fading trail.
+// The fade slider controls how long the trail persists.
+// Head is 3 pixels wide with palette coloring.
+
+effect "Comet WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    fade(intensity)
+
+    let t = NOW * speed / 512
+    let cycle = t % (LEN * 2)
+    let pos = cycle
+    if pos >= LEN {
+      pos = LEN * 2 - pos - 1
+    }
+
+    // Bright comet head
+    pixel(pos, palette(t))
+
+    // Glow pixel behind
+    let h1 = pos - 1
+    if h1 >= 0 and h1 < LEN {
+      pixel(h1, palette(t + 20))
+    }
+
+    // Glow pixel ahead
+    let h2 = pos + 1
+    if h2 >= 0 and h2 < LEN {
+      pixel(h2, palette(t + 20))
+    }
+
+    frame()
+  }
+}

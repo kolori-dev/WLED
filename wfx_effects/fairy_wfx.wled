@@ -1,0 +1,65 @@
+// Fairy — A few pixels lit at random positions, slowly drifting
+// to new positions. Like tiny fairy lights floating around.
+// Uses data buffer to store current lit positions and their targets.
+
+effect "Fairy WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Count"
+  }
+
+  data pos[16]
+  data target[16]
+  data hue[16]
+
+  render {
+    fill(rgb(0, 0, 0))
+
+    let count = intensity / 32 + 1
+    if count > 16 {
+      count = 16
+    }
+
+    for i in 0..count {
+      let p = pos[i]
+      let t = target[i]
+
+      // If at target or uninitialized, pick new target
+      if p == t {
+        target[i] = random(LEN)
+        hue[i] = random(255)
+      }
+
+      // Drift toward target
+      t = target[i]
+      if p < t {
+        p = p + 1
+      } else if p > t {
+        p = p - 1
+      }
+      pos[i] = p
+
+      // Draw the fairy light with warm glow
+      let h = hue[i]
+      let warm = rgb(255, 200 + h / 8, 100 + h / 4)
+      let faded = color_fade(warm, 200)
+
+      if p >= 0 and p < LEN {
+        pixel(p, faded)
+        // Subtle glow around it
+        if p > 0 {
+          pixel(p - 1, color_fade(warm, 60))
+        }
+        if p < LEN - 1 {
+          pixel(p + 1, color_fade(warm, 60))
+        }
+      }
+    }
+
+    let delay = 256 - speed
+    if delay < 8 {
+      delay = 8
+    }
+    frame(delay)
+  }
+}

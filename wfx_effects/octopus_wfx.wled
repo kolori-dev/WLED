@@ -1,0 +1,33 @@
+// Octopus — Wavy tentacle patterns from center.
+
+effect "Octopus WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Arms"
+    type 2D
+    palette true
+  }
+
+  render {
+    step_val = NOW * speed / 512
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let dx = x * 256 / WIDTH - 128
+        let dy = y * 256 / HEIGHT - 128
+        let dist = abs(dx) + abs(dy)
+        dx = dx * 128 / max(dist, 1)
+        if dy < 0 { dx = 256 - dx }
+        dy = intensity / 32 + 3
+        let sa = dx * dy + step_val
+        sa = sin8(sa)
+        dy = max(255 - dist, 0)
+        dy = dy * sa / 512
+        sa = palette(dx + dist)
+        pixel2d(x, y, color_fade(sa, dy))
+      }
+    }
+
+    frame()
+  }
+}

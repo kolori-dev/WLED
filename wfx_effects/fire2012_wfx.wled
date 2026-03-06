@@ -1,0 +1,42 @@
+effect "Fire 2012 WFX" {
+  meta {
+    slider speed "Cooling"
+    slider intensity "Sparking"
+    palette true
+  }
+
+  data heat[256]
+
+  render {
+    // Cool down every cell a little
+    for i in 0..LEN {
+      let cool = random(0, speed / 5 + 2)
+      let h = heat[i]
+      let newh = qsub8(h, cool)
+      heat[i] = newh
+    }
+
+    // Heat drifts up and diffuses
+    for k in LEN - 1..1 step -1 {
+      let below = heat[k - 1]
+      let below2 = heat[k - 2]
+      let cur = heat[k]
+      heat[k] = (below + below2 + cur) / 3
+    }
+
+    // Randomly ignite new sparks near bottom
+    if random(255) < intensity {
+      let y = random(7)
+      let h = heat[y]
+      heat[y] = qadd8(h, random(160, 255))
+    }
+
+    // Map heat to palette colors
+    for j in 0..LEN {
+      let colorindex = scale8(heat[j], 240)
+      pixel(j, palette(colorindex))
+    }
+
+    frame()
+  }
+}

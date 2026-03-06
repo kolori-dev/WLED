@@ -1,0 +1,17 @@
+effect "Gradient WFX" {
+  meta {
+    slider speed "Speed"
+    palette true
+  }
+
+  render {
+    let offset = NOW * speed / 1024
+
+    for i in 0..LEN {
+      let idx = (i * 255 / LEN + offset) % 256
+      pixel(i, palette(idx))
+    }
+
+    frame()
+  }
+}

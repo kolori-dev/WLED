@@ -1,0 +1,48 @@
+// Bandila — Philippine flag colors waving in the breeze.
+// Scrolling bands of Blue, Red, Yellow (sun), and White (stars)
+// with ripple distortion simulating a flag in the wind.
+
+effect "Bandila WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Wave"
+  }
+
+  render {
+    let t = NOW * speed / 256
+
+    // Sun pulse — golden band breathes like the sun's rays
+    let sun = sin8(t / 2)
+
+    for i in 0..LEN {
+      let pos = i * 1024 / LEN
+
+      // Flag ripple — sinusoidal distortion for waving cloth
+      let ripple = sin8(i * 8 + t)
+      ripple = ripple - 128
+      ripple = ripple * intensity / 256
+      let p = (pos + t + ripple) % 1024
+      if p < 0 { p = p + 1024 }
+
+      let band = p / 256
+
+      if band == 0 {
+        // Philippine Blue
+        pixel(i, rgb(0, 56, 168))
+      } else if band == 1 {
+        // Philippine Red
+        pixel(i, rgb(206, 17, 38))
+      } else if band == 2 {
+        // Golden Yellow — pulsing sun
+        let bri = sun / 2 + 128
+        let yel = rgb(255, 220, 0)
+        pixel(i, color_fade(yel, bri))
+      } else {
+        // White — stars and triangle
+        pixel(i, rgb(255, 255, 255))
+      }
+    }
+
+    frame()
+  }
+}

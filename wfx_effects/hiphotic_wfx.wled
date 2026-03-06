@@ -1,0 +1,29 @@
+// Hiphotic — Hypnotic concentric sine-ring pattern on 2D matrix.
+
+effect "Hiphotic WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Rings"
+    type 2D
+    palette true
+  }
+
+  render {
+    step_val = NOW * speed / 512
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let dx = x * 255 / max(WIDTH, 1) - 128
+        let dy = y * 255 / max(HEIGHT, 1) - 128
+        let dist = abs(dx) + abs(dy)
+        dx = intensity / 16 + 2
+        dx = dist * dx + step_val
+        dx = sin8(dx)
+        dy = palette(dx)
+        pixel2d(x, y, color_fade(dy, dx))
+      }
+    }
+
+    frame()
+  }
+}

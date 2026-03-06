@@ -1,0 +1,22 @@
+// Stream — Palette colors streaming along the strip in one direction.
+// New colors continuously enter from the first pixel and push older
+// colors down the strip, creating a flowing river of palette hues.
+
+effect "Stream WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Color Spread"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+
+    for i in 0..LEN {
+      let idx = (t + i * intensity / 4) % 256
+      pixel(i, palette(idx))
+    }
+
+    frame()
+  }
+}

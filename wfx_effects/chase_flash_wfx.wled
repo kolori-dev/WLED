@@ -1,0 +1,38 @@
+// Chase Flash — A chase effect with a bright white flash at the head.
+// The chase body uses color0, and the leading pixel flashes white
+// every few frames for a strobe-like accent.
+
+effect "Chase Flash WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette true
+  }
+
+  render {
+    let width = max(intensity / 16, 2)
+    let pos = (NOW * speed / 512) % LEN
+
+    fill(rgb(0, 0, 0))
+
+    // Draw chase body
+    for j in 0..width {
+      let idx = (pos + j) % LEN
+      pixel(idx, palette(j * 255 / width))
+    }
+
+    // White flash at the head — flashes on/off rapidly
+    let flash = (NOW * speed / 64) % 4
+    if flash < 2 {
+      let head = (pos + width) % LEN
+      pixel(head, rgb(255, 255, 255))
+      // Slight glow behind the flash
+      let h2 = (pos + width - 1) % LEN
+      if h2 >= 0 {
+        pixel(h2, rgb(200, 200, 200))
+      }
+    }
+
+    frame()
+  }
+}

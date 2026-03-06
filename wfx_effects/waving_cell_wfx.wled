@@ -1,0 +1,28 @@
+// Waving Cell — Cellular wave pattern on 2D matrix.
+
+effect "Waving Cell WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Cell Size"
+    type 2D
+    palette true
+  }
+
+  render {
+    step_val = NOW * speed / 512
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let cs = max(intensity / 16 + 1, 1)
+        let cx = x / cs
+        let cy = y / cs
+        let v = sin8(cx * 64 + step_val) / 2 + cos8(cy * 64 + step_val / 2) / 2
+        cs = v + cx * 32
+        cs = palette(cs)
+        pixel2d(x, y, color_fade(cs, v))
+      }
+    }
+
+    frame()
+  }
+}

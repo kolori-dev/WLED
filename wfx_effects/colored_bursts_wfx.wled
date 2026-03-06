@@ -1,0 +1,70 @@
+// Colored Bursts — Random bursts of colored lines radiating outward
+// from random points on the 2D matrix. Lines expand in all directions
+// from burst centers, creating a starburst effect.
+
+effect "Colored Bursts 2D WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Frequency"
+    type 2D
+    palette true
+  }
+
+  // 6 burst slots: x, y, radius, color index
+  data bx[6]
+  data by[6]
+  data br[6]
+  data bc[6]
+
+  render {
+    fade(210)
+
+    // Spawn new bursts
+    let chance = intensity / 16 + 4
+    if random(255) < chance {
+      for i in 0..6 {
+        if br[i] == 0 {
+          bx[i] = random(WIDTH)
+          by[i] = random(HEIGHT)
+          br[i] = 1
+          bc[i] = random(255)
+          i = 6
+        }
+      }
+    }
+
+    // Draw and expand active bursts
+    for i in 0..6 {
+      if br[i] > 0 {
+        let x = bx[i]
+        let y = by[i]
+        let r = br[i]
+        let col = palette(bc[i])
+        let faded = color_fade(col, 255 - r * 10)
+
+        // Draw radiating lines in 8 directions
+        draw_line(x, y, x + r, y, faded)
+        draw_line(x, y, x - r, y, faded)
+        draw_line(x, y, x, y + r, faded)
+        draw_line(x, y, x, y - r, faded)
+        draw_line(x, y, x + r, y + r, faded)
+        draw_line(x, y, x - r, y - r, faded)
+        draw_line(x, y, x + r, y - r, faded)
+        draw_line(x, y, x - r, y + r, faded)
+
+        // Expand
+        let grow = speed / 128 + 1
+        br[i] = r + grow
+
+        // Expire when too large
+        let maxr = WIDTH + HEIGHT
+        maxr = maxr / 2
+        if br[i] > maxr {
+          br[i] = 0
+        }
+      }
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,25 @@
+// Noise 1 — Slow drifting palette noise with medium scale.
+// A calm, organic animation where palette colors shift smoothly.
+// Speed controls drift rate, intensity controls noise scale.
+
+effect "Noise 1 WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 2048
+
+    for i in 0..LEN {
+      let x = i * (intensity / 8 + 4)
+      let n = noise2(x, t)
+      let bri = noise2(x + 1000, t + 5000)
+      bri = bri / 2 + 128
+      pixel(i, color_fade(palette(n), bri))
+    }
+
+    frame()
+  }
+}

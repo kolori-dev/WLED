@@ -1,0 +1,33 @@
+// Heartbeat — A pulsing red double-beat that mimics a real heartbeat.
+// Two quick triangle pulses (lub-dub) followed by a rest period.
+// The entire strip breathes together as one living pulse.
+
+effect "Heartbeat WFX" {
+  meta {
+    slider speed "BPM Scale"
+    slider intensity "Brightness"
+  }
+
+  render {
+    let beat = NOW * speed / 512
+    beat = beat % 256
+
+    // Double pulse: first beat 0-60, second beat 80-140, rest 140-255
+    let bri = 0
+    if beat < 60 {
+      bri = tri8(beat * 4)
+    } else if beat > 80 and beat < 140 {
+      bri = tri8((beat - 80) * 4)
+      bri = bri * 3 / 4
+    }
+
+    // Scale by intensity slider
+    bri = bri * intensity / 255
+
+    // Fill entire strip with pulsing red
+    let c = rgb(255, 0, 0)
+    fill(color_fade(c, bri))
+
+    frame(16)
+  }
+}

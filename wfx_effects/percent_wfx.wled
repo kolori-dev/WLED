@@ -1,0 +1,39 @@
+effect "Percent" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Intensity"
+    palette false
+    type 1D
+  }
+  render {
+    // custom1 (0-255) maps to 0-100%
+    // Fill a bar from the start based on percentage
+    let pct = custom1 * 100 / 255
+    let fillLen = (LEN * pct) / 100
+    fill(0)
+    for i in 0..LEN {
+      if i < fillLen {
+        // Color transitions from green (0%) to yellow (50%) to red (100%)
+        let ratio = (i * 255) / fillLen
+        let r = 0
+        let g = 0
+        let b = 0
+        // Position along the bar as percentage
+        let barPct = (i * 100) / LEN
+        if barPct < 50 {
+          // Green to yellow
+          let t = barPct * 2
+          r = t * 255 / 100
+          g = 255
+        } else {
+          // Yellow to red
+          let t = (barPct - 50) * 2
+          r = 255
+          g = 255 - (t * 255 / 100)
+        }
+        pixel(i, rgb(r, g, b))
+      }
+    }
+    frame()
+  }
+}

@@ -1,0 +1,18 @@
+effect "Rainbow WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette false
+  }
+
+  render {
+    let offset = NOW * speed / 256
+
+    for i in 0..LEN {
+      let hue = (i * 256 / LEN + offset) % 256
+      pixel(i, color_wheel(hue))
+    }
+
+    frame()
+  }
+}

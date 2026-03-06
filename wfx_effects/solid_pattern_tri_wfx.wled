@@ -1,0 +1,28 @@
+// Solid Pattern Tri — A static repeating pattern using all three segment colors.
+// Cycles through color0, color1, color2 in groups. Intensity controls group size.
+
+effect "Solid Pattern Tri WFX" {
+  meta {
+    slider intensity "Group Size"
+    palette false
+  }
+
+  render {
+    let grp = intensity / 32 + 1
+
+    for i in 0..LEN {
+      let phase = (i / grp) % 3
+      if phase == 0 {
+        pixel(i, color0)
+      } else {
+        if phase == 1 {
+          pixel(i, color1)
+        } else {
+          pixel(i, color2)
+        }
+      }
+    }
+
+    frame(128)
+  }
+}

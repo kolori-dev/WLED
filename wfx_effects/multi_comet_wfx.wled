@@ -1,0 +1,41 @@
+// Multi Comet — Multiple comets flying in one direction with fade trails.
+// speed controls comet speed, intensity controls trail length.
+
+effect "Multi Comet WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    // Fade for trail length
+    let fadeAmt = 200 - intensity / 2
+    if fadeAmt < 32 {
+      fadeAmt = 32
+    }
+    fade(fadeAmt)
+
+    let t = NOW * speed / 256
+    let numComets = 3
+
+    for c in 0..numComets {
+      // Each comet offset by LEN/numComets
+      let offset = c * LEN / numComets
+      let pos = (t + offset) % LEN
+
+      // Bright comet head
+      let hue = c * 85 + t / 4
+      pixel(pos, palette(hue))
+
+      // Slightly dimmer pixel behind
+      let behind = pos - 1
+      if behind < 0 {
+        behind = behind + LEN
+      }
+      pixel(behind, color_fade(palette(hue + 10), 180))
+    }
+
+    frame()
+  }
+}

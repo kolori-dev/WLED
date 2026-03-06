@@ -1,0 +1,31 @@
+// Rocktaves — Octave frequency bands displayed along the strip.
+
+effect "Rocktaves WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Sensitivity"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    fade(speed / 8 + 16)
+
+    let seg = LEN / 16
+
+    for b in 0..16 {
+      let val = fft(b) * intensity / 128
+      if val > 255 { val = 255 }
+      let start = b * seg
+      let c = palette(b * 16)
+      for j in 0..seg {
+        let bri = val - j * val / max(seg, 1)
+        if bri < 0 { bri = 0 }
+        pixel(start + j, color_fade(c, bri))
+      }
+    }
+
+    frame()
+  }
+}

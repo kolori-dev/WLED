@@ -1,0 +1,22 @@
+// Strobe — Full strip strobe: alternates between full white and full black.
+// Very fast on/off with short duty cycle for a classic strobe effect.
+
+effect "Strobe WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Flash length"
+  }
+
+  render {
+    let cycle = (NOW * speed / 128) % 256
+    let flash = intensity / 8 + 4
+
+    if cycle < flash {
+      fill(rgb(255, 255, 255))
+    } else {
+      fill(rgb(0, 0, 0))
+    }
+
+    frame()
+  }
+}

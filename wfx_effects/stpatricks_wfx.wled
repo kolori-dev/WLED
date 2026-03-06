@@ -1,0 +1,41 @@
+// St Patrick's Day — Shimmering shamrock greens with golden sparkles.
+// Three shades of green ripple like rolling Irish hills, while
+// random gold flecks glitter like scattered coins from a leprechaun's pot.
+
+effect "St Patricks WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Gold Sparkle"
+  }
+
+  render {
+    let t = NOW * speed / 1024
+
+    for i in 0..LEN {
+      let pos = i * 256 / LEN
+
+      // Three overlapping green sine waves at different frequencies
+      let w1 = sin8(pos * 2 + t)
+      let w2 = sin8(pos * 3 + t / 2 + 85)
+      w1 = w1 + w2
+      w2 = sin8(pos + t / 3 + 170)
+      // Average of three waves
+      w1 = (w1 + w2) / 3
+
+      // Map mix to shades of green: forest to shamrock
+      w2 = w1 / 2 + 128
+      let b = w1 / 8
+      w1 = w1 / 10
+      pixel(i, rgb(w1, w2, b))
+    }
+
+    // Gold sparkles — random LEDs flash bright gold
+    let count = intensity / 24 + 1
+    for j in 0..count {
+      let pos = random(LEN)
+      pixel(pos, rgb(255, 200, 0))
+    }
+
+    frame()
+  }
+}

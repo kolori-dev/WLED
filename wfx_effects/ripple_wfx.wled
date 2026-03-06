@@ -1,0 +1,64 @@
+// Ripple — Random color ripples expanding from random positions.
+// Data buffer stores 6 ripples: center, radius, hue, active flag.
+
+effect "Ripple WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Size"
+    palette true
+  }
+
+  // 6 ripples: center(0-5), radius(6-11), hue(12-17), active(18-23)
+  data ripples[24]
+
+  render {
+    fade(64)
+
+    let maxRad = intensity / 8 + 4
+
+    // Spawn new ripples
+    if random(255) < speed / 4 + 4 {
+      for r in 0..6 {
+        if ripples[r + 18] == 0 {
+          ripples[r] = random(LEN)
+          ripples[r + 6] = 0
+          ripples[r + 12] = random(255)
+          ripples[r + 18] = 1
+          r = 6
+        }
+      }
+    }
+
+    // Update and draw ripples
+    for r in 0..6 {
+      if ripples[r + 18] > 0 {
+        let rad = ripples[r + 6]
+        let bri = 255 - rad * 255 / maxRad
+        if bri < 0 {
+          bri = 0
+        }
+        let c = color_fade(palette(ripples[r + 12]), bri)
+        let cen = ripples[r]
+
+        // Draw expanding ring (two points)
+        let p = cen + rad
+        if p >= 0 and p < LEN {
+          pixel(p, c)
+        }
+        p = cen - rad
+        if p >= 0 and p < LEN {
+          pixel(p, c)
+        }
+
+        // Expand radius
+        rad = rad + 1
+        ripples[r + 6] = rad
+        if rad >= maxRad {
+          ripples[r + 18] = 0
+        }
+      }
+    }
+
+    frame()
+  }
+}

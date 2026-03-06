@@ -1,0 +1,56 @@
+// ICU — Two "eyes" that scan back and forth on the strip.
+// The eyes are spaced apart and move together, reversing at the edges.
+// Speed controls movement rate, intensity controls eye spacing.
+
+effect "ICU WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Eye Spacing"
+    palette false
+  }
+
+  render {
+    let space = intensity / 8 + 2
+    if space >= LEN / 2 {
+      space = LEN / 2 - 1
+    }
+
+    // Range the eyes can travel
+    let range = LEN - space - 2
+    if range < 2 {
+      range = 2
+    }
+
+    // Bounce position
+    let cycle = (NOW * speed / 512) % (range * 2)
+    let pos = cycle
+    if pos >= range {
+      pos = range * 2 - pos - 1
+    }
+
+    fill(rgb(0, 0, 0))
+
+    // Draw eye 1
+    pixel(pos, color0)
+    if pos > 0 {
+      pixel(pos - 1, color_fade(color0, 80))
+    }
+    if pos < LEN - 1 {
+      pixel(pos + 1, color_fade(color0, 80))
+    }
+
+    // Draw eye 2, offset by spacing
+    let p2 = pos + space
+    if p2 < LEN {
+      pixel(p2, color0)
+      if p2 > 0 {
+        pixel(p2 - 1, color_fade(color0, 80))
+      }
+      if p2 < LEN - 1 {
+        pixel(p2 + 1, color_fade(color0, 80))
+      }
+    }
+
+    frame()
+  }
+}

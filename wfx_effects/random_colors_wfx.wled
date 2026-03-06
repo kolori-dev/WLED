@@ -1,0 +1,48 @@
+// Random Colors — Entire strip fades smoothly to a new random palette color periodically.
+// Speed controls how often a new target color is chosen,
+// intensity controls the fade smoothness.
+
+effect "Random Colors WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Smoothness"
+    palette true
+  }
+
+  render {
+    // Use step_val to track the current palette index
+    // Use aux0 to track the target palette index
+    // Use aux1 as a blend progress counter
+
+    let cur = step_val
+    let target = aux0
+    let progress = aux1
+
+    // Pick a new target periodically
+    if progress >= 255 {
+      step_val = target
+      cur = target
+      aux0 = random(255)
+      aux1 = 0
+      progress = 0
+    }
+
+    // Advance blend progress based on speed
+    let inc = speed / 16 + 1
+    progress = progress + inc
+    if progress > 255 {
+      progress = 255
+    }
+    aux1 = progress
+
+    // Blend between current and target palette colors
+    let c1 = palette(cur)
+    let c2 = palette(aux0)
+    let amt = scale8(progress, intensity)
+    let c = blend(c1, c2, amt)
+
+    fill(c)
+
+    frame()
+  }
+}

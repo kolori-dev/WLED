@@ -30,6 +30,7 @@
 			if (loc) {
 				gId("bckcfg").setAttribute('href',getURL(gId("bckcfg").pathname));
 				gId("bckpresets").setAttribute('href',getURL(gId("bckpresets").pathname));
+				gId("bckfx").setAttribute('href',getURL(gId("bckfx").pathname));
 			}
 			loadJS(getURL('/settings/s.js?p=6'), false, undefined, ()=>{
 				setBckFilename(gId("bckcfg"));
@@ -76,7 +77,8 @@
 		<a class="btn lnk" id="bckcfg" href="/presets.json" download="presets">Backup presets</a><br>
 		<div>Restore presets<br><input type="file" name="data" accept=".json"> <button type="button" onclick="uploadFile(d.Sf.data,'/presets.json');">Upload</button><br></div><br>
 		<a class="btn lnk" id="bckpresets" href="/cfg.json" download="cfg">Backup configuration</a><br>
-		<div>Restore configuration<br><input type="file" name="data2" accept=".json"> <button type="button" onclick="uploadFile(d.Sf.data2,'/cfg.json');">Upload</button><br></div>
+		<div>Restore configuration<br><input type="file" name="data2" accept=".json"> <button type="button" onclick="uploadFile(d.Sf.data2,'/cfg.json');">Upload</button><br></div><br>
+		<a class="btn lnk" id="bckfx" href="/fx/backup" download="wled_effects.tar">Backup effects</a>
 	</div>
 	<div class="sec">
 		<h3>About</h3>

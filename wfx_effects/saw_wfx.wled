@@ -1,0 +1,27 @@
+// Saw — Sawtooth wave pattern scrolling along the strip.
+// Brightness ramps up linearly then drops, creating a repeating
+// sawtooth pattern. Speed controls scroll rate, intensity controls
+// the number of teeth (repetitions) along the strip.
+
+effect "Saw WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Teeth"
+    palette true
+  }
+
+  render {
+    let offset = NOW * speed / 256
+    let teeth = intensity / 16 + 1
+
+    for i in 0..LEN {
+      // Sawtooth: ramp from 0..255 within each tooth
+      let phase = (i * teeth * 256 / LEN + offset) % 256
+      let bri = phase
+      let pidx = (i * 255 / LEN + offset / 4) % 256
+      pixel(i, color_fade(palette(pidx), bri))
+    }
+
+    frame()
+  }
+}

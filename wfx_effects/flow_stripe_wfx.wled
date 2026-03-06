@@ -1,0 +1,30 @@
+// Flow Stripe — Flowing stripes of palette colors moving along the strip.
+// Evenly spaced bands scroll continuously, creating a barber-pole effect.
+// Intensity controls stripe width.
+
+effect "Flow Stripe WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Stripe Width"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+    let width = max(intensity / 8, 2)
+
+    for i in 0..LEN {
+      // Determine which stripe this pixel belongs to
+      let stripe = ((i + t) % (width * 4)) / width
+      let idx = stripe * 64
+
+      // Smooth transition within stripe using sine
+      let phase = ((i + t) % width) * 255 / width
+      let bri = sin8(phase) / 2 + 128
+
+      pixel(i, color_fade(palette(idx), bri))
+    }
+
+    frame()
+  }
+}

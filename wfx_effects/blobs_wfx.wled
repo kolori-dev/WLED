@@ -1,0 +1,41 @@
+// Blobs — Soft colored blobs that drift and merge along the strip.
+// Multiple sine-based shapes overlap, creating organic, amoeba-like motion.
+
+effect "Blobs WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Blob Size"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 1024
+    let threshold = 255 - intensity
+
+    for i in 0..LEN {
+      // First blob
+      let b = sin8(i * 512 / LEN + t)
+      let bri = 0
+      let idx = b
+      if b > threshold { bri = b - threshold }
+
+      // Second blob
+      b = sin8(i * 768 / LEN + t / 2 + 64)
+      idx = (idx + b) / 2
+      if b > threshold { bri = bri + b - threshold }
+
+      // Third blob
+      b = sin8(i * 256 / LEN + t / 3 + 128)
+      if b > threshold { bri = bri + b - threshold }
+
+      // Fourth blob
+      b = sin8(i * 1024 / LEN + t * 2 + 192)
+      if b > threshold { bri = bri + b - threshold }
+
+      if bri > 255 { bri = 255 }
+      pixel(i, color_fade(palette(idx), bri))
+    }
+
+    frame()
+  }
+}

@@ -10,6 +10,8 @@
   Modified heavily for WLED
 */
 #include "wled.h"
+#include "wled_fx_loader.h"
+#include "wled_vm.h"
 #include "FXparticleSystem.h"  // TODO: better define the required function (mem service) in FX.h?
 
 /*
@@ -578,6 +580,11 @@ Segment &Segment::setMode(uint8_t fx, bool loadDefaults) {
     if (sOpt >= 0 && loadDefaults) setPalette(sOpt);
     if (sOpt <= 0) sOpt = 6; // partycolors if zero or not set
     _default_palette = sOpt; // _deault_palette is loaded into pal0 in loadPalette() (if selected)
+    // Reset palette to default if bytecode effect doesn't use palettes
+    WfxEffect* wfx = FXLoader::getEffect(fx);
+    if (wfx && !(wfx->flags & WFX_FLAG_PALETTE)) {
+      setPalette(0);
+    }
     markForReset();
     stateChanged = true; // send UDP/WS broadcast
   }

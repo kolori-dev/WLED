@@ -1,0 +1,26 @@
+// Freqmap — Frequency bins mapped along the strip with palette.
+
+effect "Freqmap WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Sensitivity"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    fade(speed / 4 + 16)
+
+    for i in 0..LEN {
+      let bin = i * 16 / max(LEN, 1)
+      let val = fft(bin)
+      val = val * intensity / 128
+      if val > 255 { val = 255 }
+      bin = palette(bin * 16)
+      pixel(i, color_fade(bin, val))
+    }
+
+    frame()
+  }
+}

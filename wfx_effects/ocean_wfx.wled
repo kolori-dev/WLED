@@ -1,0 +1,36 @@
+// Ocean Waves — Deep blue swells with white foam at the crests.
+// Two overlapping sine waves create organic rolling motion.
+// When the combined wave peaks above a threshold, foam appears.
+
+effect "Ocean WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Foam"
+  }
+
+  render {
+    let t = NOW * speed / 1024
+
+    for i in 0..LEN {
+      let pos = i * 256 / LEN
+
+      // Two overlapping waves at different frequencies
+      let w1 = sin8(pos * 3 + t)
+      let w2 = sin8(pos * 2 + t / 2 + 100)
+      let wave = (w1 + w2) / 2
+
+      // Deep blue base, brighter at peaks
+      let b = wave / 2 + 128
+      let g = wave / 4
+
+      // White foam at crests
+      if wave > 255 - intensity {
+        pixel(i, rgb(200, 230, 255))
+      } else {
+        pixel(i, rgb(0, g, b))
+      }
+    }
+
+    frame()
+  }
+}

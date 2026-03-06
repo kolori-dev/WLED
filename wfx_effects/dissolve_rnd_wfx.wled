@@ -1,0 +1,35 @@
+// Dissolve Random — Like dissolve but each pixel dissolves to a random
+// palette color instead of a single target.
+
+effect "Dissolve Rnd WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+    palette true
+  }
+
+  data colors[256]
+
+  render {
+    // Fade slightly to keep background clean
+    fade(250)
+
+    let count = intensity / 16 + 1
+
+    for j in 0..count {
+      let pos = random(LEN)
+      let idx = random(255)
+      colors[pos] = idx
+      pixel(pos, palette(idx))
+    }
+
+    // Redraw all lit pixels so they persist
+    for i in 0..LEN {
+      if colors[i] > 0 {
+        pixel(i, palette(colors[i]))
+      }
+    }
+
+    frame()
+  }
+}

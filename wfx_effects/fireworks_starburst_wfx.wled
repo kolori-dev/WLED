@@ -1,0 +1,50 @@
+effect "Fireworks Starburst" {
+  meta {
+    slider speed "Launch rate"
+    slider intensity "Brightness"
+    palette true
+    type 1D
+  }
+  render {
+    // Fade existing pixels for trail decay
+    fade(160)
+    // aux0 tracks current burst center position
+    // aux1 tracks burst expansion radius
+    // step_val tracks burst color index
+    // Launch new burst when expansion is done
+    let maxRadius = LEN / 2
+    if aux1 > maxRadius {
+      // Start new burst
+      aux0 = random(LEN)
+      aux1 = 0
+      step_val = random(256)
+    }
+    // Draw expanding burst
+    let radius = aux1
+    let bright = 255 - (radius * 200) / maxRadius
+    if bright < 20 {
+      bright = 20
+    }
+    let col = palette(step_val)
+    let faded = color_fade(col, bright)
+    // Draw pixels at center +/- radius
+    let center = aux0
+    let posRight = center + radius
+    let posLeft = center - radius
+    if posRight < LEN {
+      pixel(posRight, faded)
+    }
+    if posLeft >= 0 {
+      pixel(posLeft, faded)
+    }
+    // Also draw bright center during early expansion
+    if radius < 4 {
+      let white = rgb(255, 255, 200)
+      pixel(center, white)
+    }
+    // Expand burst
+    let expandRate = 1 + speed / 64
+    aux1 = aux1 + expandRate
+    frame()
+  }
+}

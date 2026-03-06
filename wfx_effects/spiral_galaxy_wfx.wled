@@ -1,0 +1,27 @@
+effect "Spiral Galaxy" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Arms"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed
+    t = t / 16
+
+    for i in 0..LEN {
+
+      let base = i * 256
+      base = base / LEN
+
+      let arm1 = sin8(base * intensity + t)
+      let arm2 = sin8(base * intensity - t)
+
+      let combined = (arm1 + arm2) / 2
+
+      pixel(i, palette(combined))
+    }
+
+    frame()
+  }
+}

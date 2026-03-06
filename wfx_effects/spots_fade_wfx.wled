@@ -1,0 +1,37 @@
+// Spots Fade — Evenly spaced spots with smooth brightness falloff.
+
+effect "Spots Fade WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette true
+  }
+
+  render {
+    let numSpots = 3 + scale8(intensity, 13)
+    let spacing = LEN / numSpots
+    if spacing < 1 {
+      spacing = 1
+    }
+    let half = spacing / 2
+    if half < 1 {
+      half = 1
+    }
+    let offset = NOW * speed / 50000
+
+    for i in 0..LEN {
+      let pos = (i + offset) % spacing
+      if pos > half {
+        pos = spacing - pos
+      }
+      let bri = 255 - pos * 255 / half
+      if bri > 0 {
+        pixel(i, color_fade(palette(i * 255 / LEN), bri))
+      } else {
+        pixel(i, rgb(0, 0, 0))
+      }
+    }
+
+    frame()
+  }
+}

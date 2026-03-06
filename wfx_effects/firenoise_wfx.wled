@@ -1,0 +1,28 @@
+// Firenoise — 2D fire effect using Perlin noise and palette.
+
+effect "Firenoise WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 2D
+    palette true
+  }
+
+  render {
+    let sc = intensity / 8 + 10
+    let t = NOW / 10
+
+    for x in 0..WIDTH {
+      for y in 0..HEIGHT {
+        let yf = HEIGHT - 1 - y
+        let n = noise2(x * sc + t / 3, y * sc - t)
+        let heat = n / 2 + yf * 128 / HEIGHT
+        if heat > 255 { heat = 255 }
+        pixel2d(x, y, palette(heat))
+      }
+    }
+
+    blur2d(intensity / 16 + 8)
+    frame()
+  }
+}

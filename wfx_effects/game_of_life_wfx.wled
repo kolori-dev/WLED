@@ -1,0 +1,65 @@
+// Game of Life — Conway's cellular automaton on 2D matrix.
+
+effect "Game of Life WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+    type 2D
+    palette true
+  }
+
+  data cells[2048]
+
+  render {
+    if step_val == 0 {
+      for i in 0..1024 {
+        if random(255) < intensity / 4 + 32 {
+          cells[i] = 1
+        }
+      }
+      step_val = 1
+    }
+
+    // Compute next gen
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let ym = (y + HEIGHT - 1) % HEIGHT
+        let yp = (y + 1) % HEIGHT
+        let xm = (x + WIDTH - 1) % WIDTH
+        let xp = (x + 1) % WIDTH
+        let n = 0
+        if cells[ym * WIDTH + xm] > 0 { n = n + 1 }
+        if cells[ym * WIDTH + x] > 0 { n = n + 1 }
+        if cells[ym * WIDTH + xp] > 0 { n = n + 1 }
+        if cells[y * WIDTH + xm] > 0 { n = n + 1 }
+        if cells[y * WIDTH + xp] > 0 { n = n + 1 }
+        if cells[yp * WIDTH + xm] > 0 { n = n + 1 }
+        if cells[yp * WIDTH + x] > 0 { n = n + 1 }
+        if cells[yp * WIDTH + xp] > 0 { n = n + 1 }
+        if cells[y * WIDTH + x] > 0 and (n == 2 or n == 3) {
+          cells[y * WIDTH + x + 1024] = min(cells[y * WIDTH + x] + 1, 255)
+        } else if n == 3 {
+          cells[y * WIDTH + x + 1024] = 1
+        } else {
+          cells[y * WIDTH + x + 1024] = 0
+        }
+      }
+    }
+
+    // Copy and render
+    for i in 0..1024 {
+      cells[i] = cells[i + 1024]
+    }
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let a = cells[y * WIDTH + x]
+        if a > 0 {
+          a = palette(a * 4)
+        }
+        pixel2d(x, y, a)
+      }
+    }
+
+    frame()
+  }
+}

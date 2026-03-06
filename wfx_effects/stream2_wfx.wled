@@ -1,0 +1,27 @@
+// Stream 2 — Palette colors enter from both ends and meet in the middle.
+// Each half mirrors the other, creating a symmetric flowing pattern.
+
+effect "Stream 2 WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Color Spread"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+    let half = LEN / 2
+
+    for i in 0..LEN {
+      // Distance from the nearest end
+      let d = i
+      if i > half {
+        d = LEN - 1 - i
+      }
+      let idx = (t + d * intensity / 4) % 256
+      pixel(i, palette(idx))
+    }
+
+    frame()
+  }
+}

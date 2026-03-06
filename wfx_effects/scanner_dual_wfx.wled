@@ -1,0 +1,56 @@
+// Scanner Dual — Two scanners bouncing in opposite directions with
+// fade trails. One scanner uses color0, the other uses color1,
+// creating crossing beams with afterglow trails.
+
+effect "Scanner Dual WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    fade(intensity)
+
+    let t = NOW * speed / 512
+
+    // Scanner 1: bounces normally
+    let cycle1 = t % (LEN * 2)
+    let pos1 = cycle1
+    if pos1 >= LEN {
+      pos1 = LEN * 2 - pos1 - 1
+    }
+
+    // Scanner 2: bounces in opposite phase
+    let cycle2 = (t + LEN) % (LEN * 2)
+    let pos2 = cycle2
+    if pos2 >= LEN {
+      pos2 = LEN * 2 - pos2 - 1
+    }
+
+    // Draw scanner 1 with palette
+    pixel(pos1, palette(t % 256))
+    if pos1 > 0 {
+      let p = pos1 - 1
+      pixel(p, color_fade(palette(t % 256), 128))
+    }
+    if pos1 < LEN - 1 {
+      let p = pos1 + 1
+      pixel(p, color_fade(palette(t % 256), 128))
+    }
+
+    // Draw scanner 2 with offset palette color
+    let hue2 = (t + 128) % 256
+    pixel(pos2, palette(hue2))
+    if pos2 > 0 {
+      let p = pos2 - 1
+      pixel(p, color_fade(palette(hue2), 128))
+    }
+    if pos2 < LEN - 1 {
+      let p = pos2 + 1
+      pixel(p, color_fade(palette(hue2), 128))
+    }
+
+    frame()
+  }
+}

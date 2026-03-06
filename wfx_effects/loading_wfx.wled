@@ -1,0 +1,28 @@
+// Loading — A loading bar that grows from left to right, then resets.
+// Classic loading bar animation. The filled portion uses palette colors,
+// the empty portion stays dark.
+
+effect "Loading WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Brightness"
+    palette true
+  }
+
+  render {
+    let progress = (NOW * speed / 1024) % LEN
+
+    for i in 0..LEN {
+      if i <= progress {
+        // Filled portion: palette gradient
+        let bri = intensity
+        pixel(i, color_fade(palette(i * 255 / LEN), bri))
+      } else {
+        // Empty portion: dark
+        pixel(i, rgb(0, 0, 0))
+      }
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,59 @@
+// Traffic Light — Strip divided into 3 zones (red, yellow, green)
+// that cycle through traffic light patterns. Each zone lights up
+// in the classic traffic signal sequence: green -> yellow -> red.
+
+effect "Traffic Light WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Brightness"
+    palette false
+  }
+
+  render {
+    // Full cycle has 4 phases: green, yellow, red, red+green-ready
+    let cycle = (NOW * speed / 512) % 1024
+    let phase = cycle / 256
+
+    let zone = LEN / 3
+    let bri = max(intensity, 32)
+
+    let red = rgb(0, 0, 0)
+    let yel = rgb(0, 0, 0)
+    let grn = rgb(0, 0, 0)
+
+    if phase == 0 {
+      // Green on
+      grn = color_fade(rgb(0, 255, 0), bri)
+      red = color_fade(rgb(255, 0, 0), 16)
+      yel = color_fade(rgb(255, 180, 0), 16)
+    } else if phase == 1 {
+      // Yellow on
+      yel = color_fade(rgb(255, 180, 0), bri)
+      red = color_fade(rgb(255, 0, 0), 16)
+      grn = color_fade(rgb(0, 255, 0), 16)
+    } else if phase == 2 {
+      // Red on
+      red = color_fade(rgb(255, 0, 0), bri)
+      yel = color_fade(rgb(255, 180, 0), 16)
+      grn = color_fade(rgb(0, 255, 0), 16)
+    } else {
+      // Red + Yellow (preparing for green)
+      red = color_fade(rgb(255, 0, 0), bri)
+      yel = color_fade(rgb(255, 180, 0), bri)
+      grn = color_fade(rgb(0, 255, 0), 16)
+    }
+
+    for i in 0..LEN {
+      let section = i * 3 / LEN
+      if section == 0 {
+        pixel(i, red)
+      } else if section == 1 {
+        pixel(i, yel)
+      } else {
+        pixel(i, grn)
+      }
+    }
+
+    frame()
+  }
+}

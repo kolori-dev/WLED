@@ -1,0 +1,28 @@
+// Blurz — Blurred audio-reactive frequency columns on 2D matrix.
+
+effect "Blurz WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Blur"
+    type 2D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    fade(speed / 8 + 8)
+
+    for x in 0..WIDTH {
+      let bin = x * 16 / max(WIDTH, 1)
+      let val = fft(bin)
+      let h = val * HEIGHT / 256
+      for y in 0..h {
+        bin = palette(val + x * 16)
+        pixel2d(x, HEIGHT - 1 - y, bin)
+      }
+    }
+
+    blur2d(intensity / 4 + 8)
+    frame()
+  }
+}

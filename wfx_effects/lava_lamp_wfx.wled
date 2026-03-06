@@ -1,0 +1,31 @@
+effect "Lava Lamp 1D" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Blob Size"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed
+    t = t / 8
+
+    for i in 0..LEN {
+
+      // Blob size control (lower = larger blobs)
+      let pos = i * 256
+      pos = pos / max(intensity, 1)
+
+      let sample = pos + t
+
+      let n = noise(sample)
+
+      // Increase contrast to form blobs
+      let shaped = scale8(n, n)
+
+      pixel(i, palette(shaped))
+    }
+
+    blur(32)
+    frame()
+  }
+}

@@ -1,0 +1,27 @@
+// Sinelon Rainbow — Sinelon but the dot color is rainbow, changing hue as it moves.
+// speed controls sweep rate, intensity controls trail length.
+
+effect "Sinelon Rainbow WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+  }
+
+  render {
+    let fadeAmt = 255 - intensity
+    if fadeAmt < 16 {
+      fadeAmt = 16
+    }
+    fade(fadeAmt)
+
+    let t = NOW * speed / 256
+    let wave = sin8(t)
+    let pos = wave * (LEN - 1) / 255
+
+    // Hue changes based on position for rainbow effect
+    let hue = pos * 255 / LEN
+    pixel(pos, color_wheel(hue))
+
+    frame()
+  }
+}

@@ -1,0 +1,37 @@
+// Sine Wave — A bright spot oscillates back and forth following a sine curve.
+// The spot leaves a fading trail behind it. Speed controls oscillation rate,
+// intensity controls the trail length.
+
+effect "Sine WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    // Fade existing pixels to create trail
+    fade(intensity)
+
+    let t = NOW * speed / 512
+
+    // Sine oscillation maps to strip position
+    let wave = sin8(t)
+    let pos = wave * LEN / 256
+
+    // Draw bright spot at sine position
+    pixel(pos, palette(t))
+
+    // Slight glow on neighbors
+    if pos > 0 {
+      let prev = pos - 1
+      pixel(prev, color_fade(palette(t + 16), 128))
+    }
+    if pos < LEN - 1 {
+      let next = pos + 1
+      pixel(next, color_fade(palette(t + 16), 128))
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,32 @@
+// Tri Fade — The entire strip smoothly fades through three colors:
+// color0, color1, and color2. Uses blending for smooth transitions.
+
+effect "Tri Fade WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Smoothness"
+    palette false
+  }
+
+  render {
+    let cycle = (NOW * speed / 512) % 768
+    let phase = cycle / 256
+    let frac = cycle % 256
+
+    let c = color0
+    if phase == 0 {
+      // Blend color0 -> color1
+      c = blend(color0, color1, frac)
+    } else if phase == 1 {
+      // Blend color1 -> color2
+      c = blend(color1, color2, frac)
+    } else {
+      // Blend color2 -> color0
+      c = blend(color2, color0, frac)
+    }
+
+    fill(c)
+
+    frame()
+  }
+}

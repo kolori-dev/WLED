@@ -1,0 +1,36 @@
+// Color Waves — Flowing palette-based color waves.
+// Multiple sine waves at different frequencies create flowing, organic
+// color patterns across the strip, reminiscent of lava lamps or auroras.
+
+effect "Color Waves WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Complexity"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 1024
+
+    for i in 0..LEN {
+      let pos = i * 256 / LEN
+
+      // Layer multiple sine waves at different frequencies
+      let w1 = sin8(pos * 2 + t)
+      let w2 = sin8(pos * 3 + t / 2 + 64)
+      let w3 = sin8(pos + t / 3 + 128)
+      let w4 = sin8(pos * intensity / 64 + t * 2 + 192)
+
+      // Combine waves for palette index
+      let idx = (w1 + w2 + w3 + w4) / 4
+
+      // Brightness modulation from another wave
+      let bri = sin8(pos + t / 4 + 32)
+      bri = bri / 3 + 170
+
+      pixel(i, color_fade(palette(idx), bri))
+    }
+
+    frame()
+  }
+}

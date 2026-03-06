@@ -1,0 +1,22 @@
+effect "Solid Glitter" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Glitter amount"
+    palette false
+    type 1D
+  }
+  render {
+    // Fill with segment color0
+    fill(color0)
+    // Add random white sparkles based on intensity
+    let numSpark = 1 + intensity / 16
+    for s in 0..numSpark {
+      let pos = random(LEN)
+      // Random brightness for sparkle variation
+      let bright = 128 + random(128)
+      let sparkle = rgb(bright, bright, bright)
+      pixel(pos, sparkle)
+    }
+    frame()
+  }
+}

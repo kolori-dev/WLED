@@ -1,0 +1,30 @@
+effect "Glitter" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Glitter amount"
+    palette true
+    type 1D
+  }
+  render {
+    // Draw palette base: gentle cycling gradient
+    let offset = (NOW * speed) / 30000
+    for i in 0..LEN {
+      let cidx = (i * 255) / LEN
+      let shifted = (cidx + offset) % 256
+      pixel(i, palette(shifted))
+    }
+    // Fade existing pixels slightly for smooth transitions
+    fade(224)
+    // Add random glitter sparkles
+    let numGlitter = 1 + scale8(intensity, 6)
+    for g in 0..numGlitter {
+      let pos = random(LEN)
+      let pcol = (pos * 255) / LEN
+      let col = palette((pcol + offset) % 256)
+      // Brighten the glitter pixel by blending with white
+      let sparkle = blend(col, rgb(255, 255, 255), 180)
+      pixel(pos, sparkle)
+    }
+    frame()
+  }
+}

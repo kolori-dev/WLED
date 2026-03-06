@@ -1,0 +1,63 @@
+// TwinkleCat — Like TwinkleFOX but with slower, lazier timing.
+// Pixels fade up and down more gently, like a cat slowly blinking.
+// Fewer active pixels, longer fade times, dimmer overall.
+
+effect "TwinkleCat WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+    palette true
+  }
+
+  data phase[256]
+  data rate[256]
+
+  render {
+    // Seed new twinkles — less frequently than TwinkleFOX
+    if random(255) < intensity / 4 + 2 {
+      let pos = random(LEN)
+      if phase[pos] == 0 {
+        phase[pos] = 1
+        // Slower rates than TwinkleFOX
+        rate[pos] = random(1, speed / 32 + 1)
+        if rate[pos] < 1 {
+          rate[pos] = 1
+        }
+      }
+    }
+
+    // Update and render each pixel
+    for i in 0..LEN {
+      let p = phase[i]
+      if p > 0 {
+        let r = rate[i]
+        if r < 1 {
+          r = 1
+        }
+        p = p + r
+        if p > 255 {
+          p = 0
+        }
+        phase[i] = p
+
+        // Smoother triangle wave with dimmer peak
+        let bri = p
+        if bri > 128 {
+          bri = 255 - bri
+        }
+        // Gentler brightness — max around 192
+        bri = bri * 3 / 2
+        if bri > 192 {
+          bri = 192
+        }
+
+        let c = palette((i * 23 + 100) % 256)
+        pixel(i, color_fade(c, bri))
+      } else {
+        pixel(i, rgb(0, 0, 0))
+      }
+    }
+
+    frame()
+  }
+}

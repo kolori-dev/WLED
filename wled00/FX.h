@@ -379,7 +379,7 @@ extern byte realtimeMode;           // used in getMappedPixelIndex()
 #define FX_MODE_PS1DSONICBOOM          215
 #define FX_MODE_PS1DSPRINGY            216
 #define FX_MODE_PARTICLEGALAXY         217
-#define MODE_COUNT                     218
+#define MODE_COUNT                     2   // Solid + reserve; must be >1 so constructor capacity check passes and setupEffectData() runs
 
 
 #define BLEND_STYLE_FADE            0x00  // universal
@@ -941,6 +941,7 @@ class WS2812FX {
     uint8_t getLastActiveSegmentId() const;
     uint8_t getActiveSegsLightCapabilities(bool selectedOnly = false) const;
     uint8_t addEffect(uint8_t id, mode_ptr mode_fn, const char *mode_name);         // add effect to the list; defined in FX.cpp;
+    bool    removeEffect(uint8_t id);                                               // reset effect slot to RSVD; defined in FX.cpp;
 
     inline uint8_t getBrightness() const    { return _brightness; }       // returns current strip brightness
     inline static constexpr unsigned getMaxSegments() { return MAX_NUM_SEGMENTS; }  // returns maximum number of supported segments (fixed value)

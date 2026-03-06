@@ -1,0 +1,28 @@
+// Theater Rainbow — Theater chase with rainbow colors instead of
+// palette. Every Nth pixel is lit with a cycling rainbow hue,
+// creating the classic theater marquee effect in full spectrum.
+
+effect "Theater Rainbow WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Gap size"
+    palette false
+  }
+
+  render {
+    let gap = max(intensity / 32, 3)
+    let offset = (NOW * speed / 512) % gap
+    let hueShift = NOW * speed / 256
+
+    fill(rgb(0, 0, 0))
+
+    for i in 0..LEN {
+      if (i + offset) % gap == 0 {
+        let hue = (i * 255 / LEN + hueShift) % 256
+        pixel(i, color_wheel(hue))
+      }
+    }
+
+    frame()
+  }
+}

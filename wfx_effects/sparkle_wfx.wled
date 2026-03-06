@@ -1,0 +1,19 @@
+effect "Sparkle WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+    palette true
+  }
+
+  render {
+    fade(224)
+
+    let count = intensity / 16 + 1
+    for j in 0..count {
+      let pos = random(LEN)
+      pixel(pos, palette(random(255)))
+    }
+
+    frame()
+  }
+}

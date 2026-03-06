@@ -1,0 +1,35 @@
+effect "Spots" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette true
+    type 1D
+  }
+  render {
+    fill(0)
+    // intensity controls number of spots (3-16)
+    let numSpots = 3 + scale8(intensity, 13)
+    let spacing = LEN / numSpots
+    if spacing < 1 {
+      spacing = 1
+    }
+    // Use speed to create a moving offset
+    let offset = (NOW * speed) / 50000
+    for i in 0..LEN {
+      let pos = (i + offset) % spacing
+      if pos < 0 {
+        pos = pos + spacing
+      }
+      // Light pixels near the spot center
+      let halfWidth = spacing / 4
+      if halfWidth < 1 {
+        halfWidth = 1
+      }
+      if pos <= halfWidth {
+        let cidx = (i * 255) / LEN
+        pixel(i, palette(cidx))
+      }
+    }
+    frame()
+  }
+}

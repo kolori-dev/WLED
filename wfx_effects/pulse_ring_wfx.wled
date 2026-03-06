@@ -1,0 +1,30 @@
+effect "Pulse Ring" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette true
+  }
+
+  render {
+    let cycle = NOW * speed
+    cycle = cycle / 64
+    cycle = cycle % LEN
+
+    fade(200)
+
+    let width = max(intensity / 16, 1)
+
+    for j in 0..width {
+
+      let idx = cycle + j
+      idx = idx % LEN
+
+      let shade = j * 255
+      shade = shade / width
+
+      pixel(idx, palette(shade))
+    }
+
+    frame()
+  }
+}

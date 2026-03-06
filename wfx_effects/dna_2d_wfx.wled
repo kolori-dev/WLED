@@ -1,0 +1,53 @@
+// DNA Double Helix — Two sine waves running down the matrix connected
+// by rungs, creating a classic DNA strand visualization.
+
+effect "DNA 2D WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Twist"
+    type 2D
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+
+    // Clear
+    fill(0)
+
+    let cx = WIDTH / 2
+
+    for y in 0..HEIGHT {
+      let phase = y * intensity / 8 + t
+      let s = sin8(phase)
+      let x1 = cx + (s - 128) * WIDTH / 512
+
+      // Draw strand 1
+      if x1 >= 0 and x1 < WIDTH {
+        let c = palette(y * 255 / HEIGHT + t)
+        pixel2d(x1, y, c)
+      }
+
+      // Save strand 1 position for rungs
+      aux0 = x1
+
+      // Strand 2 (180 degrees offset) — reuse s and x1
+      s = sin8(phase + 128)
+      x1 = cx + (s - 128) * WIDTH / 512
+
+      if x1 >= 0 and x1 < WIDTH {
+        let c = palette(y * 255 / HEIGHT + t + 128)
+        pixel2d(x1, y, c)
+      }
+
+      // Draw rungs between strands every 4 rows
+      if y % 4 == 0 {
+        let c = palette(y * 128 / HEIGHT + t + 64)
+        c = color_fade(c, 128)
+        draw_line(aux0, y, x1, y, c)
+      }
+    }
+
+    frame()
+  }
+}

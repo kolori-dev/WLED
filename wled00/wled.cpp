@@ -2,6 +2,7 @@
 #include "wled.h"
 #include "wled_ethernet.h"
 #include "ota_update.h"
+#include "wled_fx_loader.h"
 #ifdef WLED_ENABLE_AOTA
   #define NO_OTA_PORT
   #include <ArduinoOTA.h>
@@ -129,6 +130,7 @@ void WLED::loop()
 
     if (!offMode || strip.isOffRefreshRequired() || strip.needsUpdate())
       strip.service();
+    FXLoader::servicePendingDeletes(); // process deferred effect deletions (safe: same task as VM)
     #ifdef ESP8266
     else if (!noWifiSleep)
       delay(1); //required to make sure ESP enters modem sleep (see #1184)
@@ -596,6 +598,7 @@ void WLED::beginStrip()
   // Initialize NeoPixel Strip and button
   strip.setTransition(0); // temporarily prevent transitions to reduce segment copies
   strip.finalizeInit(); // busses created during deserializeConfig() if config existed
+  FXLoader::init();     // load bytecode effects from /fx/*.wfx
   strip.makeAutoSegments();
   strip.setBrightness(0);
   strip.setShowCallback(handleOverlayDraw);

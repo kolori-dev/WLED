@@ -1,0 +1,38 @@
+// Chase Flash Random — A chase effect with random-colored flash bursts.
+// The chase body uses palette colors while the leading pixel flashes
+// a random bright color. Speed controls chase rate, intensity controls width.
+
+effect "Chase Flash Rnd WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette true
+  }
+
+  render {
+    let width = max(intensity / 16, 2)
+    let pos = (NOW * speed / 512) % LEN
+
+    fill(rgb(0, 0, 0))
+
+    // Draw chase body with palette colors
+    for j in 0..width {
+      let idx = (pos + j) % LEN
+      pixel(idx, palette(j * 255 / width))
+    }
+
+    // Random-colored flash at the head
+    let flash = (NOW * speed / 64) % 4
+    if flash < 2 {
+      let head = (pos + width) % LEN
+      // Random flash color
+      let rh = random(255)
+      pixel(head, color_wheel(rh))
+      // Glow behind flash
+      let h2 = (pos + width - 1) % LEN
+      pixel(h2, color_fade(color_wheel(rh), 160))
+    }
+
+    frame()
+  }
+}

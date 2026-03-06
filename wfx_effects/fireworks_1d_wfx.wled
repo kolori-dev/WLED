@@ -1,0 +1,69 @@
+// Fireworks 1D — Random launches that explode into expanding then fading bursts.
+// Data buffers store spark positions and ages.
+// speed controls launch rate, intensity controls brightness.
+
+effect "Fireworks 1D WFX" {
+  meta {
+    slider speed "Launch Rate"
+    slider intensity "Brightness"
+    palette true
+  }
+
+  data pos[8]
+  data age[8]
+
+  render {
+    fade(128)
+
+    // Launch new fireworks
+    if random(255) < speed / 4 + 2 {
+      for s in 0..8 {
+        if age[s] == 0 {
+          pos[s] = random(LEN)
+          age[s] = 1
+          s = 8
+        }
+      }
+    }
+
+    // Draw and age sparks
+    for s in 0..8 {
+      let a = age[s]
+      if a > 0 {
+        let p = pos[s]
+        let bri = 255 - a * 8
+        if bri > 0 {
+          // Draw expanding burst
+          let c = palette(p + a * 10)
+          c = color_fade(c, bri)
+
+          // Draw ring of sparks expanding from center
+          let left = p - a
+          let right = p + a
+          if left >= 0 and left < LEN {
+            pixel(left, c)
+          }
+          if right >= 0 and right < LEN {
+            pixel(right, c)
+          }
+
+          // Draw additional sparks at intermediate positions
+          let mid1 = p - a / 2
+          let mid2 = p + a / 2
+          if mid1 >= 0 and mid1 < LEN {
+            pixel(mid1, color_fade(c, 180))
+          }
+          if mid2 >= 0 and mid2 < LEN {
+            pixel(mid2, color_fade(c, 180))
+          }
+        }
+
+        a = a + 2
+        if a > 30 { a = 0 }
+        age[s] = a
+      }
+    }
+
+    frame()
+  }
+}

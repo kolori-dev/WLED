@@ -1,0 +1,31 @@
+// Fire Flicker — Simple fire flicker: each pixel is orange-red with random
+// brightness flickering. Creates a cozy campfire or candle effect.
+// Speed controls flicker rate, intensity controls flicker depth.
+
+effect "Fire Flicker WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Flicker Depth"
+  }
+
+  render {
+    for i in 0..LEN {
+      // Random flicker amount per pixel per frame
+      let flicker = random(intensity)
+
+      // Base warm fire color with flickered brightness
+      let r = 255 - flicker
+      let g = 96 - flicker / 2
+      let b = 12 - flicker / 8
+
+      // Clamp to avoid underflow
+      if r < 0 { r = 0 }
+      if g < 0 { g = 0 }
+      if b < 0 { b = 0 }
+
+      pixel(i, rgb(r, g, b))
+    }
+
+    frame()
+  }
+}

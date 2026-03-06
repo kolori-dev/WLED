@@ -1,0 +1,36 @@
+// Phased — Phase-shifted sine waves creating interference patterns with palette colors.
+// Multiple sine waves with progressive phase offsets per pixel create
+// beautiful constructive and destructive interference.
+
+effect "Phased WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Phase Shift"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+
+    for i in 0..LEN {
+      let pos = i * 256 / LEN
+
+      // Three sine waves with progressive phase offsets
+      let phase = i * intensity / LEN
+      let w1 = sin8(t + phase)
+      let w2 = sin8(t * 2 + phase * 2 + 85)
+      let w3 = sin8(t / 2 + phase * 3 + 170)
+
+      // Combine for color index
+      let idx = (w1 + w2) / 2
+
+      // Brightness from interference
+      let bri = abs(w1 - 128) + abs(w3 - 128)
+      if bri > 255 { bri = 255 }
+
+      pixel(i, color_fade(palette(idx), bri))
+    }
+
+    frame()
+  }
+}

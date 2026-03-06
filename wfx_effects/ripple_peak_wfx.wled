@@ -1,0 +1,44 @@
+// Ripple Peak — Ripples expanding from center triggered by audio peaks.
+
+effect "Ripple Peak WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    fade(speed / 8 + 8)
+
+    if peak > 0 {
+      step_val = 0
+      aux0 = volume
+      aux1 = aux1 + 37
+    }
+
+    if aux0 > 4 {
+      let ctr = LEN / 2
+      let rad = step_val
+      let w = intensity / 16 + 2
+      for i in 0..w {
+        let p = ctr + rad + i
+        let q = ctr - rad - i
+        let bri = aux0 - i * 255 / w
+        if bri < 0 { bri = 0 }
+        let c = palette(aux1)
+        if p >= 0 and p < LEN {
+          pixel(p, color_fade(c, bri))
+        }
+        if q >= 0 and q < LEN {
+          pixel(q, color_fade(c, bri))
+        }
+      }
+      step_val = step_val + speed / 32 + 1
+      aux0 = aux0 - 4
+    }
+
+    frame()
+  }
+}

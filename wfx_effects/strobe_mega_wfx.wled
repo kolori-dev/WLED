@@ -1,0 +1,26 @@
+// Strobe Mega — Very fast, intense flashes with longer dark periods.
+// The flash is extremely brief while the dark gap is extended.
+
+effect "Strobe Mega WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Flash intensity"
+  }
+
+  render {
+    let t = NOW * speed / 64
+    let cycle = t % 512
+
+    // Very short flash (only 8-16 ticks out of 512)
+    let flash = 8 + intensity / 32
+
+    if cycle < flash {
+      let bri = 128 + intensity / 2
+      fill(rgb(bri, bri, bri))
+    } else {
+      fill(rgb(0, 0, 0))
+    }
+
+    frame()
+  }
+}

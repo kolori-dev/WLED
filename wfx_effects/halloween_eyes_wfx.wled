@@ -1,0 +1,97 @@
+// Halloween Eyes — Pairs of glowing eyes (2 pixels each) appear at random
+// positions, glow brightly, then fade away. Spooky!
+// Uses aux0 for state machine, aux1 for timer, data for eye positions/brightness.
+
+effect "Halloween Eyes WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Eye count"
+  }
+
+  data eye_pos[8]
+  data eye_bri[8]
+  data eye_state[8]
+
+  render {
+    fill(rgb(0, 0, 0))
+
+    let count = intensity / 64 + 1
+    if count > 8 {
+      count = 8
+    }
+
+    let rate = speed / 16 + 1
+
+    for i in 0..count {
+      let st = eye_state[i]
+      let b = eye_bri[i]
+
+      if st == 0 {
+        // Idle — randomly decide to spawn
+        if random(255) < speed / 8 + 4 {
+          // Pick a position with room for 2-pixel gap (the eye pair)
+          let p = random(LEN - 5) + 1
+          eye_pos[i] = p
+          eye_bri[i] = 1
+          eye_state[i] = 1
+        }
+      } else if st == 1 {
+        // Fading in
+        b = b + rate
+        if b >= 220 {
+          b = 220
+          eye_state[i] = 2
+          // Use aux0 to count hold frames
+          eye_bri[i] = b
+        } else {
+          eye_bri[i] = b
+        }
+      } else if st == 2 {
+        // Hold — stay bright for a bit, then start fading
+        // Decrement hold counter using a random chance
+        if random(255) < speed / 4 + 16 {
+          eye_state[i] = 3
+        }
+      } else if st == 3 {
+        // Fading out
+        if b > rate {
+          b = b - rate
+        } else {
+          b = 0
+        }
+        eye_bri[i] = b
+        if b == 0 {
+          eye_state[i] = 0
+        }
+      }
+
+      // Draw the eye pair
+      b = eye_bri[i]
+      if b > 0 {
+        let p = eye_pos[i]
+        // Eye color: orange-red to yellow-green
+        let r = b
+        let g = b * 2 / 3
+        let c = rgb(r, g, 0)
+
+        // Left eye (2 pixels)
+        if p >= 0 and p < LEN {
+          pixel(p, c)
+        }
+        if p + 1 < LEN {
+          pixel(p + 1, c)
+        }
+
+        // Right eye (2 pixels, gap of 2)
+        if p + 4 < LEN {
+          pixel(p + 4, c)
+        }
+        if p + 5 < LEN {
+          pixel(p + 5, c)
+        }
+      }
+    }
+
+    frame()
+  }
+}

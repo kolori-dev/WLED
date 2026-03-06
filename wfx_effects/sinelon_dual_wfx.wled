@@ -1,0 +1,32 @@
+// Sinelon Dual — Two sinelons going in opposite directions with different colors.
+// speed controls sweep rate, intensity controls trail length.
+
+effect "Sinelon Dual WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    let fadeAmt = 255 - intensity
+    if fadeAmt < 16 {
+      fadeAmt = 16
+    }
+    fade(fadeAmt)
+
+    let t = NOW * speed / 256
+
+    // First dot sweeps forward
+    let wave1 = sin8(t)
+    let pos1 = wave1 * (LEN - 1) / 255
+    pixel(pos1, palette(t))
+
+    // Second dot sweeps in opposite phase
+    let wave2 = sin8(t + 128)
+    let pos2 = wave2 * (LEN - 1) / 255
+    pixel(pos2, palette(t + 128))
+
+    frame()
+  }
+}

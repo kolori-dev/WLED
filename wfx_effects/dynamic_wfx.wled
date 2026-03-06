@@ -1,0 +1,36 @@
+// Dynamic — Each pixel gets assigned a random color, periodically reshuffled.
+// Speed controls reshuffle rate, intensity controls how many pixels change per frame.
+
+effect "Dynamic WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+  }
+
+  data colors[256]
+
+  render {
+    // On first call, fill buffer with random colors
+    if step_val == 0 {
+      for i in 0..LEN {
+        colors[i] = random(255)
+      }
+      step_val = 1
+    }
+
+    // Reshuffle some pixels each frame
+    let count = intensity / 8 + 1
+    for j in 0..count {
+      let pos = random(LEN)
+      colors[pos] = random(255)
+    }
+
+    // Render all pixels
+    for i in 0..LEN {
+      let hue = colors[i]
+      pixel(i, color_wheel(hue))
+    }
+
+    frame()
+  }
+}

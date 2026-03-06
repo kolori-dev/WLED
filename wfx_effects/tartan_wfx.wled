@@ -1,0 +1,26 @@
+// Tartan — Animated plaid/tartan pattern with palette colors.
+
+effect "Tartan WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 2D
+    palette true
+  }
+
+  render {
+    let t = NOW / 25
+    let sc = intensity / 16 + 3
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let hv = sin8(x * sc + t)
+        let vv = sin8(y * sc + t / 2)
+        let c = blend(palette(hv), palette(vv + 128), hv / 2 + vv / 2)
+        pixel2d(x, y, c)
+      }
+    }
+
+    frame()
+  }
+}

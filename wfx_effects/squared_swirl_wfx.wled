@@ -1,0 +1,27 @@
+// Squared Swirl — Rotating colorful squares using noise and palette.
+
+effect "Squared Swirl WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 2D
+    palette true
+  }
+
+  render {
+    let t = NOW / 20
+    let sc = intensity / 16 + 4
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let dist = abs(x - WIDTH / 2) + abs(y - HEIGHT / 2)
+        let n = noise2(x * sc + t, y * sc + t)
+        let idx = (n + dist * 4 + t / 2) % 256
+        pixel2d(x, y, palette(idx))
+      }
+    }
+
+    blur2d(intensity / 8 + 16)
+    frame()
+  }
+}

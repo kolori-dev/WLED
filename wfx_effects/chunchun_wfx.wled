@@ -1,0 +1,32 @@
+// Chunchun — Colorful bouncing birds with wavy movement.
+
+effect "Chunchun WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Bird Count"
+    palette true
+  }
+
+  render {
+    fill(rgb(0, 0, 0))
+
+    let num = 2 + scale8(intensity, 6)
+    let t = NOW / (10 + 255 - speed)
+
+    for b in 0..num {
+      let wave = sin8(t * (3 + b * 2) + b * 67)
+      let pos = wave * LEN / 256
+      if pos >= LEN { pos = LEN - 1 }
+      let col = palette(b * 255 / num)
+      pixel(pos, col)
+      if pos > 0 {
+        pixel(pos - 1, color_fade(col, 150))
+      }
+      if pos < LEN - 1 {
+        pixel(pos + 1, color_fade(col, 150))
+      }
+    }
+
+    frame()
+  }
+}

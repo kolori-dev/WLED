@@ -1,0 +1,25 @@
+// Noisemeter — Audio noise level meter with palette peak.
+
+effect "Noisemeter WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Sensitivity"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    let vol = volume * intensity / 128
+    if vol > 255 { vol = 255 }
+    let c = palette(vol)
+
+    for i in 0..LEN {
+      let bri = vol - abs(i * 255 / LEN - vol)
+      if bri < 0 { bri = 0 }
+      pixel(i, color_fade(c, bri))
+    }
+
+    frame()
+  }
+}

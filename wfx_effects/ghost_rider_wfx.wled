@@ -1,0 +1,47 @@
+// Ghost Rider — A bright comet blazes along the strip with a fire-colored
+// decaying trail. The head is white-hot, fading through orange to deep red.
+
+effect "Ghost Rider WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail Length"
+    palette false
+  }
+
+  render {
+    fade(intensity)
+
+    let cycle = (NOW * speed / 512) % (LEN * 2)
+    let pos = cycle
+
+    // Bounce: reverse direction in second half
+    if pos >= LEN {
+      pos = LEN * 2 - pos - 1
+    }
+
+    // White-hot head
+    pixel(pos, rgb(255, 255, 200))
+
+    // Inner glow: bright orange
+    let g1 = pos - 1
+    if g1 >= 0 and g1 < LEN {
+      pixel(g1, rgb(255, 160, 0))
+    }
+    let g2 = pos + 1
+    if g2 >= 0 and g2 < LEN {
+      pixel(g2, rgb(255, 120, 0))
+    }
+
+    // Outer glow: deep red-orange
+    let g3 = pos - 2
+    if g3 >= 0 and g3 < LEN {
+      pixel(g3, rgb(200, 60, 0))
+    }
+    let g4 = pos + 2
+    if g4 >= 0 and g4 < LEN {
+      pixel(g4, rgb(180, 40, 0))
+    }
+
+    frame()
+  }
+}

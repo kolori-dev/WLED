@@ -1,0 +1,31 @@
+// Running Dual — Two running lights moving in opposite directions.
+// Color0 runs forward, color1 runs backward, creating a weaving
+// pattern as they cross paths.
+
+effect "Running Dual WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Wave size"
+    palette false
+  }
+
+  render {
+    let offset = NOW * speed / 256
+
+    for i in 0..LEN {
+      // Forward wave using color0
+      let wave1 = sin8(i * intensity / 4 + offset)
+      let c1 = color_fade(color0, wave1)
+
+      // Backward wave using color1
+      let rev = LEN - 1 - i
+      let wave2 = sin8(rev * intensity / 4 + offset)
+      let c2 = color_fade(color1, wave2)
+
+      // Combine both waves
+      pixel(i, color_add(c1, c2))
+    }
+
+    frame()
+  }
+}

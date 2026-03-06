@@ -1,0 +1,55 @@
+// Dynamic Smooth — Like dynamic but changes happen smoothly with fading between colors.
+// Each pixel has a current and target hue, and smoothly fades between them.
+// Speed controls transition speed, intensity controls how often new targets are chosen.
+
+effect "Dynamic Smooth WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Change Rate"
+  }
+
+  data current[256]
+  data target[256]
+
+  render {
+    // Initialize on first call
+    if step_val == 0 {
+      for i in 0..LEN {
+        let h = random(255)
+        current[i] = h
+        target[i] = h
+      }
+      step_val = 1
+    }
+
+    // Randomly assign new targets
+    let changes = intensity / 16 + 1
+    for j in 0..changes {
+      let pos = random(LEN)
+      target[pos] = random(255)
+    }
+
+    // Smoothly move current toward target
+    for i in 0..LEN {
+      let cur = current[i]
+      let tgt = target[i]
+
+      if cur < tgt {
+        let diff = tgt - cur
+        let inc = diff / 8 + 1
+        cur = cur + inc
+        if cur > tgt { cur = tgt }
+      } else if cur > tgt {
+        let diff = cur - tgt
+        let inc = diff / 8 + 1
+        cur = cur - inc
+        if cur < tgt { cur = tgt }
+      }
+      current[i] = cur
+
+      pixel(i, color_wheel(cur))
+    }
+
+    frame()
+  }
+}

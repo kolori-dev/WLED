@@ -1,0 +1,29 @@
+// Freqpixels — Random pixels colored by audio frequency.
+
+effect "Freqpixels WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Gain"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    fade(speed / 4 + 16)
+
+    let vol = volume * intensity / 128
+    if vol > 255 { vol = 255 }
+    let cnt = vol / 4
+
+    for i in 0..cnt {
+      let pos = random(LEN)
+      let bin = random(16)
+      let val = fft(bin)
+      let c = palette(val + bin * 16)
+      pixel(pos, c)
+    }
+
+    frame()
+  }
+}

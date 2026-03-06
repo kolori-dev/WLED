@@ -1,0 +1,12 @@
+{
+  "name": "wled-lang-compiler",
+  "version": "1.0.0",
+  "description": "WLED-Lang to .wfx bytecode compiler",
+  "main": "compiler.js",
+  "bin": { "wledc": "./compiler.js" },
+  "scripts": {
+    "test": "node --test test/",
+    "build-effects": "node scripts/build-all.js"
+  },
+  "engines": { "node": ">=20.0.0" }
+}

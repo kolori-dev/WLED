@@ -1,0 +1,26 @@
+// Chase Random — A chase effect where each new pixel gets a random
+// palette color. The chase segment moves around the strip and each
+// pixel in the segment has its own random palette-derived color.
+
+effect "Chase Random WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette true
+  }
+
+  render {
+    let width = max(intensity / 16, 1)
+    let pos = (NOW * speed / 512) % LEN
+
+    fade(220)
+
+    for j in 0..width {
+      let idx = (pos + j) % LEN
+      let pidx = random(255)
+      pixel(idx, palette(pidx))
+    }
+
+    frame()
+  }
+}

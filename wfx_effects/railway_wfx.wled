@@ -1,0 +1,28 @@
+// Railway — Alternating colored segments blink like railway crossing lights.
+// Two groups swap between lit and dark in a steady rhythm.
+// Speed controls blink rate, intensity controls segment size.
+
+effect "Railway WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Segment Size"
+    palette true
+  }
+
+  render {
+    let seg = max(intensity / 16, 1)
+    let cycle = NOW * speed / 512
+    let phase = (cycle / 256) % 2
+
+    for i in 0..LEN {
+      let group = (i / seg) % 2
+      if group == phase {
+        pixel(i, palette(i * 255 / LEN))
+      } else {
+        pixel(i, rgb(0, 0, 0))
+      }
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,26 @@
+// Noisefire — Volume-driven animated fire noise pattern.
+
+effect "Noisefire WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    let vol = volume
+    step_val = step_val + vol / 4 + 1
+
+    for i in 0..LEN {
+      let nx = i * (intensity / 4 + 8)
+      let val = noise(nx + step_val)
+      val = val * vol / 256
+      nx = palette(val)
+      pixel(i, nx)
+    }
+
+    frame()
+  }
+}

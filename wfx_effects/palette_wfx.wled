@@ -1,0 +1,25 @@
+// Palette — Simple palette display: maps the current palette evenly across
+// the strip, slowly rotating over time. Speed controls rotation rate,
+// intensity controls how many times the palette repeats across the strip.
+
+effect "Palette WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Repeats"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 1024
+
+    let repeats = intensity / 32 + 1
+
+    for i in 0..LEN {
+      let idx = i * 256 * repeats / LEN + t
+      idx = idx % 256
+      pixel(i, palette(idx))
+    }
+
+    frame()
+  }
+}

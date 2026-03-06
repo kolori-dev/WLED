@@ -842,6 +842,37 @@ input[type=range]::-moz-range-thumb {
 .btn-xs {
 	margin: 0;
 }
+.btn-fx {
+	width: auto !important;
+	height: auto !important;
+	padding: 4px 14px;
+	margin: 2px;
+	font-size: 13px;
+	border-radius: 20px;
+	text-overflow: ellipsis;
+}
+/* kebab context menu for bytecode effects */
+#fxctx {
+	position: fixed;
+	background: var(--c-3);
+	border: 1px solid var(--c-6);
+	border-radius: 8px;
+	padding: 2px 0;
+	z-index: 100;
+	box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+#fxctx span {
+	display: block;
+	padding: 8px 16px;
+	cursor: pointer;
+	color: var(--c-f);
+	font-size: 13px;
+	white-space: nowrap;
+}
+#fxctx span:hover {
+	background: var(--c-5);
+	border-radius: 8px;
+}
 #info .btn-xs {
 	border: 1px solid var(--c-4);
 }

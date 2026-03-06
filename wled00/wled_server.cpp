@@ -1,4 +1,5 @@
 #include "wled.h"
+#include "wled_fx_loader.h"
 
 #ifndef WLED_DISABLE_OTA
   #include "ota_update.h"  
@@ -204,6 +205,13 @@ static void handleUpload(AsyncWebServerRequest *request, const String& filename,
       finalname = '/' + finalname; // prepend slash if missing
     }
 
+    // Enforce /fx/ directory for .wfx uploads: strip path components and force prefix
+    if (finalname.endsWith(F(".wfx"))) {
+      int lastSlash = finalname.lastIndexOf('/');
+      String basename = finalname.substring(lastSlash + 1);
+      finalname = String(FX_DIR) + "/" + basename;
+    }
+
     request->_tempFile = WLED_FS.open(finalname, "w");
     DEBUG_PRINTF_P(PSTR("Uploading %s\n"), finalname.c_str());
     if (finalname.equals(FPSTR(getPresetsFileName()))) presetsModifiedTime = toki.second();
@@ -218,6 +226,15 @@ static void handleUpload(AsyncWebServerRequest *request, const String& filename,
       request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Config restore ok.\nRebooting..."));
     } else {
       if (filename.indexOf(F("palette")) >= 0 && filename.indexOf(F(".json")) >= 0) loadCustomPalettes();
+      // Load bytecode effect if a .wfx file was uploaded to /fx/
+      if (filename.endsWith(F(".wfx"))) {
+        // Reconstruct the sanitized /fx/ path (matching the logic above)
+        String fxName = filename;
+        int lastSlash = fxName.lastIndexOf('/');
+        if (lastSlash >= 0) fxName = fxName.substring(lastSlash + 1);
+        String fxPath = String(FX_DIR) + "/" + fxName;
+        FXLoader::loadEffect(fxPath.c_str());
+      }
       request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("File Uploaded!"));
     }
     cacheInvalidate++;
@@ -488,6 +505,101 @@ void initServer()
         [](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data,
                       size_t len, bool isFinal) {handleUpload(request, filename, index, data, len, isFinal);}
   );
+
+  // Delete a bytecode effect file (POST to prevent CSRF)
+  server.on(F("/fx/delete"), HTTP_POST, [](AsyncWebServerRequest *request) {
+    if (!correctPIN) { request->send(401, FPSTR(CONTENT_TYPE_PLAIN), FPSTR(s_unlock_cfg)); return; }
+    // Support deletion by mode ID or by filename
+    if (request->hasParam(F("id"), true)) {
+      uint8_t id = request->getParam(F("id"), true)->value().toInt();
+      WfxEffect* fx = FXLoader::getEffect(id);
+      if (fx) {
+        String fullPath = String(FX_DIR) + "/" + fx->filename;
+        FXLoader::unloadEffect(id);
+        WLED_FS.remove(fullPath);
+        request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Effect removed. Reboot to fully refresh."));
+      } else {
+        request->send(404, FPSTR(CONTENT_TYPE_PLAIN), F("Effect not found"));
+      }
+    } else if (request->hasParam(F("name"), true)) {
+      String name = request->getParam(F("name"), true)->value();
+      if (FXLoader::unloadEffectByName(name.c_str())) {
+        request->send(200, FPSTR(CONTENT_TYPE_PLAIN), F("Effect removed. Reboot to fully refresh."));
+      } else {
+        request->send(404, FPSTR(CONTENT_TYPE_PLAIN), F("Effect not found"));
+      }
+    } else {
+      request->send(400, FPSTR(CONTENT_TYPE_PLAIN), F("Missing id or name"));
+    }
+  });
+
+  // Backup all .wfx effect files as a tar archive
+  server.on(F("/fx/backup"), HTTP_GET, [](AsyncWebServerRequest *request) {
+    if (!correctPIN) { request->send(401, FPSTR(CONTENT_TYPE_PLAIN), FPSTR(s_unlock_cfg)); return; }
+    File root = WLED_FS.open(FX_DIR);
+    if (!root || !root.isDirectory()) { request->send(404, FPSTR(CONTENT_TYPE_PLAIN), F("No effects directory")); return; }
+
+    AsyncResponseStream *response = request->beginResponseStream(F("application/x-tar"));
+    response->addHeader(F("Content-Disposition"), F("attachment; filename=\"wled_effects.tar\""));
+
+    uint8_t hdr[512];
+    File f = root.openNextFile();
+    while (f) {
+      if (!f.isDirectory()) {
+        const char *name = f.name();
+        size_t fsize = f.size();
+
+        // Build tar header
+        memset(hdr, 0, 512);
+        // filename (field 0-99)
+        snprintf((char*)hdr, 100, "fx/%s", name);
+        // file mode
+        memcpy(hdr + 100, "0000644\0", 8);
+        // uid/gid
+        memcpy(hdr + 108, "0000000\0", 8);
+        memcpy(hdr + 116, "0000000\0", 8);
+        // file size in octal
+        snprintf((char*)hdr + 124, 12, "%011o", (unsigned int)fsize);
+        // mtime
+        memcpy(hdr + 136, "00000000000\0", 12);
+        // type flag: regular file
+        hdr[156] = '0';
+        // ustar magic
+        memcpy(hdr + 257, "ustar\0" "00", 8);
+
+        // Compute checksum (sum of all bytes with checksum field as spaces)
+        memset(hdr + 148, ' ', 8);
+        unsigned int cksum = 0;
+        for (int i = 0; i < 512; i++) cksum += hdr[i];
+        snprintf((char*)hdr + 148, 7, "%06o", cksum);
+        hdr[155] = '\0';
+
+        response->write(hdr, 512);
+
+        // Write file data in 512-byte blocks
+        uint8_t buf[512];
+        size_t remaining = fsize;
+        while (remaining > 0) {
+          size_t toRead = (remaining > 512) ? 512 : remaining;
+          size_t got = f.read(buf, toRead);
+          if (got == 0) break; // read error — avoid infinite loop
+          if (got < 512) memset(buf + got, 0, 512 - got); // pad last block
+          response->write(buf, 512);
+          remaining -= got;
+        }
+      }
+      f.close();
+      f = root.openNextFile();
+    }
+    root.close();
+
+    // Two empty 512-byte blocks to end the tar
+    memset(hdr, 0, 512);
+    response->write(hdr, 512);
+    response->write(hdr, 512);
+
+    request->send(response);
+  });
 
   createEditHandler(); // initialize "/edit" handler, access is protected by "correctPIN"
 

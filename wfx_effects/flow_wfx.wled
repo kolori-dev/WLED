@@ -1,0 +1,31 @@
+// Flow — Colors flowing along the strip like a river.
+// Palette colors stream in one direction with smooth wave motion.
+// Speed controls flow rate, intensity controls color density.
+
+effect "Flow WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Density"
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 256
+
+    let density = intensity / 16 + 2
+
+    for i in 0..LEN {
+      // Flow direction: colors scroll from start to end
+      let idx = i * density + t
+      idx = idx % 256
+
+      // Subtle brightness undulation for depth
+      let bri = sin8(i * 32 + t / 2)
+      bri = bri / 4 + 192
+
+      pixel(i, color_fade(palette(idx), bri))
+    }
+
+    frame()
+  }
+}

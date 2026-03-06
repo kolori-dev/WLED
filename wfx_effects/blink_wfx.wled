@@ -1,0 +1,23 @@
+effect "Blink WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Duty cycle"
+    palette true
+  }
+
+  render {
+    let cycle = NOW * speed / 255
+    let on = cycle % 512 < intensity * 2
+
+    if on {
+      for i in 0..LEN {
+        let c = palette(i * 255 / LEN)
+        pixel(i, c)
+      }
+    } else {
+      fill(rgb(0, 0, 0))
+    }
+
+    frame()
+  }
+}

@@ -1,0 +1,50 @@
+// Sindots — Sine-wave based dots dancing across the 2D matrix.
+// Multiple dots follow sine paths at different phases, leaving
+// palette-colored trails that fade over time.
+
+effect "Sindots 2D WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Dot Count"
+    type 2D
+    palette true
+  }
+
+  render {
+    fade(220)
+    blur2d(16)
+
+    let t = NOW * speed / 512
+    let count = intensity / 32 + 3
+
+    for i in 0..count {
+      // Each dot has a unique phase offset
+      let phase = i * 256 / count
+
+      // X position: sine wave across width
+      let sx = sin8(t + phase)
+      let x = sx * WIDTH / 256
+
+      // Y position: cosine wave across height (different frequency)
+      let sy = cos8(t * 2 / 3 + phase * 2)
+      let y = sy * HEIGHT / 256
+
+      // Clamp to valid range
+      if x >= WIDTH { x = WIDTH - 1 }
+      if y >= HEIGHT { y = HEIGHT - 1 }
+
+      let col = palette(phase + t / 2)
+      pixel2d(x, y, col)
+
+      // Draw a small cross for visibility
+      if x + 1 < WIDTH {
+        pixel2d(x + 1, y, color_fade(col, 128))
+      }
+      if y + 1 < HEIGHT {
+        pixel2d(x, y + 1, color_fade(col, 128))
+      }
+    }
+
+    frame()
+  }
+}

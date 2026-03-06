@@ -1,0 +1,27 @@
+// Rainbow Runner — A rainbow-colored segment chasing around the strip.
+// The segment displays a full rainbow spectrum that cycles through
+// its hues as it moves, creating a vibrant running effect.
+
+effect "Rainbow Runner WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette false
+  }
+
+  render {
+    let width = max(intensity / 8, 4)
+    let pos = (NOW * speed / 512) % LEN
+    let hueShift = NOW * speed / 256
+
+    fade(200)
+
+    for j in 0..width {
+      let idx = (pos + j) % LEN
+      let hue = (j * 255 / width + hueShift) % 256
+      pixel(idx, color_wheel(hue))
+    }
+
+    frame()
+  }
+}

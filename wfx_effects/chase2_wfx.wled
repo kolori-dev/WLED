@@ -1,0 +1,33 @@
+// Chase 2 — Dual chase using color0 and color1.
+// Two chase segments alternate around the strip, one in each
+// segment color. Speed controls chase rate, intensity controls width.
+
+effect "Chase 2 WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Width"
+    palette false
+  }
+
+  render {
+    let width = max(intensity / 16, 1)
+    let pos = (NOW * speed / 512) % LEN
+
+    fill(rgb(0, 0, 0))
+
+    // Chase segment 1 with color0
+    for j in 0..width {
+      let idx = (pos + j) % LEN
+      pixel(idx, color0)
+    }
+
+    // Chase segment 2 with color1, offset by half the strip
+    let offset = LEN / 2
+    for j in 0..width {
+      let idx = (pos + offset + j) % LEN
+      pixel(idx, color1)
+    }
+
+    frame()
+  }
+}

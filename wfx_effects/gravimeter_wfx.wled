@@ -1,0 +1,28 @@
+// Gravimeter — Volume level visualized as a palette bar.
+
+effect "Gravimeter WFX" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Sensitivity"
+    type 1D
+    palette true
+    audio_reactive true
+  }
+
+  render {
+    fade(32)
+
+    let vol = volume * intensity / 128
+    if vol > 255 { vol = 255 }
+    let lit = vol * LEN / 256
+
+    for i in 0..LEN {
+      if i < lit {
+        let c = palette(i * 255 / LEN)
+        pixel(i, color_fade(c, vol))
+      }
+    }
+
+    frame()
+  }
+}
