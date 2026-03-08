@@ -1,97 +1,124 @@
-// Halloween Eyes — Pairs of glowing eyes (2 pixels each) appear at random
-// positions, glow brightly, then fade away. Spooky!
-// Uses aux0 for state machine, aux1 for timer, data for eye positions/brightness.
+// Halloween Eyes — Single pair of glowing eyes that fade in, occasionally blink,
+// then fade out. Proportionally sized based on strip length.
+// Uses state machine: initOn(0)->on(1)->blink(2)->initOff(3)->off(4)
+// speed = eye off time, intensity = eye on time
+// aux0 = state, aux1 = eye color index, step_val = start time
 
 effect "Halloween Eyes WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Eye count"
+    slider speed "Eye off time"
+    slider intensity "Eye on time"
   }
 
-  data eye_pos[8]
-  data eye_bri[8]
-  data eye_state[8]
+  // data: [0]=startPos, [1]=duration, [2]=blinkEnd
+  data eye_data[3]
 
   render {
-    fill(rgb(0, 0, 0))
+    // Eye sizing proportional to strip length
+    let space = LEN / 32
+    if space < 2 { space = 2 }
+    let ew = space / 2
+    if ew < 1 { ew = 1 }
+    let eyeLen = ew * 2 + space
 
-    let count = intensity / 64 + 1
-    if count > 8 {
-      count = 8
-    }
+    if eyeLen >= LEN {
+      fill(rgb(0, 0, 0))
+      frame()
+    } else {
+      fill(color1)
 
-    let rate = speed / 16 + 1
+      if aux0 > 4 { aux0 = 0 }
 
-    for i in 0..count {
-      let st = eye_state[i]
-      let b = eye_bri[i]
+      let startPos = eye_data[0]
+      let dur = eye_data[1]
+      if dur < 1 { dur = 1 }
+      let elapsed = NOW - step_val
 
-      if st == 0 {
-        // Idle — randomly decide to spawn
-        if random(255) < speed / 8 + 4 {
-          // Pick a position with room for 2-pixel gap (the eye pair)
-          let p = random(LEN - 5) + 1
-          eye_pos[i] = p
-          eye_bri[i] = 1
-          eye_state[i] = 1
+      if aux0 == 0 {
+        // initializeOn: pick position, color, duration
+        startPos = random(LEN - eyeLen - 1)
+        eye_data[0] = startPos
+        aux1 = random(255)
+        dur = 128 + random(intensity * 64)
+        eye_data[1] = dur
+        step_val = NOW
+        elapsed = 0
+        aux0 = 1
+      }
+
+      if aux0 == 1 {
+        // on: fade in, hold, occasionally blink
+        eyeLen = 128 + intensity * 64
+        if dur > eyeLen { dur = eyeLen }
+
+        eyeLen = startPos + ew + space
+        let fa = elapsed * 2048 / dur
+        let c = palette(aux1)
+
+        if fa < 256 {
+          c = blend(color1, c, fa)
+        } else if elapsed > 1024 {
+          let remain = 0
+          if elapsed < dur {
+            remain = dur - elapsed
+          }
+          if remain > 1024 {
+            if random(255) < 4 {
+              c = color1
+              aux0 = 2
+              eye_data[2] = NOW + random(8, 128)
+            }
+          }
         }
-      } else if st == 1 {
-        // Fading in
-        b = b + rate
-        if b >= 220 {
-          b = 220
-          eye_state[i] = 2
-          // Use aux0 to count hold frames
-          eye_bri[i] = b
-        } else {
-          eye_bri[i] = b
-        }
-      } else if st == 2 {
-        // Hold — stay bright for a bit, then start fading
-        // Decrement hold counter using a random chance
-        if random(255) < speed / 4 + 16 {
-          eye_state[i] = 3
-        }
-      } else if st == 3 {
-        // Fading out
-        if b > rate {
-          b = b - rate
-        } else {
-          b = 0
-        }
-        eye_bri[i] = b
-        if b == 0 {
-          eye_state[i] = 0
+
+        // Draw eyes if not blinking
+        if aux0 != 2 {
+          for j in 0..ew {
+            pixel(startPos + j, c)
+            pixel(eyeLen + j, c)
+          }
         }
       }
 
-      // Draw the eye pair
-      b = eye_bri[i]
-      if b > 0 {
-        let p = eye_pos[i]
-        // Eye color: orange-red to yellow-green
-        let r = b
-        let g = b * 2 / 3
-        let c = rgb(r, g, 0)
-
-        // Left eye (2 pixels)
-        if p >= 0 and p < LEN {
-          pixel(p, c)
-        }
-        if p + 1 < LEN {
-          pixel(p + 1, c)
-        }
-
-        // Right eye (2 pixels, gap of 2)
-        if p + 4 < LEN {
-          pixel(p + 4, c)
-        }
-        if p + 5 < LEN {
-          pixel(p + 5, c)
+      if aux0 == 2 {
+        // blink: eyes off momentarily
+        let blinkEnd = eye_data[2]
+        if NOW >= blinkEnd {
+          aux0 = 1
         }
       }
-    }
 
-    frame()
+      if aux0 == 3 {
+        // initializeOff
+        eyeLen = speed * 128
+        dur = eyeLen + random(eyeLen)
+        eye_data[1] = dur
+        step_val = NOW
+        elapsed = 0
+        aux0 = 4
+      }
+
+      if aux0 == 4 {
+        // off: wait in darkness
+        eyeLen = speed * 128
+        if dur > eyeLen * 2 {
+          dur = eyeLen * 2
+        }
+      }
+
+      // Check if state duration is over
+      if elapsed > dur {
+        if aux0 == 1 or aux0 == 2 {
+          aux0 = 3
+          step_val = NOW
+          eye_data[1] = 1
+        } else {
+          aux0 = 0
+          step_val = NOW
+        }
+      }
+
+      frame()
+    }
   }
 }

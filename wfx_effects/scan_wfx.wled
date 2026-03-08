@@ -1,3 +1,7 @@
+// Scan — A bar bounces back and forth across the strip.
+// C++ original: cycleTime=750+(255-speed)*150, fills SEGCOLOR(1) background,
+// size = 1 + (intensity * SEGLEN / 512).
+
 effect "Scan WFX" {
   meta {
     slider speed "Speed"
@@ -6,24 +10,28 @@ effect "Scan WFX" {
   }
 
   render {
-    let width = max(intensity / 32, 1)
-    let cycle = (NOW * speed / 512) % (LEN * 2)
-    let pos = cycle
+    let cycleTime = 750 + (255 - speed) * 150
+    let perc = NOW % cycleTime
+    let prog = perc * 65535 / cycleTime
+    let size = 1 + intensity * LEN / 512
+    let ledIndex = prog * (LEN * 2 - size * 2) / 65536
 
-    // Bounce: reverse direction in second half
-    if pos >= LEN {
-      pos = LEN * 2 - pos - 1
-    }
+    // Bounce
+    let led_offset = ledIndex - (LEN - size)
+    if led_offset < 0 { led_offset = 0 - led_offset }
 
-    fade(192)
+    // Fill background with SEGCOLOR(1)
+    fill(color1)
 
-    for j in 0..width {
-      let idx = pos + j
-      if idx >= 0 and idx < LEN {
-        pixel(idx, palette(j * 255 / width))
+    // Draw scan bar with palette colors
+    for j in led_offset..led_offset + size {
+      if j >= 0 {
+        if j < LEN {
+          pixel(j, palette(j * 255 / LEN))
+        }
       }
     }
 
-    frame()
+    frame(16)
   }
 }

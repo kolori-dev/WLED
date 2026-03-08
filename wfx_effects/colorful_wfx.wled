@@ -1,26 +1,58 @@
-// Colorful — Each pixel gets a palette color based on its position,
-// slowly cycling over time. The colors shift and drift, creating
-// a living gradient that continuously evolves.
+// Colorful — Repeating color bands that step/cycle.
+// C++ original: Three modes based on intensity:
+// intensity < 80: pastel colors (orange, yellow, green, cyan)
+// intensity > 160 or palette set: palette/segment colors
+// default: Red, Amber, Green, Blue
+// Bands cycle position based on speed.
 
 effect "Colorful WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Color Spread"
+    slider intensity "Saturation"
     palette true
   }
 
   render {
-    let offset = NOW * speed / 1024
+    // Determine colors based on intensity
+    let c0 = rgb(255, 0, 0)
+    let c1 = rgb(238, 187, 0)
+    let c2 = rgb(0, 238, 0)
+    let c3 = rgb(0, 119, 204)
 
-    for i in 0..LEN {
-      // Each pixel gets a unique palette index based on position
-      // with a noise-like variation for organic feel
-      let base = i * intensity / 4 + offset
-      let wobble = sin8(i * 16 + offset / 2)
-      let idx = (base + wobble / 4) % 256
-      pixel(i, palette(idx))
+    if intensity < 80 {
+      // Pastel/Easter colors
+      c0 = rgb(255, 128, 64)
+      c1 = rgb(229, 210, 65)
+      c2 = rgb(119, 255, 119)
+      c3 = rgb(119, 240, 240)
+    }
+    if intensity > 160 {
+      // Use palette colors
+      c0 = palette(0)
+      c1 = palette(80)
+      c2 = palette(160)
+      c3 = palette(240)
     }
 
-    frame()
+    // Cycle offset based on speed
+    let cycleTime = 50 + 8 * (255 - speed)
+    let it = NOW / cycleTime
+    if it != step_val {
+      if speed > 0 {
+        aux0 = (aux0 + 1) % 4
+      }
+      step_val = it
+    }
+
+    // Fill strip with repeating 4-color pattern, offset by aux0
+    for i in 0..LEN {
+      let j = (i + aux0) % 4
+      if j == 0 { pixel(i, c0) }
+      if j == 1 { pixel(i, c1) }
+      if j == 2 { pixel(i, c2) }
+      if j == 3 { pixel(i, c3) }
+    }
+
+    frame(16)
   }
 }

@@ -1,28 +1,65 @@
-// Black Hole — Vortex spiraling into the center with palette.
+// Black Hole — Stars orbit around a white center, creating a vortex.
+// By: Stepko, Modified by: Andrew Tuline
+// Original C++ metadata: "Black Hole@Fade rate,Outer Y freq.,Outer X freq.,Inner X freq.,Inner Y freq.,Solid,,Blur;!;!;2;pal=11"
 
 effect "Black Hole WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Pull"
+    slider speed "Fade rate"
+    slider intensity "Outer Y freq."
+    slider custom1 "Outer X freq."
+    slider custom2 "Inner X freq."
+    slider custom3 "Inner Y freq."
     type 2D
     palette true
   }
 
   render {
-    step_val = NOW / 15
+    fade(239 - speed / 8)
 
-    for y in 0..HEIGHT {
-      for x in 0..WIDTH {
-        let dx = x - WIDTH / 2
-        let dy = y - HEIGHT / 2
-        let dist = abs(dx) + abs(dy) + 1
-        dx = noise2(dx * 32 + 128, dy * 32 + 128)
-        dy = dist * intensity / 32
-        dy = dx + dy - step_val
-        dx = palette(dy)
-        dy = max(255 - dist * 24, 0)
-        pixel2d(x, y, color_fade(dx, dy))
-      }
+    step_val = NOW / 128
+
+    // Outer stars: 8 points using sin8 with different phases
+    for i in 0..8 {
+      let pa = 0
+      if i % 2 == 1 { pa = 128 }
+      pa = pa + step_val * i
+      let sx = sin8(custom1 * NOW / 8000 + pa)
+      sx = sx * (WIDTH - 1) / 255
+      // Reuse pa for Y phase
+      pa = 64
+      if i % 2 == 1 { pa = 192 }
+      pa = pa + step_val * i
+      let sy = sin8(intensity * NOW / 8000 + pa)
+      sy = sy * (HEIGHT - 1) / 255
+      let col = palette(i * 32)
+      let prev = get_pixel2d(sx, sy)
+      pixel2d(sx, sy, color_add(prev, col))
+    }
+
+    // Inner stars: 4 points in inner quadrant
+    for i in 0..4 {
+      let pa = 0
+      if i % 2 == 1 { pa = 128 }
+      pa = pa + step_val * i
+      let ix = sin8(custom2 * NOW / 8000 + pa)
+      ix = WIDTH / 4 + ix * (WIDTH / 2) / 255
+      // Reuse pa for Y phase
+      pa = 64
+      if i % 2 == 1 { pa = 192 }
+      pa = pa + step_val * i
+      let iy = sin8(custom3 * NOW / 1000 + pa)
+      iy = HEIGHT / 4 + iy * (HEIGHT / 2) / 255
+      let ic = palette(255 - i * 64)
+      let prev = get_pixel2d(ix, iy)
+      pixel2d(ix, iy, color_add(prev, ic))
+    }
+
+    // Central white dot
+    let white = rgb(255, 255, 255)
+    pixel2d(WIDTH / 2, HEIGHT / 2, white)
+
+    if check3 {
+      blur2d(16)
     }
 
     frame()

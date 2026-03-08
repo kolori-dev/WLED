@@ -1,67 +1,44 @@
-// Fireworks 1D — Random launches that explode into expanding then fading bursts.
-// Data buffers store spark positions and ages.
-// speed controls launch rate, intensity controls brightness.
+// Fireworks 1D — Random bright pixels that fade and blur out.
+// C++ original: fade_out(128), blur(16), random spawn at random position
+// Spawn if random8(129 - intensity/2) == 0, color from palette(random8())
+// aux0/aux1 store last two spark positions
 
 effect "Fireworks 1D WFX" {
   meta {
-    slider speed "Launch Rate"
-    slider intensity "Brightness"
+    slider speed ""
+    slider intensity "Frequency"
     palette true
   }
 
-  data pos[8]
-  data age[8]
-
   render {
+    // Fade existing pixels for trail
     fade(128)
 
-    // Launch new fireworks
-    if random(255) < speed / 4 + 2 {
-      for s in 0..8 {
-        if age[s] == 0 {
-          pos[s] = random(LEN)
-          age[s] = 1
-          s = 8
-        }
-      }
+    // Blur for spreading effect
+    blur(16)
+
+    // Spawn new spark: probability scales with intensity
+    // C++: random8(129 - intensity/2) == 0
+    // Higher intensity = lower threshold = more frequent spawns
+    let threshold = 129 - intensity / 2
+    if threshold < 2 { threshold = 2 }
+
+    if random(threshold) == 0 {
+      // Spawn at random position with palette color
+      let pos = random(LEN)
+      let c = palette(random(255))
+      pixel(pos, c)
+
+      // Store last two spark positions in aux0/aux1
+      aux1 = aux0
+      aux0 = pos
     }
 
-    // Draw and age sparks
-    for s in 0..8 {
-      let a = age[s]
-      if a > 0 {
-        let p = pos[s]
-        let bri = 255 - a * 8
-        if bri > 0 {
-          // Draw expanding burst
-          let c = palette(p + a * 10)
-          c = color_fade(c, bri)
-
-          // Draw ring of sparks expanding from center
-          let left = p - a
-          let right = p + a
-          if left >= 0 and left < LEN {
-            pixel(left, c)
-          }
-          if right >= 0 and right < LEN {
-            pixel(right, c)
-          }
-
-          // Draw additional sparks at intermediate positions
-          let mid1 = p - a / 2
-          let mid2 = p + a / 2
-          if mid1 >= 0 and mid1 < LEN {
-            pixel(mid1, color_fade(c, 180))
-          }
-          if mid2 >= 0 and mid2 < LEN {
-            pixel(mid2, color_fade(c, 180))
-          }
-        }
-
-        a = a + 2
-        if a > 30 { a = 0 }
-        age[s] = a
-      }
+    // Restore last two spark positions after blur (C++ does this)
+    // This keeps sparks bright for a frame after blur smears them
+    if aux0 < LEN {
+      let c = get_pixel(aux0)
+      pixel(aux0, c)
     }
 
     frame()

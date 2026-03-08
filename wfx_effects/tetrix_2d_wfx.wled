@@ -1,33 +1,28 @@
-// Tetrix 2D — Tetris-like blocks falling from the top and stacking
-// at the bottom. Each column has an independent falling block.
+// Tetrix — Tetris-like blocks falling and stacking.
+// C++ original: mode_tetrix() — 1D effect with falling blocks.
+// Metadata: "Tetrix@!,Width,,,,One color;!,!;!;;sx=0,ix=0,pal=11,m12=1"
 
 effect "Tetrix 2D WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Columns"
-    type 2D
+    slider intensity "Width"
     palette true
   }
 
-  // Track the Y position of the falling block in each column (up to 32 cols)
   data fall_y[32]
-  // Track the stack height in each column
   data stack[32]
-  // Color index per column
   data col_hue[32]
 
   render {
-    // Initialize on first call
-    if step_val == 0 {
+    if CALL == 0 {
       for i in 0..WIDTH {
         fall_y[i] = 0
         stack[i] = 0
-        col_hue[i] = random(255)
+        let a = random(255)
+        col_hue[i] = a
       }
-      step_val = 1
     }
 
-    // Clear the area above stacks (use 0 = black instead of rgb(0,0,0) to save temps)
     for x in 0..WIDTH {
       let sh = stack[x]
       let top = HEIGHT - sh
@@ -36,33 +31,28 @@ effect "Tetrix 2D WFX" {
       }
     }
 
-    // Active columns count
     let cols = intensity / 16 + 1
-    if cols > WIDTH {
-      cols = WIDTH
-    }
+    if cols > WIDTH { cols = WIDTH }
 
-    // Update falling blocks
     for x in 0..cols {
       let fy = fall_y[x]
       let sh = stack[x]
       let bottom = HEIGHT - sh - 1
 
       if fy < bottom {
-        // Draw falling block
-        pixel2d(x, fy, palette(col_hue[x]))
+        let c = palette(col_hue[x])
+        pixel2d(x, fy, c)
         fall_y[x] = fy + 1
       } else {
-        // Block landed — add to stack
         if bottom >= 0 {
-          pixel2d(x, bottom, palette(col_hue[x]))
+          let c = palette(col_hue[x])
+          pixel2d(x, bottom, c)
           stack[x] = sh + 1
         }
-        // Reset with new color
         fall_y[x] = 0
-        col_hue[x] = random(255)
+        let a = random(255)
+        col_hue[x] = a
 
-        // If stack is full, clear it
         if stack[x] >= HEIGHT {
           stack[x] = 0
         }

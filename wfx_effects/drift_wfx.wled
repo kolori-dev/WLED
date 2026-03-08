@@ -1,26 +1,44 @@
-// Drift — Drifting Perlin noise pattern on 2D matrix.
+// Drift — C++ origin: mode_2DDrift() by Stepko, modified by Andrew Tuline.
+// Metadata: "Drift@Rotation speed,Blur,,,,Twin,Smear;;!;2;ix=0"
+// Rotating drift pattern: points spiral outward from center using
+// sin/cos at increasing radii. Palette colored by radius + time.
 
 effect "Drift WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Scale"
+    slider speed "Rotation speed"
+    slider intensity "Blur"
     type 2D
     palette true
   }
 
   render {
-    step_val = NOW * speed / 256
+    // fadeToBlackBy(128)
+    fade(127)
 
-    for y in 0..HEIGHT {
-      for x in 0..WIDTH {
-        let sc = max(intensity / 4 + 8, 4)
-        let nx = x * sc + step_val / 4
-        let ny = y * sc + step_val / 6
-        let val = noise2(nx, ny)
-        sc = palette(val)
-        nx = max(val, 32)
-        pixel2d(x, y, color_fade(sc, nx))
+    aux0 = WIDTH / 2 + WIDTH % 2
+    aux1 = HEIGHT / 2 + HEIGHT % 2
+    step_val = max(WIDTH, HEIGHT) / 2
+
+    let t = NOW / max(32 - speed / 8, 1)
+
+    for q in 4..step_val*4 {
+      let angle = t * (step_val * 4 - q) / 4
+      let sx = sin8(angle)
+      let sy = cos8(angle)
+
+      // Map to pixel coordinates: cx + (sin-128)*q/512
+      angle = aux0 + (sx - 128) * q / 512
+      sx = aux1 + (sy - 128) * q / 512
+
+      if angle >= 0 and angle < WIDTH and sx >= 0 and sx < HEIGHT {
+        sy = q * 5 + t / 20
+        pixel2d(angle, sx, palette(sy))
       }
+    }
+
+    aux0 = intensity / 8
+    if aux0 > 0 {
+      blur2d(aux0)
     }
 
     frame()

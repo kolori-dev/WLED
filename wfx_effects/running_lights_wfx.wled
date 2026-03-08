@@ -1,18 +1,23 @@
-effect "Running Lights WFX" {
+// Running Lights — Smooth sine wave pattern scrolling along strip.
+// C++ original: running_base(false). Uses sin8 with x_scale from intensity,
+// counter from speed, blends palette with SEGCOLOR(1).
+
+effect "Running WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Wave size"
+    slider intensity "Wave width"
     palette true
   }
 
   render {
-    let offset = NOW * speed / 256
+    let x_scale = intensity / 4
+    let counter = NOW * speed / 512
 
     for i in 0..LEN {
-      let wave = sin8(i * intensity / 4 + offset)
+      let a = i * x_scale - counter
+      let s = sin8(a % 256)
       let c = palette(i * 255 / LEN)
-      let faded = color_fade(c, wave)
-      pixel(i, faded)
+      pixel(i, blend(color1, c, s))
     }
 
     frame()

@@ -1,38 +1,57 @@
-// Chase Flash — A chase effect with a bright white flash at the head.
-// The chase body uses color0, and the leading pixel flashes white
-// every few frames for a strobe-like accent.
+// Chase Flash — Palette background with double-flash at chase head.
+// C++ original: 4 double-flashes (FLASH_COUNT=4) at the head position,
+// then advances to next position. Palette fills background.
 
 effect "Chase Flash WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Width"
     palette true
   }
 
   render {
-    let width = max(intensity / 16, 2)
-    let pos = (NOW * speed / 512) % LEN
-
-    fill(rgb(0, 0, 0))
-
-    // Draw chase body
-    for j in 0..width {
-      let idx = (pos + j) % LEN
-      pixel(idx, palette(j * 255 / width))
+    // Draw palette background
+    for i in 0..LEN {
+      pixel(i, palette(i * 255 / LEN))
     }
 
-    // White flash at the head — flashes on/off rapidly
-    let flash = (NOW * speed / 64) % 4
-    if flash < 2 {
-      let head = (pos + width) % LEN
-      pixel(head, rgb(255, 255, 255))
-      // Slight glow behind the flash
-      let h2 = (pos + width - 1) % LEN
-      if h2 >= 0 {
-        pixel(h2, rgb(200, 200, 200))
+    let flash_step = aux1 % 9  // (FLASH_COUNT*2)+1 = 9
+    let delay = 10 + 30 * (255 - speed) / LEN
+
+    // Flash at chase head
+    let n = aux0
+    let m = (aux0 + 1) % LEN
+
+    if flash_step < 8 {
+      if flash_step % 2 == 0 {
+        // Flash on: white at head
+        pixel(n, color1)
+        pixel(m, color1)
+      }
+      // else: flash off (palette background shows through)
+    }
+
+    // Advance position when flash sequence completes
+    let elapsed = NOW - step_val
+    if flash_step < 8 {
+      if flash_step % 2 == 0 {
+        if elapsed > 20 {
+          aux1 = aux1 + 1
+          step_val = NOW
+        }
+      } else {
+        if elapsed > 30 {
+          aux1 = aux1 + 1
+          step_val = NOW
+        }
+      }
+    } else {
+      if elapsed > delay {
+        aux0 = (aux0 + 1) % LEN
+        aux1 = aux1 + 1
+        step_val = NOW
       }
     }
 
-    frame()
+    frame(16)
   }
 }

@@ -1,4 +1,8 @@
-effect "Lava Lamp 1D" {
+// Lava Lamp — Organic blobs of palette color rise and fall like a lava lamp.
+// Custom effect: 1D noise shaped with scale8 contrast, then blurred for soft blobs.
+// Speed controls animation rate, intensity controls blob size.
+
+effect "Lava Lamp WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Blob Size"

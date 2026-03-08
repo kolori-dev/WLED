@@ -1,47 +1,25 @@
-// Blends — Smooth blending between color0, color1, and color2 across the strip
-// with time animation. Creates flowing gradients that shift over time.
-// Speed controls animation rate, intensity controls gradient width.
+// Blends — Smooth blending palette colors. By Mark Kriegsman.
+// C++ original: Per-pixel color blends toward palette target at blendSpeed.
+// Target from palette(shift + quadwave8((i+1)*16)). Shift from time+speed.
 
 effect "Blends WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Width"
+    slider intensity "Blend Speed"
+    palette true
   }
 
   render {
-    let t = NOW * speed / 1024
+    let bspd = 10 + intensity * 118 / 255
+    let shift = NOW * (speed / 8 + 1) / 256 % 256
 
     for i in 0..LEN {
-      let pos = i * 256 / LEN
-
-      // Animated position offset
-      let apos = (pos + t) % 256
-
-      // Three color zones that blend into each other
-      // Zone boundaries shift based on intensity
-      let zone = apos * 3 / 256
-
-      let frac = (apos * 3) % 256
-
-      let c = color0
-      if zone == 0 {
-        // Blend from color0 to color1
-        c = blend(color0, color1, frac)
-      } else if zone == 1 {
-        // Blend from color1 to color2
-        c = blend(color1, color2, frac)
-      } else {
-        // Blend from color2 back to color0
-        c = blend(color2, color0, frac)
-      }
-
-      // Subtle brightness wave
-      let bri = sin8(pos * intensity / 64 + t / 2)
-      bri = bri / 4 + 192
-
-      pixel(i, color_fade(c, bri))
+      let target = palette((shift + quad8((i + 1) * 16)) % 256)
+      let cur = get_pixel(i)
+      pixel(i, blend(cur, target, bspd))
+      shift = (shift + 3) % 256
     }
 
-    frame()
+    frame(16)
   }
 }

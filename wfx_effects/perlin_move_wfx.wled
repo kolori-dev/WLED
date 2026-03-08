@@ -1,37 +1,36 @@
-// Perlin Move — Smooth Perlin noise moving across the strip with
-// multiple layers blended together. Each layer moves at a different
-// speed and scale for rich, organic motion.
+// Perlin Move — Dots placed at noise-driven positions with palette colors.
+// C++ original: mode_perlinmove — fade_out(255-custom1), then place intensity/16+1
+// dots at Perlin noise positions. Speed controls noise evolution, intensity
+// controls number of dots, custom1 controls fade rate.
 
 effect "Perlin Move WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Complexity"
+    slider intensity "# of pixels"
+    slider custom1 "Fade rate"
     palette true
   }
 
   render {
-    let t = NOW * speed / 1024
+    // Fade: 255-custom1 maps to fade amount (higher custom1 = more trail)
+    let f = 255 - custom1
+    fade(f)
 
-    for i in 0..LEN {
-      let pos = i * 256 / LEN
+    let count = intensity / 16 + 1
+    let rate = 128 * NOW / (260 - speed)
 
-      // Layer 1: large scale, slow
-      let n1 = noise2(pos * 2, t)
+    for i in 0..count {
+      // Use noise2 to determine position (approximates perlin16)
+      let nx = rate + i * 15000
+      let n = noise2(nx, rate)
 
-      // Layer 2: medium scale, medium speed
-      let n2 = noise2(pos * 4 + 500, t * 2 + 1000)
+      // Map noise (0-255) to pixel position
+      let loc = n * LEN / 256
+      if loc >= LEN { loc = LEN - 1 }
+      if loc < 0 { loc = 0 }
 
-      // Layer 3: fine scale, fast (controlled by intensity)
-      let n3 = noise2(pos * intensity / 16 + 1500, t * 3 + 2000)
-
-      // Blend layers
-      let idx = (n1 + n2 + n3) / 3
-
-      // Brightness from a separate noise layer
-      let bri = noise2(pos * 3 + 3000, t + 4000)
-      bri = bri / 2 + 128
-
-      pixel(i, color_fade(palette(idx), bri))
+      let idx = loc * 255 / max(LEN, 1)
+      pixel(loc, palette(idx))
     }
 
     frame()

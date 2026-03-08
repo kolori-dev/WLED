@@ -1,30 +1,32 @@
-// Chunchun — Colorful bouncing birds with wavy movement.
+// Chunchun — Birds bouncing across strip with sin16 positioning and fade trail.
+// C++ original: numBirds = 2 + SEGLEN/8, sin16+0x8000 for position,
+// counter = now * (6+speed/16), span = intensity*256/numBirds, fade_out(254).
 
 effect "Chunchun WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Bird Count"
+    slider intensity "Gap size"
     palette true
   }
 
   render {
-    fill(rgb(0, 0, 0))
+    // Soft fade for trailing
+    fade(254)
 
-    let num = 2 + scale8(intensity, 6)
-    let t = NOW / (10 + 255 - speed)
+    let counter = NOW * (6 + speed / 16)
+    let numBirds = 2 + LEN / 8
+    if numBirds > 40 { numBirds = 40 }
+    let span = intensity * 256 / numBirds
 
-    for b in 0..num {
-      let wave = sin8(t * (3 + b * 2) + b * 67)
-      let pos = wave * LEN / 256
-      if pos >= LEN { pos = LEN - 1 }
-      let col = palette(b * 255 / num)
-      pixel(pos, col)
-      if pos > 0 {
-        pixel(pos - 1, color_fade(col, 150))
-      }
-      if pos < LEN - 1 {
-        pixel(pos + 1, color_fade(col, 150))
-      }
+    for i in 0..numBirds {
+      counter = counter - span
+      // sin16 + 0x8000 maps to 0-65535
+      let s = sin16(counter / 256) + 32768
+      if s < 0 { s = 0 }
+      let bird = s * LEN / 65536
+      if bird >= LEN { bird = LEN - 1 }
+      if bird < 0 { bird = 0 }
+      pixel(bird, palette(i * 255 / numBirds))
     }
 
     frame()

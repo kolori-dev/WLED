@@ -1,39 +1,75 @@
-// Blobs — Soft colored blobs that drift and merge along the strip.
-// Multiple sine-based shapes overlap, creating organic, amoeba-like motion.
+// Blobs — Floating colored blobs on 2D matrix.
+// C++ original: mode_2Dfloatingblobs() by Stephen Petrick.
+// Metadata: "Blobs@!,# blobs,Blur,Trail;!;!;2;c1=8"
 
 effect "Blobs WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Blob Size"
+    slider intensity "# blobs"
+    slider custom1 "Blur"
+    slider custom2 "Trail"
+    type 2D
     palette true
   }
 
+  data bx[8]
+  data by[8]
+  data bdx[8]
+  data bdy[8]
+
   render {
-    let t = NOW * speed / 1024
-    let threshold = 255 - intensity
+    if CALL == 0 {
+      let cnt = intensity / 32 + 1
+      if cnt > 8 { cnt = 8 }
+      for i in 0..cnt {
+        let a = random(WIDTH)
+        bx[i] = a
+        a = random(HEIGHT)
+        by[i] = a
+        a = random(3) - 1
+        bdx[i] = a
+        a = random(3) - 1
+        bdy[i] = a
+      }
+    }
 
-    for i in 0..LEN {
-      // First blob
-      let b = sin8(i * 512 / LEN + t)
-      let bri = 0
-      let idx = b
-      if b > threshold { bri = b - threshold }
+    // Trail: fadeToBlackBy(custom2)
+    let fb = custom2
+    if fb > 0 {
+      fade(255 - fb)
+    } else {
+      fade(254)
+    }
 
-      // Second blob
-      b = sin8(i * 768 / LEN + t / 2 + 64)
-      idx = (idx + b) / 2
-      if b > threshold { bri = bri + b - threshold }
+    let cnt = intensity / 32 + 1
+    if cnt > 8 { cnt = 8 }
 
-      // Third blob
-      b = sin8(i * 256 / LEN + t / 3 + 128)
-      if b > threshold { bri = bri + b - threshold }
+    for i in 0..cnt {
+      // Move blob
+      let px = bx[i] + bdx[i]
+      let py = by[i] + bdy[i]
 
-      // Fourth blob
-      b = sin8(i * 1024 / LEN + t * 2 + 192)
-      if b > threshold { bri = bri + b - threshold }
+      // Bounce off walls
+      if px < 0 or px >= WIDTH {
+        bdx[i] = 0 - bdx[i]
+        px = bx[i] + bdx[i]
+      }
+      if py < 0 or py >= HEIGHT {
+        bdy[i] = 0 - bdy[i]
+        py = by[i] + bdy[i]
+      }
+      bx[i] = px
+      by[i] = py
 
-      if bri > 255 { bri = 255 }
-      pixel(i, color_fade(palette(idx), bri))
+      // Draw blob as filled circle
+      let c = palette(i * 32 + NOW / 50)
+      fill_circle(px, py, 2, c)
+    }
+
+    // Blur
+    fb = custom1
+    if fb > 0 {
+      blur2d(fb)
     }
 
     frame()

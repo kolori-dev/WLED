@@ -1,48 +1,45 @@
-// Sindots — Sine-wave based dots dancing across the 2D matrix.
-// Multiple dots follow sine paths at different phases, leaving
-// palette-colored trails that fade over time.
+// Sindots — 13 sine-wave dots dancing across 2D matrix.
+// C++ original: mode_2DSindots() by ldirko, modified by Andrew Tuline.
+// Metadata: "Sindots@!,Dot distance,Fade rate,Blur,,Smear;;!;2;"
 
-effect "Sindots 2D WFX" {
+effect "Sindots WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Dot Count"
+    slider intensity "Dot distance"
+    slider custom1 "Fade rate"
+    slider custom2 "Blur"
     type 2D
     palette true
   }
 
   render {
-    fade(220)
-    blur2d(16)
+    if CALL == 0 {
+      fill(0)
+    }
 
-    let t = NOW * speed / 512
-    let count = intensity / 32 + 3
+    // C++: fadeToBlackBy((custom1>>3) + check1*24)
+    let fb = custom1 / 8
+    fade(255 - fb)
 
-    for i in 0..count {
-      // Each dot has a unique phase offset
-      let phase = i * 256 / count
+    // C++: t1 = now / (257 - speed)
+    let t1 = NOW / max(257 - speed, 1)
+    let t2 = sin8(t1) / 4 * 2
 
-      // X position: sine wave across width
-      let sx = sin8(t + phase)
-      let x = sx * WIDTH / 256
-
-      // Y position: cosine wave across height (different frequency)
-      let sy = cos8(t * 2 / 3 + phase * 2)
-      let y = sy * HEIGHT / 256
-
-      // Clamp to valid range
+    for i in 0..13 {
+      // C++: x = sin8(t1 + i*intensity/8) * (cols-1) / 255
+      let x = sin8(t1 + i * intensity / 8) * (WIDTH - 1) / 255
+      // C++: y = sin8(t2 + i*intensity/8) * (rows-1) / 255
+      let y = sin8(t2 + i * intensity / 8) * (HEIGHT - 1) / 255
       if x >= WIDTH { x = WIDTH - 1 }
       if y >= HEIGHT { y = HEIGHT - 1 }
 
-      let col = palette(phase + t / 2)
-      pixel2d(x, y, col)
+      pixel2d(x, y, palette(i * 255 / 13))
+    }
 
-      // Draw a small cross for visibility
-      if x + 1 < WIDTH {
-        pixel2d(x + 1, y, color_fade(col, 128))
-      }
-      if y + 1 < HEIGHT {
-        pixel2d(x, y + 1, color_fade(col, 128))
-      }
+    // C++: blur(custom2 >> (3 + check1), check1) — without check1, blur by custom2/8
+    let blurAmt = custom2 / 8
+    if blurAmt > 0 {
+      blur2d(blurAmt)
     }
 
     frame()

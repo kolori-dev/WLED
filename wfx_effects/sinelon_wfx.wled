@@ -1,5 +1,6 @@
-// Sinelon — A dot sweeps back and forth via sine wave with a fading trail.
-// speed controls sweep rate, intensity controls trail length.
+// Sinelon — A dot sweeps back and forth via beatsin, with a fading trail
+// and gap filling between old and new position.
+// Matches mode_sinelon (sinelon_base with dual=false, rainbow=false).
 
 effect "Sinelon WFX" {
   meta {
@@ -9,19 +10,41 @@ effect "Sinelon WFX" {
   }
 
   render {
-    // Fade existing pixels for trail effect
-    let fadeAmt = 255 - intensity
-    if fadeAmt < 16 {
-      fadeAmt = 16
+    // C++ does fade_out(intensity)
+    fade(intensity)
+
+    // beatsin16_t(speed/10, 0, SEGLEN-1) — approximate with beat8
+    let bpm = speed / 10
+    if bpm < 1 {
+      bpm = 1
     }
-    fade(fadeAmt)
+    let pos = beat8(bpm, 0, LEN - 1)
 
-    // Sine wave position across the strip
-    let t = NOW * speed / 256
-    let wave = sin8(t)
-    let pos = wave * (LEN - 1) / 255
+    // Initialize aux0 on first call
+    if CALL == 0 {
+      aux0 = pos
+    }
 
-    pixel(pos, palette(t))
+    let c = palette(pos * 255 / LEN)
+    pixel(pos, c)
+
+    // Fill gap between old position and new position
+    if aux0 != pos {
+      if aux0 < pos {
+        for i in aux0..pos {
+          pixel(i, palette(i * 255 / LEN))
+        }
+      } else {
+        // aux0 > pos: fill from pos to aux0
+        let j = pos + 1
+        for i in j..aux0 {
+          pixel(i, palette(i * 255 / LEN))
+        }
+        // also set aux0 pixel
+        pixel(aux0, palette(aux0 * 255 / LEN))
+      }
+      aux0 = pos
+    }
 
     frame()
   }

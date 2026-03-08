@@ -1,29 +1,55 @@
-// Flow — Colors flowing along the strip like a river.
-// Palette colors stream in one direction with smooth wave motion.
-// Speed controls flow rate, intensity controls color density.
+// Flow — Alternating-direction color zones flowing.
+// C++ original: Even number of zones, each with alternating scroll direction.
+// Zones are centered on the segment.
 
 effect "Flow WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Density"
+    slider intensity "Zones"
     palette true
   }
 
   render {
-    let t = NOW * speed / 256
+    let counter = 0
+    if speed > 0 {
+      counter = NOW * (speed / 4 + 1) / 256
+    }
 
-    let density = intensity / 16 + 2
+    // Calculate zone count (must be even, minimum 2)
+    let zones = LEN / 6
+    if zones < 2 { zones = 2 }
+    zones = intensity * zones / 256
+    if zones % 2 == 1 { zones = zones + 1 }
+    if zones < 2 { zones = 2 }
+
+    let zl = LEN / zones
+    if zl < 1 { zl = 1 }
+    zones = zones + 2
+    let off = (LEN - zones * zl) / 2
 
     for i in 0..LEN {
-      // Flow direction: colors scroll from start to end
-      let idx = i * density + t
-      idx = idx % 256
+      let rel = i - off
+      if rel >= 0 {
+        let z = rel / zl
+        let li = rel % zl
+        if z < zones {
+          // Color index with scroll direction
+          rel = (li * 255 / zl - counter) % 256
+          if rel < 0 { rel = rel + 256 }
 
-      // Subtle brightness undulation for depth
-      let bri = sin8(i * 32 + t / 2)
-      bri = bri / 4 + 192
+          // Alternate direction per zone
+          if z % 2 == 0 {
+            li = zl - 1 - li
+          }
 
-      pixel(i, color_fade(palette(idx), bri))
+          z = off + z * zl + li
+          if z >= 0 {
+            if z < LEN {
+              pixel(z, palette(rel))
+            }
+          }
+        }
+      }
     }
 
     frame()

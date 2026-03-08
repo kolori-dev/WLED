@@ -1,33 +1,44 @@
-// Chase 2 — Dual chase using color0 and color1.
-// Two chase segments alternate around the strip, one in each
-// segment color. Speed controls chase rate, intensity controls width.
+// Chase 2 — Alternating color bands scrolling (running(SEGCOLOR(0), SEGCOLOR(1))).
+// C++ original: running() with width = 1 + (intensity>>4), bands of color0 and color1
+// that fill the entire strip in repeating pattern, scrolling.
 
 effect "Chase 2 WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Width"
-    palette false
+    palette true
   }
 
   render {
-    let width = max(intensity / 16, 1)
-    let pos = (NOW * speed / 512) % LEN
+    let width = 1 + intensity / 16
+    let cycleTime = 50 + 255 - speed
+    let it = NOW / cycleTime
 
-    fill(rgb(0, 0, 0))
-
-    // Chase segment 1 with color0
-    for j in 0..width {
-      let idx = (pos + j) % LEN
-      pixel(idx, color0)
+    if it != step_val {
+      aux0 = (aux0 + 1) % (width * 2)
+      step_val = it
     }
 
-    // Chase segment 2 with color1, offset by half the strip
-    let offset = LEN / 2
-    for j in 0..width {
-      let idx = (pos + offset + j) % LEN
-      pixel(idx, color1)
+    for i in 0..LEN {
+      let pos = i % (width * 2)
+      // Check if this position should show color0 or color1
+      let inBand = 0
+      if pos < aux0 - width {
+        inBand = 1
+      }
+      if pos >= aux0 {
+        if pos < aux0 + width {
+          inBand = 1
+        }
+      }
+
+      if inBand {
+        pixel(i, palette(i * 255 / LEN))
+      } else {
+        pixel(i, color1)
+      }
     }
 
-    frame()
+    frame(16)
   }
 }

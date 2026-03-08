@@ -1,9 +1,11 @@
 // Game of Life — Conway's cellular automaton on 2D matrix.
+// C++ original: mode_2Dgameoflife() by Ewoud Wijma.
+// Metadata: "Game Of Life@!,,Blur,,,,,Mutation;!,!;!;2;pal=11,sx=128"
 
 effect "Game of Life WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Density"
+    slider custom1 "Blur"
     type 2D
     palette true
   }
@@ -13,8 +15,9 @@ effect "Game of Life WFX" {
   render {
     if step_val == 0 {
       for i in 0..1024 {
-        if random(255) < intensity / 4 + 32 {
-          cells[i] = 1
+        if random(255) < 64 {
+          let a = 1
+          cells[i] = a
         }
       }
       step_val = 1
@@ -36,12 +39,14 @@ effect "Game of Life WFX" {
         if cells[yp * WIDTH + xm] > 0 { n = n + 1 }
         if cells[yp * WIDTH + x] > 0 { n = n + 1 }
         if cells[yp * WIDTH + xp] > 0 { n = n + 1 }
-        if cells[y * WIDTH + x] > 0 and (n == 2 or n == 3) {
-          cells[y * WIDTH + x + 1024] = min(cells[y * WIDTH + x] + 1, 255)
+        ym = y * WIDTH + x
+        if cells[ym] > 0 and (n == 2 or n == 3) {
+          xp = min(cells[ym] + 1, 255)
+          cells[ym + 1024] = xp
         } else if n == 3 {
-          cells[y * WIDTH + x + 1024] = 1
+          cells[ym + 1024] = 1
         } else {
-          cells[y * WIDTH + x + 1024] = 0
+          cells[ym + 1024] = 0
         }
       }
     }
@@ -58,6 +63,10 @@ effect "Game of Life WFX" {
         }
         pixel2d(x, y, a)
       }
+    }
+
+    if custom1 > 0 {
+      blur2d(custom1)
     }
 
     frame()

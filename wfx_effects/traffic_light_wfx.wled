@@ -1,59 +1,67 @@
-// Traffic Light — Strip divided into 3 zones (red, yellow, green)
-// that cycle through traffic light patterns. Each zone lights up
-// in the classic traffic signal sequence: green -> yellow -> red.
+// Traffic Light — Every-3rd-pixel placement with state-based timing.
+// Matches mode_traffic_light exactly: palette background, then
+// colored lights at every 3rd position based on state.
 
 effect "Traffic Light WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Brightness"
-    palette false
+    slider intensity "US style"
+    palette true
   }
 
   render {
-    // Full cycle has 4 phases: green, yellow, red, red+green-ready
-    let cycle = (NOW * speed / 512) % 1024
-    let phase = cycle / 256
-
-    let zone = LEN / 3
-    let bri = max(intensity, 32)
-
-    let red = rgb(0, 0, 0)
-    let yel = rgb(0, 0, 0)
-    let grn = rgb(0, 0, 0)
-
-    if phase == 0 {
-      // Green on
-      grn = color_fade(rgb(0, 255, 0), bri)
-      red = color_fade(rgb(255, 0, 0), 16)
-      yel = color_fade(rgb(255, 180, 0), 16)
-    } else if phase == 1 {
-      // Yellow on
-      yel = color_fade(rgb(255, 180, 0), bri)
-      red = color_fade(rgb(255, 0, 0), 16)
-      grn = color_fade(rgb(0, 255, 0), 16)
-    } else if phase == 2 {
-      // Red on
-      red = color_fade(rgb(255, 0, 0), bri)
-      yel = color_fade(rgb(255, 180, 0), 16)
-      grn = color_fade(rgb(0, 255, 0), 16)
-    } else {
-      // Red + Yellow (preparing for green)
-      red = color_fade(rgb(255, 0, 0), bri)
-      yel = color_fade(rgb(255, 180, 0), bri)
-      grn = color_fade(rgb(0, 255, 0), 16)
+    // Fill palette background
+    for i in 0..LEN {
+      pixel(i, palette(i * 255 / LEN))
     }
 
+    // State machine: aux0 = state (0-3), step_val = last transition time
+    // mdelay depends on state
+    let mdelay = 500
+
+    // Draw traffic lights at every 3rd pixel
+    let lim = LEN - 2
+    let idx = 0
     for i in 0..LEN {
-      let section = i * 3 / LEN
-      if section == 0 {
-        pixel(i, red)
-      } else if section == 1 {
-        pixel(i, yel)
-      } else {
-        pixel(i, grn)
+      if i % 3 == 0 {
+        if i < lim {
+          if aux0 == 0 {
+            // Red only
+            pixel(i, rgb(255, 0, 0))
+            mdelay = 150 + 100 * (255 - speed)
+          } else if aux0 == 1 {
+            // Red + Amber
+            pixel(i, rgb(255, 0, 0))
+            pixel(i + 1, rgb(238, 204, 0))
+            mdelay = 150 + 20 * (255 - speed)
+          } else if aux0 == 2 {
+            // Green only
+            pixel(i + 2, rgb(0, 255, 0))
+            mdelay = 150 + 100 * (255 - speed)
+          } else {
+            // Amber only
+            pixel(i + 1, rgb(238, 204, 0))
+            mdelay = 150 + 20 * (255 - speed)
+          }
+        }
       }
     }
 
-    frame()
+    // Advance state based on timing
+    if NOW - step_val > mdelay {
+      aux0 = aux0 + 1
+      // Skip Red+Amber (state 1) if intensity > 140 for US-style
+      if aux0 == 1 {
+        if intensity > 140 {
+          aux0 = 2
+        }
+      }
+      if aux0 > 3 {
+        aux0 = 0
+      }
+      step_val = NOW
+    }
+
+    frame(16)
   }
 }

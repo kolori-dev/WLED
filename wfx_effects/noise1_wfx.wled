@@ -1,25 +1,27 @@
-// Noise 1 — Slow drifting palette noise with medium scale.
-// A calm, organic animation where palette colors shift smoothly.
-// Speed controls drift rate, intensity controls noise scale.
+// Noise 1 — Perlin noise-driven palette animation.
+// C++ original: 3D inoise8 with scale=320, beatsin8-based x shift,
+// step-based y shift and z. sin8(noise*3) for palette index.
 
 effect "Noise 1 WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Scale"
     palette true
   }
 
   render {
-    let t = NOW * speed / 2048
+    step_val = step_val + 1 + speed / 16
+
+    let sx = beat8(11, 0, 255)
+    let sy = step_val / 42
 
     for i in 0..LEN {
-      let x = i * (intensity / 8 + 4)
-      let n = noise2(x, t)
-      let bri = noise2(x + 1000, t + 5000)
-      bri = bri / 2 + 128
-      pixel(i, color_fade(palette(n), bri))
+      let rx = (i + sx) * 320
+      let ry = (i + sy) * 320
+      let n = noise3(rx, ry, step_val)
+      let idx = sin8(n * 3)
+      pixel(i, palette(idx))
     }
 
-    frame()
+    frame(16)
   }
 }

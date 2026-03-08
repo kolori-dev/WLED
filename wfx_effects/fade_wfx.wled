@@ -1,3 +1,6 @@
+// Fade — Fades brightness between SEGCOLOR(1) and palette using triangle wave.
+// C++ original: triwave16(counter) >> 8 for brightness, palette per-pixel.
+
 effect "Fade WFX" {
   meta {
     slider speed "Speed"
@@ -5,9 +8,17 @@ effect "Fade WFX" {
   }
 
   render {
-    let phase = (NOW * speed / 1024) % 256
-    let c = palette(phase)
-    fill(c)
+    // C++: counter = now * ((speed>>3)+10), lum = triwave16(counter) >> 8
+    // triwave16 produces a 16-bit triangle wave; >>8 gives 0-255
+    let counter = NOW * (speed / 8 + 10) / 256
+    let lum = tri8(counter % 256)
+
+    for i in 0..LEN {
+      let c = palette(i * 255 / LEN)
+      let bg = color1
+      pixel(i, blend(bg, c, lum))
+    }
+
     frame()
   }
 }

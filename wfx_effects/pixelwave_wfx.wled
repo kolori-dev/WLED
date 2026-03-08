@@ -1,36 +1,48 @@
-// Pixel Wave — Lit pixels travel outward from center like an expanding wave.
-// Each wave starts at the middle and spreads to both edges, then a new
-// wave begins. Speed controls wave frequency, intensity controls thickness.
+// Pixelwave — Set center pixel from volume, shift outward from center.
+// By Andrew Tuline.
 
 effect "Pixelwave WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Thickness"
+    slider intensity "Sensitivity"
+    type 1D
     palette true
+    audio_reactive true
   }
 
   render {
-    fade(200)
+    if CALL == 0 {
+      fill(0)
+    }
 
-    let half = LEN / 2
-    let width = max(intensity / 32, 1)
-    let t = NOW * speed / 512
-    let wave_pos = t % (half + width)
+    // Speed-timed update
+    let tick = NOW / (256 - speed + 1)
+    let sh = tick % 16 + 1
+    if sh != aux0 {
+      aux0 = sh
 
-    // Draw wave expanding outward from center
-    for j in 0..width {
-      let d = wave_pos + j
-      if d <= half {
-        // Right side
-        let right = half + d
-        if right < LEN {
-          pixel(right, palette(d * 255 / half))
-        }
-        // Left side (mirror)
-        let left = half - d
-        if left >= 0 {
-          pixel(left, palette(d * 255 / half))
-        }
+      let bri = volume * intensity / 64
+      if bri > 255 { bri = 255 }
+
+      // Set center pixel with blended color
+      let half = LEN / 2
+      let c = blend(color1, palette(NOW), bri)
+      pixel(half, c)
+
+      // Shift right half to the right (from end toward center)
+      let i = LEN - 1
+      while i > half {
+        c = get_pixel(i - 1)
+        pixel(i, c)
+        i = i - 1
+      }
+
+      // Shift left half to the left (from start toward center)
+      i = 0
+      while i < half {
+        c = get_pixel(i + 1)
+        pixel(i, c)
+        i = i + 1
       }
     }
 

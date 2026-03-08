@@ -1,27 +1,42 @@
-// Frizzles — Animated curly intersecting sine patterns on 2D matrix.
+// Frizzles — C++ origin: mode_2DFrizzles() by Stepko, modified by
+// Andrew Tuline. Metadata: "Frizzles@X frequency,Y frequency,Blur,,,Smear;;!;2"
+// 8 animated dots at beatsin8 positions, fade + blur for trails.
+// Speed = X frequency (BPM), Intensity = Y frequency (BPM), Custom1 = Blur.
 
 effect "Frizzles WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Density"
+    slider speed "X frequency"
+    slider intensity "Y frequency"
+    slider custom1 "Blur"
     type 2D
     palette true
   }
 
   render {
-    step_val = NOW * speed / 512
+    // fadeToBlackBy(16 + check1*10) — without check1, use 16
+    fade(239)
 
-    for y in 0..HEIGHT {
-      for x in 0..WIDTH {
-        let px = x * 255 / max(WIDTH, 1)
-        let py = y * 255 / max(HEIGHT, 1)
-        let fr = intensity / 32 + 2
-        px = sin8(px * fr + step_val) / 2
-        py = cos8(py * (fr + 1) + step_val / 2) / 2
-        fr = px + py
-        px = palette(fr)
-        pixel2d(x, y, color_fade(px, fr))
-      }
+    // 8 dots with beatsin8 positions
+    for i in 0..8 {
+      let idx = 8 - i
+      // beatsin8(speed/8 + idx, 0, cols-1)
+      let bpmX = speed / 8 + idx
+      let x = beat8(bpmX, 0, WIDTH - 1)
+
+      // beatsin8(intensity/8 - idx, 0, rows-1)
+      let bpmY = intensity / 8 - idx
+      if bpmY < 1 { bpmY = 1 }
+      let y = beat8(bpmY, 0, HEIGHT - 1)
+
+      // palette color from beatsin8(12, 0, 255)
+      let ci = beat8(12, 0, 255)
+      pixel2d(x, y, palette(ci))
+    }
+
+    // blur(custom1 >> (3 + check1), check1) — without check1, blur by custom1/8
+    let blurAmt = custom1 / 8
+    if blurAmt > 0 {
+      blur2d(blurAmt)
     }
 
     frame()

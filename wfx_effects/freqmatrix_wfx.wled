@@ -1,33 +1,65 @@
-// Freqmatrix — Matrix-style frequency rain on 2D matrix.
+// Freqmatrix — Scrolling pixels colored by dominant frequency, brightness from volume.
+// C++ original: mode_freqmatrix() by Andreas Pleschung
+// Metadata: "Freqmatrix@Speed,Sound effect,Low bin,High bin,Sensitivity;;;01f"
 
 effect "Freqmatrix WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Gain"
-    type 2D
+    slider intensity "Sound effect"
+    slider custom1 "Low bin"
+    slider custom2 "High bin"
+    slider custom3 "Sensitivity"
     palette true
     audio_reactive true
   }
 
   render {
-    // Shift rows down
-    for y in 1..HEIGHT {
-      let ry = HEIGHT - y
-      for x in 0..WIDTH {
-        let c = get_pixel2d(x, ry - 1)
-        pixel2d(x, ry, c)
-      }
-    }
+    // Speed-timed update
+    let tick = NOW / max(256 - speed, 1)
+    let hand = (tick / 4) % 16
+    if aux0 != hand {
+      aux0 = hand
 
-    // Top row from FFT
-    for x in 0..WIDTH {
-      let bin = x * 16 / max(WIDTH, 1)
-      let val = fft(bin)
-      val = val * intensity / 128
-      if val > 255 { val = 255 }
-      bin = palette(val + bin * 16)
-      bin = color_fade(bin, val)
-      pixel2d(x, 0, bin)
+      // Sensitivity from custom3 (0-31 -> 1-10)
+      let sens = custom3 / 3 + 1
+      if sens > 10 { sens = 10 }
+
+      // Brightness from volume
+      let bri = volume * intensity * sens / 256
+      if bri > 255 { bri = 255 }
+
+      // Find dominant FFT bin
+      let maxBin = 0
+      tick = 0
+      for b in 0..16 {
+        hand = fft(b)
+        if hand > tick {
+          tick = hand
+          maxBin = b
+        }
+      }
+
+      // Map dominant bin to hue using custom1/custom2
+      sens = 0
+      if tick > 16 {
+        if custom1 != custom2 {
+          sens = (maxBin - custom1) * 255 / max(custom2 - custom1, 1)
+        } else {
+          sens = maxBin * 16
+        }
+      }
+
+      // Color from hue, faded by brightness
+      // tick still holds maxVal
+      if tick < 8 { bri = 0 }
+      let c = color_fade(color_wheel(sens), bri)
+
+      // Shift pixels right, new pixel at position 0
+      for i in 1..LEN {
+        sens = LEN - i
+        pixel(sens, get_pixel(sens - 1))
+      }
+      pixel(0, c)
     }
 
     frame()

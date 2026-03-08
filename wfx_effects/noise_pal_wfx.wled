@@ -1,8 +1,9 @@
-// Noise Palette — Noise-based palette color mapping with adjustable scale and speed.
-// Maps 2D Perlin noise to palette indices for rich, organic color patterns.
-// Speed controls animation rate, intensity controls noise scale.
+// Noise Pal — Perlin noise mapped to palette indices.
+// C++ original: scale = 15 + (intensity>>2). Each pixel gets a noise-based
+// palette index. Noise evolves over time based on speed.
+// The noise z-coordinate increments each frame based on speed.
 
-effect "Noise Palette WFX" {
+effect "Noise Pal WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Scale"
@@ -10,18 +11,20 @@ effect "Noise Palette WFX" {
   }
 
   render {
-    let t = NOW * speed / 1024
+    // Match C++ scale: 15 + (intensity >> 2) = 15..78
+    let sc = 15 + intensity / 4
+
+    // Noise z evolves over time based on speed
+    // C++ increments noise_z by speed each frame
+    // Approximate with continuous time-based evolution
+    let t = NOW * (speed + 1) / 512
 
     for i in 0..LEN {
-      let scale = intensity / 4 + 8
-      let x = i * scale
+      // noise value based on position and time
+      let x = i * sc
       let n = noise2(x, t)
 
-      // Use noise for both color index and brightness variation
-      let bri_noise = noise2(x + 5000, t + 2000)
-      let bri = bri_noise / 3 + 170
-
-      pixel(i, color_fade(palette(n), bri))
+      pixel(i, palette(n))
     }
 
     frame()

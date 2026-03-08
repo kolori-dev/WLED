@@ -1,22 +1,38 @@
-effect "Solid Glitter" {
+// Solid Glitter — Fill with SEGCOLOR(0), add glitter using SEGCOLOR(2) or white.
+// C++ original: fill(SEGCOLOR(0)), glitter_base(intensity, SEGCOLOR(2) or white).
+
+effect "Solid Glitter WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Glitter amount"
+    slider intensity "Amount"
     palette false
-    type 1D
   }
+
   render {
-    // Fill with segment color0
     fill(color0)
-    // Add random white sparkles based on intensity
-    let numSpark = 1 + intensity / 16
-    for s in 0..numSpark {
-      let pos = random(LEN)
-      // Random brightness for sparkle variation
-      let bright = 128 + random(128)
-      let sparkle = rgb(bright, bright, bright)
-      pixel(pos, sparkle)
+
+    // Glitter color: use color2 if set, otherwise white
+    let gc = color2
+    let r2 = red(gc)
+    let g2 = green(gc)
+    let b2 = blue(gc)
+    if r2 == 0 {
+      if g2 == 0 {
+        if b2 == 0 {
+          gc = rgb(255, 255, 255)
+        }
+      }
     }
-    frame()
+
+    // Add random sparkles based on intensity
+    if intensity > 0 {
+      let count = 1 + LEN / 20
+      for j in 0..count {
+        if random(255) < intensity {
+          pixel(random(LEN), gc)
+        }
+      }
+    }
+
+    frame(16)
   }
 }

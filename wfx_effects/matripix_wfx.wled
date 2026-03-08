@@ -1,27 +1,37 @@
-// Matripix — Matrix-style: palette-colored pixels rain downward along
-// the strip. Pixels appear at the top and scroll down, leaving a fading
-// trail like digital rain.
+// Matripix — Shift pixels left, new pixel at right with volume brightness.
+// By Andrew Tuline.
 
 effect "Matripix WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Density"
+    slider intensity "Brightness"
+    type 1D
     palette true
+    audio_reactive true
   }
 
   render {
-    // Shift all pixels down by one position
-    move_pixels(1, 1, 0)
+    // Speed-timed update using aux0 as timing tracker
+    // secondHand = micros()/(256-speed)/500 % 16
+    // Approximate with NOW-based timing
+    let tick = NOW / (256 - speed + 1)
+    let sh = tick % 16
+    if sh != aux0 {
+      aux0 = sh
 
-    // Fade existing pixels for trail effect
-    fade(240)
+      let bri = volume * intensity / 64
+      if bri > 255 { bri = 255 }
 
-    // Randomly spawn new pixels at position 0
-    let count = intensity / 32 + 1
-    for j in 0..count {
-      if random(255) < 60 {
-        pixel(0, palette(random(255)))
+      // Shift all pixels left by one
+      let k = LEN - 1
+      for i in 0..k {
+        let c = get_pixel(i + 1)
+        pixel(i, c)
       }
+
+      // New pixel at right end, blended with color1
+      let c = blend(color1, palette(NOW), bri)
+      pixel(k, c)
     }
 
     frame()

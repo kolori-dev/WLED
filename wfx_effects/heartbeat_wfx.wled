@@ -1,32 +1,56 @@
-// Heartbeat — A pulsing red double-beat that mimics a real heartbeat.
-// Two quick triangle pulses (lub-dub) followed by a rest period.
-// The entire strip breathes together as one living pulse.
+// Heartbeat — BPM-based dual beat with exponential decay.
+// Two beats per cycle: full brightness first beat, 3/4 brightness second beat.
+// Uses palette colors blended with secondary color based on brightness.
+// speed controls BPM (40-71), intensity controls decay rate.
 
 effect "Heartbeat WFX" {
   meta {
-    slider speed "BPM Scale"
-    slider intensity "Brightness"
+    slider speed "BPM"
+    slider intensity "Fade"
   }
 
   render {
-    let beat = NOW * speed / 512
-    beat = beat % 256
+    // BPM = 40 + speed/8
+    let bpm = 40 + speed / 8
+    let msPerBeat = 60000 / bpm
+    let secondBeat = msPerBeat / 3
 
-    // Double pulse: first beat 0-60, second beat 80-140, rest 140-255
-    let bri = 0
-    if beat < 60 {
-      bri = tri8(beat * 4)
-    } else if beat > 80 and beat < 140 {
-      bri = tri8((beat - 80) * 4)
-      bri = bri * 3 / 4
+    // Exponential decay: bri = bri * 2042 / (2048 + intensity)
+    let bri = aux1
+    bri = bri * 2042 / (2048 + intensity)
+    aux1 = bri
+
+    // Time since last beat
+    let beatTimer = NOW - step_val
+
+    // Second beat at 1/3 of beat period
+    if beatTimer > secondBeat and aux0 == 0 {
+      aux1 = 65535
+      bri = 65535
+      aux0 = 1
     }
 
-    // Scale by intensity slider
-    bri = bri * intensity / 255
+    // First beat / reset at full period
+    if beatTimer > msPerBeat {
+      aux1 = 65535
+      bri = 65535
+      aux0 = 0
+      step_val = NOW
+    }
 
-    // Fill entire strip with pulsing red
-    let c = rgb(255, 0, 0)
-    fill(color_fade(c, bri))
+    // Map brightness to 0-255 range (aux1 is 16-bit)
+    let bri8 = bri / 256
+    if bri8 > 255 {
+      bri8 = 255
+    }
+
+    // Render: blend palette color with secondary color
+    // 255 - bri8 = blend amount toward secondary
+    let blendAmt = 255 - bri8
+    for i in 0..LEN {
+      let palCol = palette(i * 255 / LEN)
+      pixel(i, blend(palCol, color1, blendAmt))
+    }
 
     frame(16)
   }

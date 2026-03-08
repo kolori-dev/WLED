@@ -1,28 +1,30 @@
-// Flow Stripe — Flowing stripes of palette colors moving along the strip.
-// Evenly spaced bands scroll continuously, creating a barber-pole effect.
-// Intensity controls stripe width.
+// Flow Stripe — Flowing stripe pattern with nested sine waves and palette colors.
+// C++ original: mode_FlowStripe — hue scrolls at speed-dependent rate, intensity
+// controls effect animation speed. Nested sin8 creates organic flow pattern.
+// No colors used — palette only.
 
 effect "Flow Stripe WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Stripe Width"
+    slider speed "Hue speed"
+    slider intensity "Effect speed"
     palette true
   }
 
   render {
-    let t = NOW * speed / 512
-    let width = max(intensity / 8, 2)
+    let hl = LEN * 10 / 13
+    if hl < 1 { hl = 1 }
+    let hue = NOW / (speed + 1)
+    let t = NOW / (intensity / 8 + 1)
 
     for i in 0..LEN {
-      // Determine which stripe this pixel belongs to
-      let stripe = ((i + t) % (width * 4)) / width
-      let idx = stripe * 64
-
-      // Smooth transition within stripe using sine
-      let phase = ((i + t) % width) * 255 / width
-      let bri = sin8(phase) / 2 + 128
-
-      pixel(i, color_fade(palette(idx), bri))
+      // Distance from highlight point, scaled to 0-127
+      let d = i - hl
+      if d < 0 { d = 0 - d }
+      let c = d * 127 / hl
+      c = sin8(c)
+      c = sin8(c / 2 + t)
+      let b = sin8(c + t / 8)
+      pixel(i, palette(b + hue))
     }
 
     frame()

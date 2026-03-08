@@ -1,37 +1,25 @@
-// Sine Wave — A bright spot oscillates back and forth following a sine curve.
-// The spot leaves a fading trail behind it. Speed controls oscillation rate,
-// intensity controls the trail length.
+// Sine — Adjustable sinewave across the strip. By Andrew Tuline.
+// C++ original: cubicwave8 brightness per pixel, blend SEGCOLOR(1) with palette.
+// step advances by speed/16 per frame. freq = intensity/4.
 
 effect "Sine WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Trail"
+    slider intensity "Scale"
     palette true
   }
 
   render {
-    // Fade existing pixels to create trail
-    fade(intensity)
+    step_val = step_val + speed / 16
+    let freq = intensity / 4
 
-    let t = NOW * speed / 512
-
-    // Sine oscillation maps to strip position
-    let wave = sin8(t)
-    let pos = wave * LEN / 256
-
-    // Draw bright spot at sine position
-    pixel(pos, palette(t))
-
-    // Slight glow on neighbors
-    if pos > 0 {
-      let prev = pos - 1
-      pixel(prev, color_fade(palette(t + 16), 128))
-    }
-    if pos < LEN - 1 {
-      let next = pos + 1
-      pixel(next, color_fade(palette(t + 16), 128))
+    for i in 0..LEN {
+      // cubicwave8 ≈ quad8(tri8(x))
+      let bri = quad8(tri8(i * freq + step_val))
+      let idx = (NOW / 32 + i * 256 / LEN) % 256
+      pixel(i, blend(color1, palette(idx), bri))
     }
 
-    frame()
+    frame(16)
   }
 }

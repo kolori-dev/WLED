@@ -1,19 +1,30 @@
+// Sparkle — Palette-colored background with a single pixel lit in SEGCOLOR(0).
+// C++ original: draws palette background, then lights one random pixel per cycle.
+// Speed controls cycle time (how fast sparkle moves).
+
 effect "Sparkle WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Density"
     palette true
   }
 
   render {
-    fade(224)
-
-    let count = intensity / 16 + 1
-    for j in 0..count {
-      let pos = random(LEN)
-      pixel(pos, palette(random(255)))
+    // Draw palette background (unless overlay mode)
+    for i in 0..LEN {
+      pixel(i, palette(i * 255 / LEN))
     }
 
-    frame()
+    // Pick new random position based on speed cycle
+    let cycleTime = 10 + (255 - speed) * 2
+    let it = NOW / cycleTime
+    if it != step_val {
+      aux0 = random(LEN)
+      step_val = it
+    }
+
+    // Light the sparkle pixel with segment color 0
+    pixel(aux0, color0)
+
+    frame(16)
   }
 }

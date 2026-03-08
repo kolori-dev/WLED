@@ -1,34 +1,30 @@
-// Phased Noise — Like phased but with noise modulation added to the sine waves.
-// Perlin noise distorts the sine interference pattern for organic movement.
-// Speed controls animation rate, intensity controls noise influence.
+// Phased Noise — Like Phased but modVal from perlin noise per pixel.
+// C++ original: phased_base(1) — same as phased but modVal = noise(i*20)/16
+// instead of fixed 5, creating organic variation.
 
 effect "Phased Noise WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Noise Amount"
+    slider intensity "Cutoff"
     palette true
   }
 
   render {
-    let t = NOW * speed / 512
+    let cutoff = 255 - intensity
+    step_val = step_val + speed / 16
+    let idx = NOW / 64 % 256
 
     for i in 0..LEN {
-      // Noise modulation per pixel
-      let n = noise2(i * 16, t / 2)
-
-      // Phase with noise distortion
-      let phase = i * 4 + n * intensity / 256
-
-      let w1 = sin8(t + phase)
-      let w2 = sin8(t * 2 + phase * 2 + 85)
-
-      // Combine for palette index and brightness
-      let idx = (w1 + w2) / 2
-      let bri = w1 / 2 + w2 / 2 + 128
-
-      pixel(i, color_fade(palette(idx), bri))
+      let modVal = noise(i * 20) / 16
+      if modVal == 0 { modVal = 1 }
+      let val = (i + 1) * 16 + step_val * (i % modVal + 1) / 2
+      let bri = quad8(tri8(val))
+      bri = bri - cutoff
+      if bri < 0 { bri = 0 }
+      pixel(i, blend(color1, palette(idx), bri))
+      idx = idx + 256 / LEN
     }
 
-    frame()
+    frame(16)
   }
 }

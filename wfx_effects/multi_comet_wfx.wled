@@ -1,41 +1,44 @@
-// Multi Comet — Multiple comets flying in one direction with fade trails.
-// speed controls comet speed, intensity controls trail length.
+// Multi Comet — Multiple comets flying across the strip with fade trails.
+// C++ original: 8 comets tracked in data array, time-gated advancement,
+// fade by intensity/2+128, SEGCOLOR(2) alternating on odd comets.
 
 effect "Multi Comet WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Trail"
+    slider intensity "Fade"
     palette true
   }
 
+  data comets[8]
+
   render {
-    // Fade for trail length
-    let fadeAmt = 200 - intensity / 2
-    if fadeAmt < 32 {
-      fadeAmt = 32
-    }
-    fade(fadeAmt)
+    let cycleTime = 10 + 255 - speed
+    let it = NOW / cycleTime
 
-    let t = NOW * speed / 256
-    let numComets = 3
+    if it != step_val {
+      step_val = it
 
-    for c in 0..numComets {
-      // Each comet offset by LEN/numComets
-      let offset = c * LEN / numComets
-      let pos = (t + offset) % LEN
+      fade(intensity / 2 + 128)
 
-      // Bright comet head
-      let hue = c * 85 + t / 4
-      pixel(pos, palette(hue))
-
-      // Slightly dimmer pixel behind
-      let behind = pos - 1
-      if behind < 0 {
-        behind = behind + LEN
+      for i in 0..8 {
+        if comets[i] < LEN {
+          let idx = comets[i]
+          let c = palette(idx * 255 / LEN)
+          if color2 {
+            if i % 2 == 1 {
+              c = color2
+            }
+          }
+          pixel(idx, c)
+          comets[i] = comets[i] + 1
+        } else {
+          if random(0, LEN) == 0 {
+            comets[i] = 0
+          }
+        }
       }
-      pixel(behind, color_fade(palette(hue + 10), 180))
     }
 
-    frame()
+    frame(1)
   }
 }

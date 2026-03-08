@@ -1,57 +1,57 @@
-// Matrix 2D — Classic Matrix movie effect with green characters
-// falling down columns at varying speeds.
+// Matrix — Classic Matrix movie falling characters on 2D matrix.
+// C++ original: mode_2Dmatrix()
+// Metadata: "Matrix@!,Spawning rate,Trail,,,Custom color;Spawn,Trail;;2"
 
 effect "Matrix 2D WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Density"
+    slider intensity "Spawning rate"
+    slider custom1 "Trail"
     type 2D
     palette true
   }
 
-  // head_y[col] = current head position, spd[col] = speed per column
   data head_y[32]
   data spd[32]
 
   render {
-    // Initialize on first call
-    if step_val == 0 {
+    if CALL == 0 {
       for i in 0..WIDTH {
-        head_y[i] = random(HEIGHT)
-        spd[i] = random(3) + 1
+        let a = random(HEIGHT)
+        head_y[i] = a
+        a = random(3) + 1
+        spd[i] = a
       }
-      step_val = 1
     }
 
-    // Fade existing pixels — creates the trail
-    fade(240)
+    // Fade with trail
+    aux0 = 240 + custom1 / 20
+    if aux0 > 254 { aux0 = 254 }
+    fade(aux0)
 
+    // Pre-compute head color
     let headcol = rgb(200, 255, 200)
 
-    // Update column heads
     for x in 0..WIDTH {
-      let s = spd[x]
-      let hy = head_y[x]
+      aux0 = head_y[x]
+      aux1 = aux0 + spd[x]
+      head_y[x] = aux1
 
-      // Advance head
-      head_y[x] = hy + s
-
-      // Draw bright head pixel
-      let ypos = hy % (HEIGHT + HEIGHT / 2)
-      if ypos < HEIGHT {
-        // Bright white-green head
-        pixel2d(x, ypos, headcol)
-        // Slightly dimmer pixel behind
-        if ypos > 0 {
-          pixel2d(x, ypos - 1, palette(hy * 4))
+      aux1 = aux0 % (HEIGHT + HEIGHT / 2)
+      if aux1 < HEIGHT {
+        pixel2d(x, aux1, headcol)
+        if aux1 > 0 {
+          let c = palette(aux0 * 4)
+          let yp = aux1 - 1
+          pixel2d(x, yp, c)
         }
       }
 
-      // Randomly respawn columns
       if random(255) < intensity / 8 + 2 {
-        if ypos >= HEIGHT {
+        if aux1 >= HEIGHT {
           head_y[x] = 0
-          spd[x] = random(3) + 1
+          aux0 = random(3) + 1
+          spd[x] = aux0
         }
       }
     }

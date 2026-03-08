@@ -1,28 +1,36 @@
-// Firenoise — 2D fire effect using Perlin noise and palette.
+// Firenoise — C++ origin: mode_2Dfirenoise() by Andrew Tuline.
+// Metadata: "Firenoise@X scale,Y scale,,,,Palette;;!;2;pal=66"
+// 2D noise-based fire effect. Speed controls X scale (yscale=speed*8),
+// Intensity controls Y scale (xscale=intensity*4). Noise index mapped
+// through palette with brightness based on row distance from bottom.
 
 effect "Firenoise WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Scale"
+    slider speed "X scale"
+    slider intensity "Y scale"
     type 2D
     palette true
   }
 
   render {
-    let sc = intensity / 8 + 10
-    let t = NOW / 10
+    if CALL == 0 {
+      fill(0)
+    }
 
-    for x in 0..WIDTH {
-      for y in 0..HEIGHT {
-        let yf = HEIGHT - 1 - y
-        let n = noise2(x * sc + t / 3, y * sc - t)
-        let heat = n / 2 + yf * 128 / HEIGHT
-        if heat > 255 { heat = 255 }
-        pixel2d(x, y, palette(heat))
+    aux0 = intensity * 4
+    aux1 = speed * 8
+
+    for j in 0..WIDTH {
+      for i in 0..HEIGHT {
+        let idx = noise2(j * aux1 * HEIGHT / 255, i * aux0 + NOW / 4)
+        let ci = i * idx / 11
+        if ci > 225 { ci = 225 }
+        // Reuse idx for brightness
+        idx = i * 255 / max(HEIGHT, 1)
+        pixel2d(j, i, color_fade(palette(ci), idx))
       }
     }
 
-    blur2d(intensity / 16 + 8)
     frame()
   }
 }

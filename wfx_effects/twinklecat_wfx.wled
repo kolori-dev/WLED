@@ -1,6 +1,7 @@
-// TwinkleCat — Like TwinkleFOX but with slower, lazier timing.
-// Pixels fade up and down more gently, like a cat slowly blinking.
-// Fewer active pixels, longer fade times, dimmer overall.
+// TwinkleCat — Like TwinkleFOX but instant on, gradual fade off.
+// C++ original: Same PRNG and clock system as TwinkleFOX but with
+// cat=true: brightness = 255-fastcycle (instant on, fade off).
+// No incandescent cooling. SEGCOLOR(1) as background.
 
 effect "TwinkleCat WFX" {
   meta {
@@ -9,55 +10,43 @@ effect "TwinkleCat WFX" {
     palette true
   }
 
-  data phase[256]
-  data rate[256]
-
   render {
-    // Seed new twinkles — less frequently than TwinkleFOX
-    if random(255) < intensity / 4 + 2 {
-      let pos = random(LEN)
-      if phase[pos] == 0 {
-        phase[pos] = 1
-        // Slower rates than TwinkleFOX
-        rate[pos] = random(1, speed / 32 + 1)
-        if rate[pos] < 1 {
-          rate[pos] = 1
-        }
-      }
-    }
+    let div = 22 + (100 - speed) / 2
+    if speed > 100 { div = 3 + (255 - speed) / 8 }
 
-    // Update and render each pixel
+    let bg = color_fade(color1, 64)
+
+    let prng = 11337
+
     for i in 0..LEN {
-      let p = phase[i]
-      if p > 0 {
-        let r = rate[i]
-        if r < 1 {
-          r = 1
-        }
-        p = p + r
-        if p > 255 {
-          p = 0
-        }
-        phase[i] = p
+      prng = (prng * 2053 + 1384) % 65536
+      let off = prng
+      prng = (prng * 2053 + 1384) % 65536
+      let smq = ((prng / 16 % 16 + prng % 16) % 16) + 8
 
-        // Smoother triangle wave with dimmer peak
-        let bri = p
-        if bri > 128 {
-          bri = 255 - bri
-        }
-        // Gentler brightness — max around 192
-        bri = bri * 3 / 2
-        if bri > 192 {
-          bri = 192
-        }
+      off = (NOW * smq / 8 + off) / div
+      smq = prng / 256
 
-        let c = palette((i * 23 + 100) % 256)
-        pixel(i, color_fade(c, bri))
+      let fast = off % 256
+      off = off / 256 + smq
+      off = off + sin8(off % 256)
+      off = (off * 2053 + 1384) % 65536
+      off = (off % 256) + off / 256
+
+      let bri = 0
+      if off % 16 / 2 < intensity / 32 + 1 {
+        // TwinkleCat: instant on, fade off
+        bri = 255 - fast
+      }
+
+      if bri > 0 {
+        off = (off - smq + 256) % 256
+        pixel(i, color_fade(palette(off), bri))
       } else {
-        pixel(i, rgb(0, 0, 0))
+        pixel(i, bg)
       }
     }
 
-    frame()
+    frame(16)
   }
 }

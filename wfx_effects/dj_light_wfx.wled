@@ -1,32 +1,59 @@
-// DJ Light — Frequency bands mapped to strip sections with palette.
+// DJ Light — Center-scrolling spectrogram. Color from FFT bins is placed
+// at center pixel, then pixels scroll outward from center each frame.
+// Adapted from the original C++ by Will Tatam.
 
 effect "DJ Light WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Sensitivity"
     type 1D
-    palette true
     audio_reactive true
   }
 
   render {
-    fade(speed / 4 + 8)
-
-    let bass = audio_bass() * intensity / 128
-    let mid = audio_mid() * intensity / 128
-    let treb = audio_treble() * intensity / 128
-
-    for i in 0..LEN {
-      let pos = i * 255 / LEN
-      let bri = 0
-      if pos < 85 { bri = bass }
-      if pos >= 85 and pos < 170 { bri = mid }
-      if pos >= 170 { bri = treb }
-      if bri > 255 { bri = 255 }
-      let c = palette(pos)
-      pixel(i, color_fade(c, bri))
+    // Fill black on first call
+    if CALL == 0 {
+      fill(0)
     }
 
-    frame()
+    // Time-gate updates based on speed
+    let tick = NOW / (256 - speed + 1)
+    if tick != aux0 {
+      aux0 = tick
+
+      // Get FFT bin values for color
+      let fr = fft(15) / 2
+      let fg = fft(5) / 2
+      let fb = fft(0) / 2
+
+      // Fade amount from bin 4
+      let f4 = fft(4)
+      // map f4 from 0..255 to 255..4 (inverted)
+      let fadeby = 255 - f4
+
+      // Build the center color and apply fade
+      let c = rgb(fr, fg, fb)
+      c = color_fade(c, fadeby)
+
+      let mid = LEN / 2
+
+      // Set the center pixel
+      pixel(mid, c)
+
+      // Scroll right half: shift pixels to the right
+      let i = LEN - 1
+      while i > mid {
+        pixel(i, get_pixel(i - 1))
+        i = i - 1
+      }
+
+      // Scroll left half: shift pixels to the left
+      i = 0
+      while i < mid {
+        pixel(i, get_pixel(i + 1))
+        i = i + 1
+      }
+    }
+
+    frame(16)
   }
 }

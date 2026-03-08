@@ -1,5 +1,6 @@
-// Sinelon Dual — Two sinelons going in opposite directions with different colors.
-// speed controls sweep rate, intensity controls trail length.
+// Sinelon Dual — Two sinelons, one at pos and one at mirror position.
+// Second dot uses SEGCOLOR(2), or palette if color2 is black.
+// Matches mode_sinelon_dual (sinelon_base with dual=true).
 
 effect "Sinelon Dual WFX" {
   meta {
@@ -9,23 +10,50 @@ effect "Sinelon Dual WFX" {
   }
 
   render {
-    let fadeAmt = 255 - intensity
-    if fadeAmt < 16 {
-      fadeAmt = 16
+    // C++ does fade_out(intensity)
+    fade(intensity)
+
+    let bpm = speed / 10
+    if bpm < 1 {
+      bpm = 1
     }
-    fade(fadeAmt)
+    let pos = beat8(bpm, 0, LEN - 1)
 
-    let t = NOW * speed / 256
+    if CALL == 0 {
+      aux0 = pos
+    }
 
-    // First dot sweeps forward
-    let wave1 = sin8(t)
-    let pos1 = wave1 * (LEN - 1) / 255
-    pixel(pos1, palette(t))
+    let c1 = palette(pos * 255 / LEN)
+    let c2 = color2
+    if c2 == 0 {
+      c2 = palette(pos * 255 / LEN)
+    }
 
-    // Second dot sweeps in opposite phase
-    let wave2 = sin8(t + 128)
-    let pos2 = wave2 * (LEN - 1) / 255
-    pixel(pos2, palette(t + 128))
+    // Draw primary dot and mirror dot
+    pixel(pos, c1)
+    let mirr = LEN - 1 - pos
+    pixel(mirr, c2)
+
+    // Fill gaps
+    if aux0 != pos {
+      if aux0 < pos {
+        for i in aux0..pos {
+          let pc = palette(i * 255 / LEN)
+          pixel(i, pc)
+          pixel(LEN - 1 - i, c2)
+        }
+      } else {
+        let j = pos + 1
+        for i in j..aux0 {
+          let pc = palette(i * 255 / LEN)
+          pixel(i, pc)
+          pixel(LEN - 1 - i, c2)
+        }
+        pixel(aux0, palette(aux0 * 255 / LEN))
+        pixel(LEN - 1 - aux0, c2)
+      }
+      aux0 = pos
+    }
 
     frame()
   }

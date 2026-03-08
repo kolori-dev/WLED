@@ -1,27 +1,36 @@
-// Julia — Animated Julia-set-like fractal with palette.
+// Julia — Animated Julia set fractal on 2D matrix.
+// C++ original: mode_2DJulia()
+// Metadata: "Julia@,Max iterations per pixel,X center,Y center,Area size,Blur;!;!;2"
 
 effect "Julia WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Zoom"
+    slider intensity "Max iterations"
+    slider custom1 "X center"
+    slider custom2 "Y center"
+    slider custom3 "Area size"
     type 2D
     palette true
   }
 
   render {
-    step_val = NOW * speed / 1024
+    aux0 = sin8(NOW / 100) - 128
+    aux1 = cos8(NOW / 200) - 128
+
+    // Add center offsets
+    aux0 = aux0 / 4 + (custom1 - 128) / 2
+    aux1 = aux1 / 4 + (custom2 - 128) / 2
+
+    step_val = max(custom3, 1)
 
     for y in 0..HEIGHT {
       for x in 0..WIDTH {
-        let sc = max(intensity, 16)
-        let zx = (x * 256 / WIDTH - 128) * 128 / sc
-        let zy = (y * 256 / HEIGHT - 128) * 128 / sc
-        let cr = (sin8(step_val) - 128) / 4
-        let tx = zx * zx / 256 - zy * zy / 256 + cr
-        zy = zx * zy / 128 + (cos8(step_val / 2) - 128) / 4
-        cr = tx * tx / 256 + zy * zy / 256
-        cr = palette(cr % 256)
-        pixel2d(x, y, cr)
+        let zx = (x * 256 / WIDTH - 128) * 128 / step_val
+        let zy = (y * 256 / HEIGHT - 128) * 128 / step_val
+        let tx = zx * zx / 256 - zy * zy / 256 + aux0
+        zy = zx * zy / 128 + aux1
+        zx = tx * tx / 256 + zy * zy / 256
+        zx = palette(zx % 256)
+        pixel2d(x, y, zx)
       }
     }
 

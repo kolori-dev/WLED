@@ -1,35 +1,40 @@
-effect "Spots" {
+// Spots — Evenly spaced lit zones with triangle wave brightness.
+// C++ original: zones from intensity, triangle wave threshold from speed,
+// fill SEGCOLOR(1), blend palette with SEGCOLOR(1).
+
+effect "Spots WFX" {
   meta {
-    slider speed "Speed"
+    slider speed "Spread"
     slider intensity "Width"
     palette true
-    type 1D
   }
+
   render {
-    fill(0)
-    // intensity controls number of spots (3-16)
-    let numSpots = 3 + scale8(intensity, 13)
-    let spacing = LEN / numSpots
-    if spacing < 1 {
-      spacing = 1
-    }
-    // Use speed to create a moving offset
-    let offset = (NOW * speed) / 50000
+    fill(color1)
+
+    let zones = 1 + intensity * LEN / 1024
+    let zl = LEN / zones
+    let off = (LEN - zones * zl) / 2
+    let thr = (255 - speed) * 256
+
     for i in 0..LEN {
-      let pos = (i + offset) % spacing
-      if pos < 0 {
-        pos = pos + spacing
-      }
-      // Light pixels near the spot center
-      let halfWidth = spacing / 4
-      if halfWidth < 1 {
-        halfWidth = 1
-      }
-      if pos <= halfWidth {
-        let cidx = (i * 255) / LEN
-        pixel(i, palette(cidx))
+      let rel = i - off
+      if rel >= 0 {
+        let w = (rel % zl) * 65535 / zl
+        if w >= 32768 {
+          w = 131071 - w * 2
+        } else {
+          w = w * 2
+        }
+        if w > thr {
+          w = (w - thr) * 255 / (65535 - thr)
+          let pc = palette(i * 255 / LEN)
+          w = 255 - w
+          pixel(i, blend(pc, color1, w))
+        }
       }
     }
+
     frame()
   }
 }

@@ -1,6 +1,6 @@
-// Sparkle Plus — Sparkles appear on top of a palette-colored background.
-// The background is drawn from the palette, then random bright white
-// sparkles flash on top.
+// Sparkle+ — Palette-colored background with multiple random SEGCOLOR(1) flashes.
+// C++ original: draws palette background, then flashes SEGLEN/3 random pixels
+// at intensity-controlled intervals.
 
 effect "Sparkle+ WFX" {
   meta {
@@ -12,17 +12,21 @@ effect "Sparkle+ WFX" {
   render {
     // Draw palette background
     for i in 0..LEN {
-      let c = palette(i * 255 / LEN)
-      pixel(i, color_fade(c, 128))
+      pixel(i, palette(i * 255 / LEN))
     }
 
-    // Add white sparkles on top
-    let count = intensity / 32 + 1
-    for j in 0..count {
-      let pos = random(LEN)
-      pixel(pos, rgb(255, 255, 255))
+    // Flash multiple pixels at random intervals
+    let elapsed = NOW - step_val
+    if elapsed > 255 - speed {
+      if random(255) < intensity {
+        let count = max(1, LEN / 3)
+        for j in 0..count {
+          pixel(random(LEN), color1)
+        }
+      }
+      step_val = NOW
     }
 
-    frame()
+    frame(16)
   }
 }

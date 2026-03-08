@@ -1,7 +1,6 @@
-// Meteor Smooth — A smooth meteor with a gradient trail.
-// Unlike regular Meteor which uses random fade, this version
-// smoothly fades the trail for a cleaner look.
-// Speed controls fall rate, intensity controls trail length.
+// Meteor Smooth — Meteor with gradual trail decay instead of random.
+// C++ original: step-based position, trail changes by -20 to +4 each frame,
+// smooth fading instead of random scale8 decay.
 
 effect "Meteor Smooth WFX" {
   meta {
@@ -10,31 +9,35 @@ effect "Meteor Smooth WFX" {
     palette true
   }
 
+  data trail[300]
+
   render {
-    // Smooth uniform fade for trail
-    let fadeAmt = 255 - intensity
-    if fadeAmt < 32 {
-      fadeAmt = 32
-    }
-    fade(fadeAmt)
+    let meteorSize = 1 + LEN / 20
 
-    // Meteor head position
-    let t = NOW * speed / 256
-    let pos = t % LEN
+    // Smooth position from step counter
+    step_val = step_val + speed + 1
+    let pos = (step_val / 64 % 256) * (LEN - 1) / 255
 
-    // Draw meteor head — gradient from bright to dim
-    let headLen = 8
-    for h in 0..headLen {
-      let p = pos - h
-      if p < 0 {
-        p = p + LEN
+    // Gradual trail decay
+    for i in 0..LEN {
+      if random(0, 256) <= 255 - intensity {
+        if trail[i] > 0 {
+          let chg = trail[i] + 4 - random(0, 24)
+          if chg < 0 { chg = 0 }
+          if chg > 240 { chg = 240 }
+          trail[i] = chg
+        }
       }
-      // Smooth brightness gradient for the head
-      let bri = 255 - h * 255 / headLen
-      let hue = t / 4 + h * 8
-      pixel(p, color_fade(palette(hue), bri))
+      pixel(i, color_fade(palette(trail[i]), trail[i]))
     }
 
-    frame()
+    // Draw meteor head
+    for j in 0..meteorSize {
+      let idx = (pos + j) % LEN
+      trail[idx] = 240
+      pixel(idx, palette(idx * 255 / LEN))
+    }
+
+    frame(16)
   }
 }

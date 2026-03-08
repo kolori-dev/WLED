@@ -1,50 +1,79 @@
-effect "Fireworks Starburst" {
+// Fireworks Starburst — Stars explode from random positions, fragments fly outward and fade.
+// C++ original: numStars = 1 + SEGLEN/20, launch if random8() < intensity/4+2
+// Fragments: 2-8 per star, velocities spread, age-based brightness fading
+
+effect "Fireworks Starburst WFX" {
   meta {
-    slider speed "Launch rate"
-    slider intensity "Brightness"
+    slider speed "Chance"
+    slider intensity "Fragments"
     palette true
-    type 1D
   }
+
+  // Up to 4 stars, 4 fields each:
+  // 0-3 = center position (0-255), 4-7 = birth timer (0=inactive),
+  // 8-11 = color index, 12-15 = fragment spread
+  data stars[16]
+
   render {
-    // Fade existing pixels for trail decay
-    fade(160)
-    // aux0 tracks current burst center position
-    // aux1 tracks burst expansion radius
-    // step_val tracks burst color index
-    // Launch new burst when expansion is done
-    let maxRadius = LEN / 2
-    if aux1 > maxRadius {
-      // Start new burst
-      aux0 = random(LEN)
-      aux1 = 0
-      step_val = random(256)
+    fill(color1)
+
+    step_val = 1 + LEN / 20
+    if step_val > 4 { step_val = 4 }
+
+    aux0 = intensity / 32 + 2
+    if aux0 > 8 { aux0 = 8 }
+
+    // Try to launch new star
+    if random(255) < speed / 4 + 2 {
+      for s in 0..step_val {
+        if stars[s + 4] == 0 {
+          stars[s] = random(255)
+          stars[s + 4] = 255
+          stars[s + 8] = random(255)
+          let sp = random(4) + 2
+          stars[s + 12] = sp
+          s = step_val
+        }
+      }
     }
-    // Draw expanding burst
-    let radius = aux1
-    let bright = 255 - (radius * 200) / maxRadius
-    if bright < 20 {
-      bright = 20
+
+    // Update and draw stars
+    for s in 0..step_val {
+      let age = stars[s + 4]
+      if age > 0 {
+        let center = stars[s] * (LEN - 1) / 255
+        let ci = stars[s + 8]
+        let spread = stars[s + 12]
+        let c = color_fade(palette(ci), age)
+        // Reuse ci for expansion radius
+        ci = (255 - age) * spread / 64
+
+        // Draw fragments
+        for f in 0..aux0 {
+          // Reuse spread for offset and pixel position
+          spread = ci * (f * 2 + 1) / aux0 - ci
+          spread = center + spread
+          if spread >= 0 and spread < LEN {
+            pixel(spread, c)
+          }
+        }
+
+        // White flash at center for first few frames
+        if age > 240 {
+          if center >= 0 and center < LEN {
+            let white = rgb(255, 255, 200)
+            pixel(center, white)
+          }
+        }
+
+        // Age the star (reuse center for decay)
+        center = 4 + (255 - speed) / 32
+        age = age - center
+        if age < 0 { age = 0 }
+        stars[s + 4] = age
+      }
     }
-    let col = palette(step_val)
-    let faded = color_fade(col, bright)
-    // Draw pixels at center +/- radius
-    let center = aux0
-    let posRight = center + radius
-    let posLeft = center - radius
-    if posRight < LEN {
-      pixel(posRight, faded)
-    }
-    if posLeft >= 0 {
-      pixel(posLeft, faded)
-    }
-    // Also draw bright center during early expansion
-    if radius < 4 {
-      let white = rgb(255, 255, 200)
-      pixel(center, white)
-    }
-    // Expand burst
-    let expandRate = 1 + speed / 64
-    aux1 = aux1 + expandRate
+
     frame()
   }
 }

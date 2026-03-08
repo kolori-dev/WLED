@@ -1,6 +1,6 @@
-// Chase Random — A chase effect where each new pixel gets a random
-// palette color. The chase segment moves around the strip and each
-// pixel in the segment has its own random palette-derived color.
+// Chase Random — Chase with random color that changes each time position wraps.
+// C++ original: chase() with chase_random=true. Background fills with previous
+// random color, new random color chosen on wrap.
 
 effect "Chase Random WFX" {
   meta {
@@ -10,15 +10,38 @@ effect "Chase Random WFX" {
   }
 
   render {
-    let width = max(intensity / 16, 1)
-    let pos = (NOW * speed / 512) % LEN
+    let counter = NOW * (speed / 4 + 1)
+    let a = counter * LEN / 65536 % LEN
+    let size = 1 + intensity * LEN / 1024
 
-    fade(220)
+    // Detect wrap: new position < previous position
+    let prevA = step_val
+    if a < prevA {
+      // Wrapped — save current color as background, pick new one
+      aux1 = aux0
+      // Pick a distinct random color (simulate get_random_wheel_index)
+      aux0 = (aux0 + random(42, 214)) % 256
+    }
+    step_val = a
 
-    for j in 0..width {
-      let idx = (pos + j) % LEN
-      let pidx = random(255)
-      pixel(idx, palette(pidx))
+    // Fill entire strip with the current random color (background)
+    let bgColor = color_wheel(aux0)
+    fill(bgColor)
+
+    // Fill from position a to end with previous random color
+    let prevColor = color_wheel(aux1)
+    for i in a..LEN {
+      pixel(i, prevColor)
+    }
+
+    // Draw chase segments
+    for j in 0..size {
+      let idx = (a + j) % LEN
+      pixel(idx, color1)
+    }
+    for j in 0..size {
+      let idx = (a + size + j) % LEN
+      pixel(idx, color0)
     }
 
     frame()

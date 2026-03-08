@@ -1,35 +1,47 @@
-// Plasmoid — Plasma ball: a bright center with tendrils of light extending
-// outward using overlapping sine waves. Intensity controls tendril reach.
+// Plasmoid — Two overlapping plasma waves, gated by volume.
+// By Andrew Tuline.
 
 effect "Plasmoid WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Tendrils"
+    slider speed "Phase"
+    slider intensity "# of pixels"
+    type 1D
     palette true
+    audio_reactive true
   }
 
   render {
-    let t = NOW * speed / 512
-    let center = LEN / 2
+    // fadeToBlackBy(32) ~ fade(224)
+    fade(224)
+
+    // Phase evolution using step_val and aux0
+    step_val = step_val + beat8(6, 252, 4)
+    aux0 = aux0 + beat8(7, 252, 4)
+
+    // Volume threshold for gating
+    let thresh = volume * intensity / 64
 
     for i in 0..LEN {
-      let dist = abs(i - center)
+      // cubicwave8 approx with quad8
+      let wave = i * (1 + 3 * speed / 32) + step_val
+      let tb = quad8(wave) / 2
 
-      // Multiple sine tendrils radiating from center
-      let wave = sin8(dist * 8 + t * 3)
-      let w = sin8(dist * 12 + t * 2 + 64)
-      wave = (wave + w) / 2
-      w = sin8(i * 1024 / LEN + t)
-      wave = (wave * 2 + w) / 3
+      // + cos8 second wave / 2
+      wave = i * (97 + 5 * speed / 32) + aux0
+      tb = tb + cos8(wave) / 2
 
-      // Brightness falls off with distance from center
-      let bri = 255 - dist * intensity / center
-      if bri < 0 { bri = 0 }
+      let ci = tb
 
-      bri = wave * bri / 255
-      if bri > 255 { bri = 255 }
+      // Volume gate: if threshold < brightness then black
+      if thresh < tb {
+        tb = 0
+      }
 
-      pixel(i, color_fade(palette(wave), bri))
+      // Blend with color1 then add to existing pixel
+      let c = blend(color1, palette(ci), tb)
+      ci = get_pixel(i)
+      c = color_add(ci, c)
+      pixel(i, c)
     }
 
     frame()

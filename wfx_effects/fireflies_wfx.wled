@@ -1,23 +1,23 @@
-// Fireflies — Warm dots randomly blink to life on a dark background,
-// then gently fade away. Like a summer meadow at dusk.
+// Fireflies — Random warm glowing dots that blink and fade.
+// Custom effect (no exact C++ match — closest is mode_fairy/fairytwinkle).
 
 effect "Fireflies WFX" {
   meta {
     slider speed "Spawn Rate"
     slider intensity "Density"
+    palette true
   }
 
   render {
-    // Slow fade creates the glow-then-vanish trail
     fade(245)
 
     let count = intensity / 32 + 1
     for j in 0..count {
       if random(255) < speed / 4 + 8 {
         let pos = random(LEN)
-        // Warm yellow-green firefly glow
         let hue = random(40) + 40
-        pixel(pos, rgb(hue, hue, 0))
+        let c = color_wheel(hue)
+        pixel(pos, c)
       }
     }
 

@@ -1,5 +1,6 @@
-// Juggle — Multiple bouncing dots with different hues and speeds.
-// They leave fading trails that blend where they overlap.
+// Juggle — Eight colored dots bounce at different speeds with fading trails.
+// C++ original: fadeToBlackBy, 8 beatsin88 dots, OR blend with palette colors.
+// Each dot has BPM88 = (16+speed)*(i+7). Hue increments by 32.
 
 effect "Juggle WFX" {
   meta {
@@ -9,30 +10,17 @@ effect "Juggle WFX" {
   }
 
   render {
-    let fadeAmt = 255 - intensity
-    if fadeAmt < 16 {
-      fadeAmt = 16
+    // fadeToBlackBy(192 - 3*intensity/4) ≈ fade(63 + 3*intensity/4)
+    fade(63 + 3 * intensity / 4)
+
+    for i in 0..8 {
+      // beatsin88 approximation: period = 15360000 / bpm88 ms
+      let period = 15360000 / ((16 + speed) * (i + 7))
+      let pos = NOW % period * 65536 / period
+      pos = (sin16(pos) + 32768) * (LEN - 1) / 65536
+      let c = color_add(get_pixel(pos), palette(i * 32))
+      pixel(pos, c)
     }
-    fade(fadeAmt)
-
-    let base = speed / 8 + 5
-    let span = LEN - 1
-
-    // Reuse pos/hue for each dot
-    let pos = beat8(base, 0, 255) * span / 255
-    pixel(pos, color_add(get_pixel(pos), palette(0)))
-
-    pos = beat8(base + 2, 0, 255) * span / 255
-    pixel(pos, color_add(get_pixel(pos), palette(36)))
-
-    pos = beat8(base + 5, 0, 255) * span / 255
-    pixel(pos, color_add(get_pixel(pos), palette(72)))
-
-    pos = beat8(base + 8, 0, 255) * span / 255
-    pixel(pos, color_add(get_pixel(pos), palette(108)))
-
-    pos = beat8(base + 11, 0, 255) * span / 255
-    pixel(pos, color_add(get_pixel(pos), palette(144)))
 
     frame(16)
   }

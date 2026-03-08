@@ -1,4 +1,8 @@
-effect "Theater Chase WFX" {
+// Theater Chase — Crawling theater lights with palette colors.
+// C++ original: running() with theatre=true. Width = 3 + (intensity>>4).
+// Every Nth pixel lit, offset advances by 1 on each cycle.
+
+effect "Theater WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Gap size"
@@ -6,17 +10,24 @@ effect "Theater Chase WFX" {
   }
 
   render {
-    let gap = max(intensity / 32, 2)
-    let offset = (NOW * speed / 512) % gap
+    let width = 3 + intensity / 16
+    let cycleTime = 50 + 255 - speed
+    let it = NOW / cycleTime
 
-    fill(rgb(0, 0, 0))
+    // Advance offset once per cycle
+    if it != step_val {
+      aux0 = (aux0 + 1) % width
+      step_val = it
+    }
 
     for i in 0..LEN {
-      if (i + offset) % gap == 0 {
+      if i % width == aux0 {
         pixel(i, palette(i * 255 / LEN))
+      } else {
+        pixel(i, color1)
       }
     }
 
-    frame()
+    frame(16)
   }
 }

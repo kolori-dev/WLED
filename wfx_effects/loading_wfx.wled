@@ -1,26 +1,39 @@
-// Loading — A loading bar that grows from left to right, then resets.
-// Classic loading bar animation. The filled portion uses palette colors,
-// the empty portion stays dark.
+// Loading — Sweeping gradient point blending SEGCOLOR(0) with palette.
+// C++ original: gradient_base(true). Moving point sweeps, pixels beyond
+// gradient boundary get full palette color. Intensity controls gradient width.
 
 effect "Loading WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Brightness"
+    slider intensity "Fade"
     palette true
   }
 
   render {
-    let progress = (NOW * speed / 1024) % LEN
+    let counter = NOW * (speed / 4 + 1)
+    let pp = counter * LEN / 65536 % LEN
+    let brd = 1 + intensity / 2
 
     for i in 0..LEN {
-      if i <= progress {
-        // Filled portion: palette gradient
-        let bri = intensity
-        pixel(i, color_fade(palette(i * 255 / LEN), bri))
+      // Distance from moving point (loading style: only look forward)
+      let val = 0
+      if i > pp {
+        val = i - pp
+        // Wrap via p2
+        let d2 = pp + LEN - i
+        if d2 < val { val = d2 }
       } else {
-        // Empty portion: dark
-        pixel(i, rgb(0, 0, 0))
+        val = pp - i
       }
+
+      if brd > val {
+        val = val * 255 / brd
+      } else {
+        val = 255
+      }
+
+      let c = palette(i * 255 / LEN)
+      pixel(i, blend(color0, c, val))
     }
 
     frame()

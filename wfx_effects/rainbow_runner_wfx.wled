@@ -1,25 +1,37 @@
-// Rainbow Runner — A rainbow-colored segment chasing around the strip.
-// The segment displays a full rainbow spectrum that cycles through
-// its hues as it moves, creating a vibrant running effect.
+// Rainbow Runner — White segment chases over a rainbow-colored background.
+// C++ original: mode_chase_rainbow_white(). Uses chase() helper for position.
+// Background is rainbow (color_wheel based on position + shifting hue).
+// Chase segment is SEGCOLOR(0) = "Bg" (the lit chase dot).
 
 effect "Rainbow Runner WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Width"
+    slider intensity "Size"
     palette false
   }
 
   render {
-    let width = max(intensity / 8, 4)
-    let pos = (NOW * speed / 512) % LEN
-    let hueShift = NOW * speed / 256
+    // Chase position: counter = now * (speed/4 + 1), pos = counter * LEN / 65536
+    let counter = NOW * (speed / 4 + 1)
+    let pos = counter * LEN / 65536 % LEN
 
-    fade(200)
+    // Size of chase segment
+    let size = 1 + intensity * LEN / 1024
+    if size > LEN { size = LEN }
 
-    for j in 0..width {
+    // Hue shift based on CALL (increments each frame)
+    let hueShift = CALL
+
+    // Draw rainbow background
+    for i in 0..LEN {
+      let hue = (i * 256 / LEN + hueShift) % 256
+      pixel(i, color_wheel(hue))
+    }
+
+    // Draw chase segment with color0 (foreground/Bg slot)
+    for j in 0..size {
       let idx = (pos + j) % LEN
-      let hue = (j * 255 / width + hueShift) % 256
-      pixel(idx, color_wheel(hue))
+      pixel(idx, color0)
     }
 
     frame()

@@ -1,26 +1,42 @@
-// Noise Move — Noise-generated pattern that scrolls along the strip.
-// Each pixel is colored by Perlin noise offset by time, creating a
-// smooth flowing organic pattern.
+// Noisemove — FFT bins positioned by Perlin noise. By Andrew Tuline.
+// C++ original: mode_noisemove()
+// Metadata: "Noisemove@Move speed,Fade rate;!,!;!;01f"
+// Uses fftResult bins placed at noise-determined positions along strip.
 
-effect "Noise Move WFX" {
+effect "Noisemove WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Scale"
+    slider speed "Move speed"
+    slider intensity "Fade rate"
     palette true
+    audio_reactive true
   }
 
   render {
-    let t = NOW * speed / 512
+    // C++: fadeoutDelay = (256-speed)/96; fadeToBlackBy(4 + speed/4)
+    let dly = (256 - intensity) / 96
+    if dly <= 1 or CALL % max(dly, 1) == 0 {
+      let fb = 255 - (4 + intensity / 4)
+      fade(fb)
+    }
 
-    for i in 0..LEN {
-      let pos = i * intensity / 8
-      let n = noise2(pos, t)
+    // Number of active bins from intensity: map(intensity, 0, 255, 0, 16)
+    let numBins = intensity * 16 / 255
+    if numBins > 16 { numBins = 16 }
 
-      // Use noise for both palette index and brightness
-      let idx = n
-      let bri = noise2(pos + 1000, t + 500)
+    for i in 0..numBins {
+      // Get position from Perlin noise
+      // C++: locn = inoise16(now*speed + i*50000, now*speed)
+      let n = noise2(NOW * speed / 64 + i * 3125, NOW * speed / 64)
+      // Map noise (0-255) to strip position
+      let locn = n * LEN / 256
+      if locn >= LEN { locn = LEN - 1 }
+      if locn < 0 { locn = 0 }
 
-      pixel(i, color_fade(palette(idx), bri))
+      // Color from palette, brightness from FFT bin
+      let val = fft(i % 16) * 4
+      if val > 255 { val = 255 }
+      let c = blend(color1, palette(i * 64), val)
+      pixel(locn, c)
     }
 
     frame()

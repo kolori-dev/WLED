@@ -1,26 +1,24 @@
-// Noise 2 — Faster, more turbulent noise pattern.
-// Higher frequency noise creates a more energetic, chaotic look.
-// Speed controls animation rate, intensity controls turbulence.
+// Noise 2 — Second noise variant with time-shifted x coordinate.
+// C++ original: scale=1000, step += (1+speed>>1), shift_x = step>>6,
+// inoise8(real_x, 0, 4223), sin8(noise*3), brightness=noise.
 
 effect "Noise 2 WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Turbulence"
     palette true
   }
 
   render {
-    let t = NOW * speed / 512
+    step_val = step_val + 1 + speed / 2
+
+    let sx = step_val / 64
 
     for i in 0..LEN {
-      let x = i * (intensity / 4 + 16)
-      // Layer two noise frequencies for turbulence
-      let n1 = noise2(x, t)
-      let n2 = noise2(x * 3, t * 2)
-      let n = (n1 + n2) / 2
-      pixel(i, palette(n))
+      let n = noise3((i + sx) * 1000, 0, 4223)
+      let idx = sin8(n * 3)
+      pixel(i, color_fade(palette(idx), n))
     }
 
-    frame()
+    frame(16)
   }
 }

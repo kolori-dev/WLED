@@ -1,39 +1,63 @@
-effect "Percent" {
+// Percent — Fill bar with smooth transition. Intensity controls fill % (0-200).
+// C++ original: intensity 0-100 fills from start, 101-200 fills from end (reverse).
+// Speed controls transition speed. Palette or single-color mode via check1.
+
+effect "Percent WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Intensity"
-    palette false
-    type 1D
+    slider intensity "% of fill"
+    palette true
   }
+
   render {
-    // custom1 (0-255) maps to 0-100%
-    // Fill a bar from the start based on percentage
-    let pct = custom1 * 100 / 255
-    let fillLen = (LEN * pct) / 100
-    fill(0)
-    for i in 0..LEN {
-      if i < fillLen {
-        // Color transitions from green (0%) to yellow (50%) to red (100%)
-        let ratio = (i * 255) / fillLen
-        let r = 0
-        let g = 0
-        let b = 0
-        // Position along the bar as percentage
-        let barPct = (i * 100) / LEN
-        if barPct < 50 {
-          // Green to yellow
-          let t = barPct * 2
-          r = t * 255 / 100
-          g = 255
+    let percent = intensity
+    if percent > 200 { percent = 200 }
+
+    // Calculate target fill length
+    let activeLeds = 0
+    if percent < 100 {
+      activeLeds = LEN * percent / 100
+    } else {
+      activeLeds = LEN * (200 - percent) / 100
+    }
+
+    // Smooth transition: aux0 approaches activeLeds
+    let size = 1 + speed * LEN / 2048
+    if speed == 255 { size = 255 }
+
+    let current = aux0
+    if activeLeds > current {
+      current = current + size
+      if current > activeLeds { current = activeLeds }
+    }
+    if activeLeds < current {
+      if current > size {
+        current = current - size
+      } else {
+        current = 0
+      }
+      if current < activeLeds { current = activeLeds }
+    }
+    aux0 = current
+
+    if percent <= 100 {
+      for i in 0..LEN {
+        if i < current {
+          pixel(i, palette(i * 255 / LEN))
         } else {
-          // Yellow to red
-          let t = (barPct - 50) * 2
-          r = 255
-          g = 255 - (t * 255 / 100)
+          pixel(i, color1)
         }
-        pixel(i, rgb(r, g, b))
+      }
+    } else {
+      for i in 0..LEN {
+        if i < LEN - current {
+          pixel(i, color1)
+        } else {
+          pixel(i, palette(i * 255 / LEN))
+        }
       }
     }
-    frame()
+
+    frame(16)
   }
 }

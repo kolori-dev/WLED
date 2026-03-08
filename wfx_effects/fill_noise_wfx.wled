@@ -1,23 +1,24 @@
 // Fill Noise — Fill with Perlin noise-based colors from palette.
-// Noise shifts over time creating organic flowing patterns.
-// Speed controls animation rate, intensity controls noise scale.
+// C++ original: inoise8(i*SEGLEN, step+i*SEGLEN), step += beatsin8(speed,1,6).
 
 effect "Fill Noise WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Scale"
     palette true
   }
 
   render {
-    let t = NOW * speed / 512
-
-    for i in 0..LEN {
-      let x = i * (intensity / 4 + 8) + t
-      let n = noise(x)
-      pixel(i, palette(n))
+    if CALL == 0 {
+      step_val = random(0, 256)
     }
 
-    frame()
+    for i in 0..LEN {
+      let idx = noise2(i * LEN, step_val + i * LEN)
+      pixel(i, palette(idx))
+    }
+
+    step_val = step_val + beat8(speed, 1, 6)
+
+    frame(16)
   }
 }

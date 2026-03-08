@@ -1,22 +1,36 @@
-// Strobe — Full strip strobe: alternates between full white and full black.
-// Very fast on/off with short duty cycle for a classic strobe effect.
+// Strobe — Very short flash (one frame on), then off until next cycle.
+// C++ original: blink() with strobe=true, onTime=FRAMETIME only.
 
 effect "Strobe WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Flash length"
+    palette true
   }
 
   render {
-    let cycle = (NOW * speed / 128) % 256
-    let flash = intensity / 8 + 4
+    // C++ strobe: cycleTime=(255-speed)*20+32, onTime=FRAMETIME only (~16ms)
+    let cycleTime = (255 - speed) * 20 + 32
+    let rem = NOW % cycleTime
 
-    if cycle < flash {
-      fill(rgb(255, 255, 255))
-    } else {
-      fill(rgb(0, 0, 0))
+    let it = NOW / cycleTime
+    let prevIt = aux0
+    aux0 = it
+    let on = 0
+    if it != prevIt {
+      on = 1
+    }
+    if rem < 16 {
+      on = 1
     }
 
-    frame()
+    if on {
+      for i in 0..LEN {
+        pixel(i, palette(i * 255 / LEN))
+      }
+    } else {
+      fill(color1)
+    }
+
+    frame(16)
   }
 }

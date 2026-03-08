@@ -1,24 +1,24 @@
-// Noise 3 — Very fine grain noise, rapid changes.
-// High frequency noise produces a sparkling, granular texture.
-// Speed controls flicker rate, intensity controls grain size.
+// Noise 3 — Third noise variant with fixed x/y shifts and fast z.
+// C++ original: scale=800, step += (1+speed), shift_x=4223, shift_y=1234,
+// inoise8(real_x, real_y, real_z*8), sin8(noise*3), brightness=noise.
 
 effect "Noise 3 WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Grain"
     palette true
   }
 
   render {
-    let t = NOW * speed / 256
+    step_val = step_val + 1 + speed
 
     for i in 0..LEN {
-      let x = i * (intensity / 2 + 32)
-      let n = noise2(x, t)
-      let bri = noise2(x + 3000, t + 7000)
-      pixel(i, color_fade(palette(n), bri))
+      let rx = (i + 4223) * 800
+      let ry = (i + 1234) * 800
+      let n = noise3(rx, ry, step_val * 8)
+      let idx = sin8(n * 3)
+      pixel(i, color_fade(palette(idx), n))
     }
 
-    frame()
+    frame(16)
   }
 }

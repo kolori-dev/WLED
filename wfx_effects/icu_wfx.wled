@@ -1,54 +1,119 @@
-// ICU — Two "eyes" that scan back and forth on the strip.
-// The eyes are spaced apart and move together, reversing at the edges.
-// Speed controls movement rate, intensity controls eye spacing.
+// ICU — Two "eyes" with state machine: pause1, blink, pause2, move.
+// Eyes are single pixels spaced LEN/space apart. They pause, occasionally
+// blink, then pick a new target and move pixel-by-pixel.
+// speed = movement speed, intensity = eye spacing
 
 effect "ICU WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Eye Spacing"
-    palette false
   }
+
+  // data: [0]=state(0-3), [1]=nextUpdate(low16 of NOW), [2]=dest(target pos)
+  data icu_data[3]
 
   render {
     let space = intensity / 8 + 2
-    if space >= LEN / 2 {
-      space = LEN / 2 - 1
+
+    // Current position in aux1, target in data[2]
+    let pos = aux1
+    let dest = icu_data[2]
+    let state = icu_data[0]
+    let nextUpd = icu_data[1]
+
+    // Palette color based on position
+    let maxRange = LEN - LEN / space
+    let pindex = 0
+    if maxRange > 0 {
+      pindex = pos * 255 / maxRange
+    }
+    let col = palette(pindex)
+
+    // Background
+    if check2 == 0 {
+      fill(color1)
+    } else {
+      fill(rgb(0, 0, 0))
     }
 
-    // Range the eyes can travel
-    let range = LEN - space - 2
-    if range < 2 {
-      range = 2
-    }
-
-    // Bounce position
-    let cycle = (NOW * speed / 512) % (range * 2)
-    let pos = cycle
-    if pos >= range {
-      pos = range * 2 - pos - 1
-    }
-
-    fill(rgb(0, 0, 0))
-
-    // Draw eye 1
-    pixel(pos, color0)
-    if pos > 0 {
-      pixel(pos - 1, color_fade(color0, 80))
-    }
-    if pos < LEN - 1 {
-      pixel(pos + 1, color_fade(color0, 80))
-    }
-
-    // Draw eye 2, offset by spacing
-    let p2 = pos + space
-    if p2 < LEN {
-      pixel(p2, color0)
-      if p2 > 0 {
-        pixel(p2 - 1, color_fade(color0, 80))
+    // Draw eyes if not blinking
+    if state != 1 {
+      pixel(pos, col)
+      let eye2 = pos + LEN / space
+      if eye2 < LEN {
+        pixel(eye2, col)
       }
-      if p2 < LEN - 1 {
-        pixel(p2 + 1, color_fade(color0, 80))
+      // If moving, also draw transitional position
+      if state == 3 {
+        let npos = pos
+        if dest > pos {
+          npos = pos + 1
+        } else if dest < pos {
+          npos = pos - 1
+        }
+        pixel(npos, col)
+        let ne2 = npos + LEN / space
+        if ne2 < LEN {
+          pixel(ne2, col)
+        }
       }
+    }
+
+    // State machine: timing based on low 16 bits of NOW
+    let now16 = NOW % 65536
+    let diff = now16 - nextUpd
+    // Handle wraparound: treat as signed 16-bit
+    if diff > 32767 {
+      diff = diff - 65536
+    }
+
+    if diff >= 0 {
+      if state == 0 {
+        // pause1 done -> maybe blink or skip to pause2
+        state = 1
+        if random(6) == 0 {
+          // actually blink
+          nextUpd = (now16 + 200) % 65536
+        } else {
+          // skip blink, go to pause2
+          nextUpd = (now16 + 500 + random(1000)) % 65536
+          state = 2
+        }
+      } else if state == 1 {
+        // blink done -> pause2
+        nextUpd = (now16 + 500 + random(1000)) % 65536
+        state = 2
+      } else if state == 2 {
+        // pause2 done -> pick destination, start moving
+        dest = random(LEN - LEN / space)
+        icu_data[2] = dest
+        nextUpd = now16
+        state = 3
+      } else {
+        // move: step one pixel toward dest
+        if dest > pos {
+          pos = pos + 1
+        } else if dest < pos {
+          pos = pos - 1
+        }
+        aux1 = pos
+
+        // Speed formula: 5 + 50*(255-speed)/LEN
+        let spd = 5
+        if LEN > 0 {
+          spd = 5 + 50 * (255 - speed) / LEN
+        }
+        nextUpd = (now16 + spd) % 65536
+
+        if pos == dest {
+          // Reached destination -> pause
+          nextUpd = (now16 + 500 + random(1000)) % 65536
+          state = 0
+        }
+      }
+
+      icu_data[0] = state
+      icu_data[1] = nextUpd
     }
 
     frame()

@@ -1,31 +1,40 @@
-// Fire Flicker — Simple fire flicker: each pixel is orange-red with random
-// brightness flickering. Creates a cozy campfire or candle effect.
-// Speed controls flicker rate, intensity controls flicker depth.
+// Fire Flicker — Flickers using SEGCOLOR(0) components or palette.
+// C++ original: extracts R,G,B from color0, subtracts random flicker.
+// When palette is set, uses palette with brightness = 255-flicker.
+// Intensity controls flicker depth, speed controls update rate.
 
 effect "Fire Flicker WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Flicker Depth"
+    slider intensity "Depth"
+    palette true
   }
 
   render {
-    for i in 0..LEN {
-      // Random flicker amount per pixel per frame
-      let flicker = random(intensity)
+    // Time gate: only update at speed-dependent rate
+    let cycleTime = 40 + 255 - speed
+    let it = NOW / cycleTime
+    if it != step_val {
+      step_val = it
 
-      // Base warm fire color with flickered brightness
-      let r = 255 - flicker
-      let g = 96 - flicker / 2
-      let b = 12 - flicker / 8
+      // Extract components from primary color
+      let cr = red(color0)
+      let cg = green(color0)
+      let cb = blue(color0)
 
-      // Clamp to avoid underflow
-      if r < 0 { r = 0 }
-      if g < 0 { g = 0 }
-      if b < 0 { b = 0 }
+      // Luminance determines flicker range
+      let lum = max(cr, max(cg, cb))
+      lum = lum / ((256 - intensity) / 16 + 1)
 
-      pixel(i, rgb(r, g, b))
+      for i in 0..LEN {
+        let flicker = random(lum + 1)
+        // Use palette with dimmed brightness
+        let bri = 255 - flicker
+        if bri < 0 { bri = 0 }
+        pixel(i, color_fade(palette(i * 255 / LEN), bri))
+      }
     }
 
-    frame()
+    frame(16)
   }
 }

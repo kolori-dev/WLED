@@ -1,29 +1,41 @@
-// Running Dual — Two running lights moving in opposite directions.
-// Color0 runs forward, color1 runs backward, creating a weaving
-// pattern as they cross paths.
+// Running Dual — Two sine waves running in opposite directions, blended.
+// C++ original: running_base(false, true). Forward palette color0, backward palette color2.
+// Uses sin_gap (returns 0 when bit 8 set) for gaps, color_blend at 127 to mix.
 
 effect "Running Dual WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Wave size"
-    palette false
+    slider intensity "Wave width"
+    palette true
   }
 
   render {
-    let offset = NOW * speed / 256
+    let x_scale = intensity / 4
+    let counter = NOW * speed / 512
 
     for i in 0..LEN {
-      // Forward wave using color0
-      let wave1 = sin8(i * intensity / 4 + offset)
-      let c1 = color_fade(color0, wave1)
+      // Forward wave
+      let a = (i * x_scale - counter) % 256
+      let s = sin8(a)
+      // Approximate sin_gap: zero when in upper half of sine cycle
+      if a > 127 {
+        if a < 255 {
+          s = 0
+        }
+      }
+      let ca = blend(color1, palette(i * 255 / LEN), s)
 
-      // Backward wave using color1
-      let rev = LEN - 1 - i
-      let wave2 = sin8(rev * intensity / 4 + offset)
-      let c2 = color_fade(color1, wave2)
+      // Backward wave
+      let b = ((LEN - 1 - i) * x_scale - counter) % 256
+      let t = sin8(b)
+      if b > 127 {
+        if b < 255 {
+          t = 0
+        }
+      }
+      let cb = blend(color1, color2, t)
 
-      // Combine both waves
-      pixel(i, color_add(c1, c2))
+      pixel(i, blend(ca, cb, 127))
     }
 
     frame()

@@ -1,6 +1,7 @@
-// TwinkleFOX — Each pixel independently fades up and down at random
-// times with palette colors. Inspired by Mark Kriegsman's TwinkleFOX.
-// Uses data buffer to track each pixel's phase (0-255 sawtooth).
+// TwinkleFOX — Twinkling holiday lights by Mark Kriegsman.
+// C++ original: Deterministic PRNG (x*2053+1384) per pixel for clock offset
+// and speed. Fast attack (~86 phase), slow decay. Incandescent cooling
+// (green/blue fade) unless check1 ("Cool") is on. SEGCOLOR(1) as background.
 
 effect "TwinkleFOX WFX" {
   meta {
@@ -9,53 +10,54 @@ effect "TwinkleFOX WFX" {
     palette true
   }
 
-  data phase[256]
-  data rate[256]
-
   render {
-    // Seed new twinkles
-    let count = intensity / 16 + 1
-    for j in 0..count {
-      if random(255) < intensity / 2 + 8 {
-        let pos = random(LEN)
-        if phase[pos] == 0 {
-          phase[pos] = 1
-          rate[pos] = random(1, speed / 16 + 2)
-        }
-      }
-    }
+    // Speed divisor (matches C++ aux0 calculation)
+    let div = 22 + (100 - speed) / 2
+    if speed > 100 { div = 3 + (255 - speed) / 8 }
 
-    // Update and render each pixel
+    // Dim background from SEGCOLOR(1)
+    let bg = color_fade(color1, 64)
+
+    let prng = 11337
+
     for i in 0..LEN {
-      let p = phase[i]
-      if p > 0 {
-        let r = rate[i]
-        if r < 1 {
-          r = 1
-        }
-        p = p + r
-        if p > 255 {
-          p = 0
-        }
-        phase[i] = p
+      // PRNG for clock offset
+      prng = (prng * 2053 + 1384) % 65536
+      let off = prng
+      // PRNG for speed multiplier (8-23 in Q5.3)
+      prng = (prng * 2053 + 1384) % 65536
+      let smq = ((prng / 16 % 16 + prng % 16) % 16) + 8
 
-        // Triangle wave: 0->128->0 brightness from phase 0->128->255
-        let bri = p
-        if bri > 128 {
-          bri = 255 - bri
-        }
-        bri = bri * 2
-        if bri > 255 {
-          bri = 255
-        }
+      // Per-pixel clock and salt
+      off = (NOW * smq / 8 + off) / div
+      smq = prng / 256
 
-        let c = palette((i * 37) % 256)
-        pixel(i, color_fade(c, bri))
+      // Fast and slow cycles
+      let fast = off % 256
+      off = off / 256 + smq
+      off = off + sin8(off % 256)
+      off = (off * 2053 + 1384) % 65536
+      off = (off % 256) + off / 256
+
+      // Density check
+      let bri = 0
+      if off % 16 / 2 < intensity / 32 + 1 {
+        // TwinkleFOX: fast attack, slow decay
+        if fast < 86 {
+          bri = fast * 3
+        } else {
+          bri = 255 - (fast - 86) * 3 / 2
+        }
+      }
+
+      if bri > 0 {
+        off = (off - smq + 256) % 256
+        pixel(i, color_fade(palette(off), bri))
       } else {
-        pixel(i, rgb(0, 0, 0))
+        pixel(i, bg)
       }
     }
 
-    frame()
+    frame(16)
   }
 }

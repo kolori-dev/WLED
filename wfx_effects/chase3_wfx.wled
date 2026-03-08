@@ -1,40 +1,39 @@
-// Chase 3 — Triple chase using all three segment colors.
-// Three chase segments spaced evenly around the strip, each in
-// a different segment color. Speed controls rate, intensity controls width.
+// Chase 3 — Tricolor chase: three colors fill strip in repeating bands.
+// C++ original: tricolor_chase(SEGCOLOR(2), SEGCOLOR(0)).
+// Three repeating bands of width (1+intensity/16), scrolling.
+// Band 1: color2, Band 2: color0, Band 3: palette
 
 effect "Chase 3 WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Width"
-    palette false
+    slider intensity "Size"
+    palette true
   }
 
   render {
-    let width = max(intensity / 16, 1)
-    let pos = (NOW * speed / 512) % LEN
+    let width = 1 + intensity / 16
+    let cycleTime = 50 + (255 - speed) * 2
+    let it = NOW / cycleTime
+    let index = it % (width * 3)
 
-    fill(rgb(0, 0, 0))
+    for i in 0..LEN {
+      let idx = (index + i) % (width * 3)
+      let ri = LEN - 1 - i
 
-    // Chase segment 1 — color0
-    for j in 0..width {
-      let idx = (pos + j) % LEN
-      pixel(idx, color0)
+      if idx > width * 2 - 1 {
+        // Third band: palette
+        pixel(ri, palette(i * 255 / LEN))
+      } else {
+        if idx > width - 1 {
+          // Second band: color0
+          pixel(ri, color0)
+        } else {
+          // First band: color2
+          pixel(ri, color2)
+        }
+      }
     }
 
-    // Chase segment 2 — color1, offset by 1/3
-    let off1 = LEN / 3
-    for j in 0..width {
-      let idx = (pos + off1 + j) % LEN
-      pixel(idx, color1)
-    }
-
-    // Chase segment 3 — color2, offset by 2/3
-    let off2 = LEN * 2 / 3
-    for j in 0..width {
-      let idx = (pos + off2 + j) % LEN
-      pixel(idx, color2)
-    }
-
-    frame()
+    frame(16)
   }
 }

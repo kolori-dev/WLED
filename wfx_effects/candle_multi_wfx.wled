@@ -1,43 +1,71 @@
-effect "Candle Multi" {
+// Candle Multi — Independent candle per pixel with target-seeking brightness.
+// C++ original: candle(true). Each pixel has its own current/target/step state.
+// Uses 3 bytes per pixel in data buffer. Blends palette with SEGCOLOR(1).
+
+effect "Candle Multi WFX" {
   meta {
-    slider speed "Flicker speed"
-    slider intensity "Flicker intensity"
-    palette false
-    type 1D
+    slider speed "Speed"
+    slider intensity "Flicker range"
+    palette true
   }
-  data flamebuf[256]
+
+  data state[768]
+
   render {
-    // Multiple independent candle flames, one per pixel (up to 256)
-    let numFlames = LEN
-    if numFlames > 256 {
-      numFlames = 256
+    let sf = 4
+    if speed > 252 { sf = 1 }
+    if speed > 99 {
+      if speed < 253 { sf = 2 }
     }
-    let buf = alloc(numFlames)
-    let flicker = 30 + scale8(intensity, 70)
-    // Update each flame independently
-    for i in 0..numFlames {
-      let val = buf[i]
-      // Initialize if zero
-      if val == 0 {
-        val = 120 + random(80)
-      }
-      // Random walk the flame brightness
-      if random(256) < 200 {
-        let change = random(flicker)
-        let half = flicker / 2
-        val = val + change - half
-      }
-      // Clamp
-      if val < 40 { val = 40 }
-      if val > 255 { val = 255 }
-      buf[i] = val
-      // Warm candle color per pixel
-      let r = val
-      let g = val * 42 / 100
-      let b = val * 6 / 100
-      pixel(i, rgb(r, g, b))
+    if speed > 49 {
+      if speed < 100 { sf = 3 }
     }
-    let del = 15 + (255 - speed) / 8
-    frame(del)
+
+    let maxP = LEN
+    if maxP > 256 { maxP = 256 }
+
+    for i in 0..maxP {
+      let d = i * 3
+      let s = state[d]
+      let tgt = state[d + 1]
+      let fs = state[d + 2]
+
+      if fs == 0 {
+        s = 128
+        tgt = 130 + random(4)
+        fs = 1
+      }
+
+      let nt = 0
+      if tgt > s {
+        s = qadd8(s, fs)
+        if s >= tgt { nt = 1 }
+      } else {
+        s = qsub8(s, fs)
+        if s <= tgt { nt = 1 }
+      }
+
+      if nt {
+        tgt = random(intensity / 2) + random(intensity / 2)
+        if tgt < intensity / 4 {
+          tgt = intensity / 4 + random(intensity / 2)
+        }
+        tgt = tgt + 255 - intensity
+        let dif = tgt - s
+        if dif < 0 { dif = 0 - dif }
+        fs = dif / sf
+        if fs < 1 { fs = 1 }
+        if fs > 255 { fs = 255 }
+      }
+
+      state[d] = s
+      state[d + 1] = tgt
+      state[d + 2] = fs
+
+      let c = palette(i * 255 / LEN)
+      pixel(i, blend(color1, c, s))
+    }
+
+    frame(25)
   }
 }

@@ -1,26 +1,36 @@
-// Blink Rainbow — Like blink but the color changes with each on cycle
-// through the rainbow color wheel.
+// Blink Rainbow — Blinks with continuously cycling rainbow hue.
+// C++ original: color_wheel(call & 0xFF) changes hue every frame.
 
 effect "Blink Rainbow WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Duty cycle"
+    slider speed "Frequency"
+    slider intensity "Blink duration"
+    palette false
   }
 
   render {
-    let t = NOW * speed / 255
-    let cycle = t % 512
-    let on = cycle < intensity * 2
+    let cycleTime = (255 - speed) * 20 + 32
+    let onTime = 16 + (255 - speed) * 20 * intensity / 256
+    let rem = NOW % cycleTime
 
-    // Hue advances each full blink cycle
-    let hue = (t / 512) * 29 % 256
-
-    if on {
-      fill(color_wheel(hue))
-    } else {
-      fill(rgb(0, 0, 0))
+    let it = NOW / cycleTime
+    let prevIt = aux0
+    aux0 = it
+    let on = 0
+    if it != prevIt {
+      on = 1
+    }
+    if rem < onTime {
+      on = 1
     }
 
-    frame()
+    if on {
+      let hue = CALL % 256
+      fill(color_wheel(hue))
+    } else {
+      fill(color1)
+    }
+
+    frame(16)
   }
 }

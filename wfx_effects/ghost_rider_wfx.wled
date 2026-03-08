@@ -1,45 +1,52 @@
-// Ghost Rider — A bright comet blazes along the strip with a fire-colored
-// decaying trail. The head is white-hot, fading through orange to deep red.
+// Ghost Rider — Ghost trail riding around the 2D matrix perimeter.
+// C++ original: mode_2Dghostrider() — ghost follows border path with trail.
+// Metadata: "Ghost Rider@Fade rate,Blur;;!;2"
 
 effect "Ghost Rider WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Trail Length"
-    palette false
+    slider speed "Fade rate"
+    slider intensity "Blur"
+    type 2D
+    palette true
   }
 
   render {
-    fade(intensity)
+    // Fade trails: fadeToBlackBy(speed)
+    fade(255 - speed)
 
-    let cycle = (NOW * speed / 512) % (LEN * 2)
-    let pos = cycle
+    // Ghost position: travels around the border
+    let perim = 2 * (WIDTH + HEIGHT) - 4
+    if perim < 1 { perim = 1 }
+    let pos = NOW / 20 % perim
 
-    // Bounce: reverse direction in second half
-    if pos >= LEN {
-      pos = LEN * 2 - pos - 1
+    // Convert perimeter position to x,y
+    let gx = 0
+    let gy = 0
+    if pos < WIDTH {
+      gx = pos
+      gy = 0
+    } else {
+      if pos < WIDTH + HEIGHT - 1 {
+        gx = WIDTH - 1
+        gy = pos - WIDTH + 1
+      } else {
+        if pos < 2 * WIDTH + HEIGHT - 2 {
+          gx = 2 * WIDTH + HEIGHT - 3 - pos
+          gy = HEIGHT - 1
+        } else {
+          gx = 0
+          gy = perim - pos
+        }
+      }
     }
 
-    // White-hot head
-    pixel(pos, rgb(255, 255, 200))
+    // Draw ghost head
+    pixel2d(gx, gy, palette(NOW / 10))
 
-    // Inner glow: bright orange
-    let g1 = pos - 1
-    if g1 >= 0 and g1 < LEN {
-      pixel(g1, rgb(255, 160, 0))
-    }
-    let g2 = pos + 1
-    if g2 >= 0 and g2 < LEN {
-      pixel(g2, rgb(255, 120, 0))
-    }
-
-    // Outer glow: deep red-orange
-    let g3 = pos - 2
-    if g3 >= 0 and g3 < LEN {
-      pixel(g3, rgb(200, 60, 0))
-    }
-    let g4 = pos + 2
-    if g4 >= 0 and g4 < LEN {
-      pixel(g4, rgb(180, 40, 0))
+    // Blur for trail effect
+    let ba = intensity / 4
+    if ba > 0 {
+      blur2d(ba)
     }
 
     frame()

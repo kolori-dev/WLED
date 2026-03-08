@@ -1,3 +1,7 @@
+// Breathe — Fades brightness up and down with a parabolic-like waveform.
+// C++ original uses sin16 half-wave for smooth breathing, blends palette with SEGCOLOR(1).
+// Luminance range: 30-253 (never fully off).
+
 effect "Breathe WFX" {
   meta {
     slider speed "Speed"
@@ -5,10 +9,34 @@ effect "Breathe WFX" {
   }
 
   render {
-    let wave = sin8(NOW * speed / 512)
-    let c = palette(wave)
-    let faded = color_fade(c, wave)
-    fill(faded)
+    // Match C++: counter = (now * ((speed>>3)+10)) & 0xFFFF
+    let counter = (NOW * (speed / 8 + 10)) % 65536
+    // counter = (counter>>2) + (counter>>4) gives 0-18432 range
+    counter = counter / 4 + counter / 16
+
+    // Half-wave sin16 mapped to brightness 30-253
+    let lum = 30
+    if counter < 16384 {
+      if counter > 8192 {
+        counter = 8192 - (counter - 8192)
+      }
+      // sin16 in range 0-8192 gives ~parabolic shape, /103 gives 0-~223
+      let s = sin16(counter)
+      if s < 0 {
+        s = 0
+      }
+      lum = 30 + s / 103
+    }
+    if lum > 253 {
+      lum = 253
+    }
+
+    for i in 0..LEN {
+      let c = palette(i * 255 / LEN)
+      let bg = color1
+      pixel(i, blend(bg, c, lum))
+    }
+
     frame()
   }
 }

@@ -1,33 +1,26 @@
-// Wavesins — Overlapping sine waves on 2D matrix.
+// Wavesins — Sine waves with controllable brightness and color variation.
+// C++ original (1D): sin8(now/4 + i*intensity) for brightness,
+// beatsin8(speed, custom1, custom1+custom2, 0, i*(custom3*8)) for palette index.
 
 effect "Wavesins WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Complexity"
-    type 2D
+    slider intensity "Brightness variation"
+    slider custom1 "Starting color"
+    slider custom2 "Range of colors"
+    slider custom3 "Color variation"
     palette true
   }
 
   render {
-    step_val = NOW * speed / 512
-
-    for y in 0..HEIGHT {
-      for x in 0..WIDTH {
-        let px = x * 255 / max(WIDTH, 1)
-        let py = y * 255 / max(HEIGHT, 1)
-        let w1 = sin8(px * 2 + step_val)
-        let w2 = sin8(py * 2 - step_val / 2)
-        px = abs(px - 128)
-        py = abs(py - 128)
-        let bri = (px + py) * intensity / 64 + step_val
-        bri = w1 / 3 + w2 / 3 + sin8(bri) / 3
-        px = w1 / 2 + w2 / 2
-        px = palette(px)
-        py = max(bri, 16)
-        pixel2d(x, y, color_fade(px, py))
-      }
+    for i in 0..LEN {
+      let bri = sin8(NOW / 4 + i * intensity)
+      // beatsin8 approximation for palette index
+      let phase = beat8(speed, 0, 255) + i * custom3 * 8
+      let idx = custom1 + scale8(sin8(phase), custom2)
+      pixel(i, color_fade(palette(idx % 256), bri))
     }
 
-    frame()
+    frame(16)
   }
 }

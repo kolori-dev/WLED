@@ -1,90 +1,94 @@
-// Drip — Water drips falling from the top, splashing at the bottom.
-// Data buffer stores drip positions and velocities.
-// speed controls drip rate, intensity controls gravity.
+// Drip — Water drips falling from top, bouncing at bottom with dampening.
+// C++ original: gravity = -(speed+1), bounce velocity *= -0.8, kill if vel < 0.5
+// numDrops = 1 + (SEGLEN-1)/20 (max 4), background = SEGCOLOR(0)
 
 effect "Drip WFX" {
   meta {
-    slider speed "Drip Rate"
-    slider intensity "Gravity"
+    slider speed "Gravity"
+    slider intensity "# of drips"
     palette true
   }
 
-  // Layout: 0-5 = drip height (255=top, 0=bottom), 6-11 = velocity
-  // 12-17 = splash timer (0=inactive drip, >0 = splash fading)
-  data drips[24]
+  // 4 drips max, 5 fields each:
+  // 0-3 = position (255=top), 4-7 = velocity, 8-11 = state,
+  // 12-15 = color index, 16-19 = splash timer
+  data drips[20]
 
   render {
-    fade(32)
+    fill(color0)
 
-    let maxDrips = 4
-    let grav = intensity / 64 + 1
+    step_val = 1 + (LEN - 1) / 20
+    if step_val > 4 { step_val = 4 }
 
-    // Spawn new drips at the top
-    if random(255) < speed / 4 + 2 {
-      for d in 0..maxDrips {
-        if drips[d + 12] == 0 and drips[d] == 0 {
-          drips[d] = 255
-          drips[d + 6] = 128
-          d = maxDrips
+    aux0 = (speed + 1) / 32 + 1
+
+    for d in 0..step_val {
+      let st = drips[d + 8]
+      let pos = drips[d]
+      let vel = drips[d + 4]
+      let spl = drips[d + 16]
+
+      if st == 0 {
+        if random(255) < intensity / 4 + 2 {
+          pos = 255
+          vel = 128
+          st = 1
+          let a = random(255)
+          drips[d + 12] = a
         }
       }
-    }
 
-    for d in 0..maxDrips {
-      let splash = drips[d + 12]
-      if splash > 0 {
-        // Draw fading splash at the bottom
-        let bri = splash * 8
-        if bri > 255 {
-          bri = 255
-        }
-        let spos = random(3)
-        pixel(spos, color_fade(palette(d * 64), bri))
-        splash = splash - 1
-        drips[d + 12] = splash
-      }
+      if st == 1 {
+        vel = vel - aux0
+        if vel < 0 { vel = 0 }
 
-      let h = drips[d]
-      if h > 0 {
-        let v = drips[d + 6]
+        let sv = vel - 128
+        pos = pos + sv
 
-        // Apply gravity — increase downward velocity
-        v = v - grav
-        if v < 0 {
-          v = 0
-        }
-
-        // Apply velocity
-        let sv = v - 128
-        h = h + sv
-
-        if h <= 0 {
-          // Hit bottom — create splash
-          h = 0
-          drips[d + 12] = 20
-        }
-
-        if h > 255 {
-          h = 255
-        }
-
-        drips[d] = h
-        drips[d + 6] = v
-
-        // Draw drip
-        if h > 0 {
-          let pos = h * (LEN - 1) / 255
-          if pos >= LEN {
-            pos = LEN - 1
-          }
-          let c = palette(d * 64)
-          pixel(pos, c)
-          // Trailing drop above
-          if pos < LEN - 1 {
-            pixel(pos + 1, color_fade(c, 80))
+        if pos <= 0 {
+          pos = 0
+          let bounce = (128 - vel) * 204 / 256
+          if bounce < 3 {
+            st = 2
+            spl = 20
+            vel = 128
+          } else {
+            vel = 128 + bounce
           }
         }
+
+        if pos > 255 { pos = 255 }
+        if vel > 255 { vel = 255 }
+
+        drips[d] = pos
+        drips[d + 4] = vel
+
+        let px = pos * (LEN - 1) / 255
+        if px >= LEN { px = LEN - 1 }
+        let c = palette(drips[d + 12])
+        pixel(px, c)
+        if px < LEN - 1 {
+          pixel(px + 1, color_fade(c, 96))
+        }
       }
+
+      if st == 2 {
+        if spl > 0 {
+          let bri = spl * 12
+          if bri > 255 { bri = 255 }
+          let c = color_fade(palette(drips[d + 12]), bri)
+          pixel(0, c)
+          if LEN > 1 {
+            pixel(1, color_fade(c, 128))
+          }
+          spl = spl - 1
+          drips[d + 16] = spl
+        } else {
+          st = 0
+        }
+      }
+
+      drips[d + 8] = st
     }
 
     frame()

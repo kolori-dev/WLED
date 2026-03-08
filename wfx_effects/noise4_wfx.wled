@@ -1,26 +1,20 @@
-// Noise 4 — Smooth large-scale noise, gentle drifting.
-// Very low frequency noise creates broad, smooth color regions that drift slowly.
-// Speed controls drift speed, intensity controls zone size.
+// Noise 4 — Fast noise pattern driven by speed and time.
+// C++ original: stp = (now*speed)>>7, inoise8(i<<12, stp), palette(index).
 
 effect "Noise 4 WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Zone Size"
     palette true
   }
 
   render {
-    let t = NOW * speed / 4096
+    let stp = NOW * speed / 128
 
     for i in 0..LEN {
-      let x = i * (intensity / 32 + 1)
-      let n = noise2(x, t)
-      let bri = noise2(x + 2000, t + 3000)
-      // Keep brightness high for smooth gentle look
-      bri = bri / 4 + 192
-      pixel(i, color_fade(palette(n), bri))
+      let idx = noise2(i * 4096, stp)
+      pixel(i, palette(idx))
     }
 
-    frame()
+    frame(16)
   }
 }

@@ -1,28 +1,43 @@
-effect "Pulse Ring" {
+// Pulser — Single dot tracing path across 2D matrix with blur trails.
+// C++ original: mode_2DPulser() by ldirko, modified by Andrew Tuline.
+// Metadata: "Pulser@!,Blur;;!;2"
+
+effect "Pulser WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Width"
+    slider intensity "Blur"
+    type 2D
     palette true
   }
 
   render {
-    let cycle = NOW * speed
-    cycle = cycle / 64
-    cycle = cycle % LEN
+    // C++: fadeToBlackBy(8 - (intensity>>5))
+    let fb = 8 - intensity / 32
+    if fb < 1 { fb = 1 }
+    fade(255 - fb)
 
-    fade(200)
+    // C++: a = now / (18 - speed / 16)
+    let divisor = 18 - speed / 16
+    if divisor < 1 { divisor = 1 }
+    let a = NOW / divisor
 
-    let width = max(intensity / 16, 1)
+    // C++: x = (a / 14) % cols
+    let x = (a / 14) % WIDTH
 
-    for j in 0..width {
+    // C++: y = map((sin8(a*5) + sin8(a*4) + sin8(a*2)), 0, 765, rows-1, 0)
+    let sy = sin8(a * 5) + sin8(a * 4) + sin8(a * 2)
+    let y = (HEIGHT - 1) - sy * (HEIGHT - 1) / 765
+    if y < 0 { y = 0 }
+    if y >= HEIGHT { y = HEIGHT - 1 }
 
-      let idx = cycle + j
-      idx = idx % LEN
+    // Color from palette mapped by Y position
+    let ci = y * 255 / max(HEIGHT - 1, 1)
+    pixel2d(x, y, palette(ci))
 
-      let shade = j * 255
-      shade = shade / width
-
-      pixel(idx, palette(shade))
+    // C++: blur(intensity>>4)
+    let blurAmt = intensity / 16
+    if blurAmt > 0 {
+      blur2d(blurAmt)
     }
 
     frame()

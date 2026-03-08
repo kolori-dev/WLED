@@ -1,38 +1,55 @@
 // Tri Wipe — Three-color sequential wipe effect.
-// Fills the strip with color0, then color1, then color2, and repeats.
-// Each wipe fills one pixel at a time from start to end.
+// C++ original: cycleTime = 1000 + (255-speed)*200. Three phases wipe across SEGLEN.
+// Phase 0: palette->color1 over color0. Phase 1: color1 stays, palette fills. Phase 2: palette->color0.
 
 effect "Tri Wipe WFX" {
   meta {
     slider speed "Speed"
-    palette false
+    palette true
   }
 
   render {
-    let total = LEN * 3
-    let progress = (NOW * speed / 1024) % total
-    let phase = progress / LEN
-    let pos = progress % LEN
+    let cycleTime = 1000 + (255 - speed) * 200
+    let perc = NOW % cycleTime
+    let prog = perc * 65535 / cycleTime
+    let ledIndex = prog * LEN * 3 / 65536
+    let ledOffset = ledIndex
 
-    // Determine the current wipe color and the background color
-    let wipe = color0
-    let bg = color2
-    if phase == 1 {
-      wipe = color1
-      bg = color0
-    } else if phase == 2 {
-      wipe = color2
-      bg = color1
+    // Fill everything with palette first (acts as SEGCOLOR(2) equivalent)
+    for i in 0..LEN {
+      pixel(i, palette(i * 255 / LEN))
     }
 
-    for i in 0..LEN {
-      if i <= pos {
-        pixel(i, wipe)
+    if ledIndex < LEN {
+      // Phase 0: wipe color0->color1
+      for i in 0..LEN {
+        if i > ledOffset {
+          pixel(i, color0)
+        } else {
+          pixel(i, color1)
+        }
+      }
+    } else {
+      if ledIndex < LEN * 2 {
+        // Phase 1: palette already drawn, overwrite above ledOffset with color1
+        ledOffset = ledIndex - LEN
+        let start = ledOffset + 1
+        for i in 0..LEN {
+          if i >= start {
+            pixel(i, color1)
+          }
+        }
       } else {
-        pixel(i, bg)
+        // Phase 2: palette already drawn, overwrite up to ledOffset with color0
+        ledOffset = ledIndex - LEN * 2
+        for i in 0..LEN {
+          if i <= ledOffset {
+            pixel(i, color0)
+          }
+        }
       }
     }
 
-    frame()
+    frame(16)
   }
 }

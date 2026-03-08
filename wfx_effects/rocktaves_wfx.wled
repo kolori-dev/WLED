@@ -1,30 +1,54 @@
-// Rocktaves — Octave frequency bands displayed along the strip.
+// Rocktaves — Same note from each octave displayed in same color.
+// C++ original: mode_rocktaves() by Andrew Tuline.
+// Metadata: "Rocktaves@;!,!;!;01f" — no named sliders.
+// Uses FFT_MajorPeak to detect octave, beatsin8 for position.
 
 effect "Rocktaves WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Sensitivity"
-    type 1D
     palette true
     audio_reactive true
   }
 
   render {
-    fade(speed / 8 + 16)
+    // C++: fadeToBlackBy(16)
+    fade(240)
 
-    let seg = LEN / 16
-
+    // Find dominant FFT bin (approximates FFT_MajorPeak)
+    let maxVal = 0
+    let maxBin = 0
     for b in 0..16 {
-      let val = fft(b) * intensity / 128
-      if val > 255 { val = 255 }
-      let start = b * seg
-      let c = palette(b * 16)
-      for j in 0..seg {
-        let bri = val - j * val / max(seg, 1)
-        if bri < 0 { bri = 0 }
-        pixel(start + j, color_fade(c, bri))
+      let v = fft(b)
+      if v > maxVal {
+        maxVal = v
+        maxBin = b
       }
     }
+
+    // Brightness from magnitude: squelch below 48, full above 144
+    let bri = 32 + maxVal * 3 / 2
+    if maxVal < 48 { bri = 0 }
+    if maxVal > 144 { bri = 255 }
+    if bri > 255 { bri = 255 }
+
+    // Octave detection: count how many times we can halve the bin freq
+    let octave = 0
+    let freq = maxBin
+    while freq > 4 {
+      octave = octave + 1
+      freq = freq / 2
+    }
+
+    // Color from note position within octave
+    let noteCol = freq * 64
+
+    // Position from beatsin8 modulated by octave
+    let pos = beat8(8 + octave * 4, 0, 255) * LEN / 256
+    if pos >= LEN { pos = LEN - 1 }
+
+    // Add pixel with palette color at brightness
+    let c = blend(color1, palette(noteCol), bri)
+    let existing = get_pixel(pos)
+    pixel(pos, color_add(existing, c))
 
     frame()
   }

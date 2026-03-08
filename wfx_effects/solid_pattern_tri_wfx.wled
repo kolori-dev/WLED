@@ -1,17 +1,19 @@
-// Solid Pattern Tri — A static repeating pattern using all three segment colors.
-// Cycles through color0, color1, color2 in groups. Intensity controls group size.
+// Solid Pattern Tri — Static repeating pattern cycling through three segment colors.
+// C++ original: segSize = (intensity >> 5) + 1. Cycles color0, color1, color2 in groups.
 
 effect "Solid Pattern Tri WFX" {
   meta {
-    slider intensity "Group Size"
+    slider intensity "Size"
     palette false
   }
 
   render {
-    let grp = intensity / 32 + 1
+    let segSize = intensity / 32 + 1
+    let currSeg = 0
+    let cnt = 0
 
     for i in 0..LEN {
-      let phase = (i / grp) % 3
+      let phase = currSeg % 3
       if phase == 0 {
         pixel(i, color0)
       } else {
@@ -20,6 +22,11 @@ effect "Solid Pattern Tri WFX" {
         } else {
           pixel(i, color2)
         }
+      }
+      cnt = cnt + 1
+      if cnt >= segSize {
+        currSeg = currSeg + 1
+        cnt = 0
       }
     }
 

@@ -1,23 +1,44 @@
 // Tartan — Animated plaid/tartan pattern with palette colors.
+// C++ original: mode_2Dtartan() by Elliott Kember.
+// Metadata: "Tartan@X scale,Y scale,,,Sharpness;;!;2"
 
 effect "Tartan WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Scale"
+    slider speed "X scale"
+    slider intensity "Y scale"
+    slider custom3 "Sharpness"
     type 2D
     palette true
   }
 
   render {
-    let t = NOW / 25
-    let sc = intensity / 16 + 3
+    if CALL == 0 {
+      fill(0)
+    }
 
-    for y in 0..HEIGHT {
-      for x in 0..WIDTH {
-        let hv = sin8(x * sc + t)
-        let vv = sin8(y * sc + t / 2)
-        let c = blend(palette(hv), palette(vv + 128), hv / 2 + vv / 2)
-        pixel2d(x, y, c)
+    // Offsets via beatsin
+    aux0 = beat8(3, 0, 255) * 720 / 255 - 360
+    aux1 = beat8(2, 0, 255) * 720 / 255 - 360
+
+    // sharpness 0-3
+    step_val = custom3 / 8
+    if step_val > 3 { step_val = 3 }
+
+    for x in 0..WIDTH {
+      for y in 0..HEIGHT {
+        // Horizontal
+        let hue = x * 5 + aux1
+        let bri = sin8(x * speed / 2 + aux0)
+        if step_val >= 1 { bri = bri * bri / 256 }
+        let c1 = color_fade(palette(hue), bri)
+
+        // Vertical
+        hue = y * 3 + aux0
+        bri = sin8(y * intensity / 2 + aux1)
+        if step_val >= 1 { bri = bri * bri / 256 }
+        let c2 = color_fade(palette(hue), bri)
+
+        pixel2d(x, y, color_add(c1, c2))
       }
     }
 

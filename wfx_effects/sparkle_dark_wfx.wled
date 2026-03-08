@@ -1,22 +1,30 @@
-// Sparkle Dark — Dark background with a single white sparkle pixel
-// that randomly jumps to a new position each frame.
+// Sparkle Dark — Palette-colored background with random SEGCOLOR(1) flash.
+// C++ original: draws palette background, then flashes one pixel at random
+// intervals based on intensity probability and speed-based timing.
 
 effect "Sparkle Dark WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Brightness"
+    slider intensity "Density"
+    palette true
   }
 
   render {
-    fill(rgb(0, 0, 0))
-
-    let pos = random(LEN)
-    let bri = intensity
-    if bri < 64 {
-      bri = 64
+    // Draw palette background
+    for i in 0..LEN {
+      pixel(i, palette(i * 255 / LEN))
     }
-    pixel(pos, rgb(bri, bri, bri))
 
-    frame()
+    // Flash at random intervals: timing gate based on speed
+    let elapsed = NOW - step_val
+    if elapsed > 255 - speed {
+      // Probability gate: lower intensity = less likely to flash
+      if random(255) < intensity {
+        pixel(random(LEN), color1)
+      }
+      step_val = NOW
+    }
+
+    frame(16)
   }
 }

@@ -1,32 +1,92 @@
-// Dissolve Random — Like dissolve but each pixel dissolves to a random
-// palette color instead of a single target.
+// Dissolve Random — Same as dissolve but each pixel dissolves to a random
+// color_wheel color. Bidirectional cycle between color1 and random colors.
+// check2=Complete waits for all pixels to change before reversing.
 
 effect "Dissolve Rnd WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Density"
+    slider speed "Repeat speed"
+    slider intensity "Dissolve speed"
     palette true
   }
 
-  data colors[256]
+  data state[256]
 
   render {
-    // Fade slightly to keep background clean
-    fade(250)
+    // aux0: direction (1 = to random colors, 0 = back to color1)
+    // step_val: cycle counter
+    // aux1: unused
 
-    let count = intensity / 16 + 1
-
-    for j in 0..count {
-      let pos = random(LEN)
-      let idx = random(255)
-      colors[pos] = idx
-      pixel(pos, palette(idx))
+    // Initialize on first call
+    if CALL == 0 {
+      fill(color1)
+      aux0 = 1
+      step_val = 0
+      for i in 0..LEN {
+        state[i] = 0
+      }
     }
 
-    // Redraw all lit pixels so they persist
+    // Dissolve pixels
+    let numPerFrame = LEN / 15 + 1
+    for j in 0..numPerFrame {
+      if random(255) <= intensity {
+        for t in 0..10 {
+          let pos = random(LEN)
+          if aux0 == 1 {
+            if state[pos] == 0 {
+              state[pos] = 1
+              pixel(pos, color_wheel(random(256)))
+              t = 10
+            }
+          } else {
+            if state[pos] == 1 {
+              state[pos] = 0
+              pixel(pos, color1)
+              t = 10
+            }
+          }
+        }
+      }
+    }
+
+    // Count incomplete and redraw stable pixels
+    let incomplete = 0
     for i in 0..LEN {
-      if colors[i] > 0 {
-        pixel(i, palette(colors[i]))
+      if aux0 == 1 {
+        if state[i] == 0 {
+          pixel(i, color1)
+          incomplete = incomplete + 1
+        }
+      } else {
+        if state[i] == 1 {
+          incomplete = incomplete + 1
+        }
+      }
+    }
+
+    // Check reversal timing
+    let threshold = 255 - speed + 15
+    if step_val > threshold {
+      if aux0 == 1 {
+        aux0 = 0
+      } else {
+        aux0 = 1
+      }
+      step_val = 0
+      for i in 0..LEN {
+        if aux0 == 1 {
+          state[i] = 0
+        } else {
+          state[i] = 1
+        }
+      }
+    } else {
+      if check2 == 1 {
+        if incomplete == 0 {
+          step_val = step_val + 1
+        }
+      } else {
+        step_val = step_val + 1
       }
     }
 

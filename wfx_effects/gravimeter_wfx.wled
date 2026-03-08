@@ -1,26 +1,63 @@
-// Gravimeter — Volume level visualized as a palette bar.
+// Gravimeter — Volume level with gravity dot. By Andrew Tuline.
+// mode_gravcenter_base(2) — bar from left, gravity dot falls back.
 
 effect "Gravimeter WFX" {
   meta {
-    slider speed "Speed"
+    slider speed "Rate of fall"
     slider intensity "Sensitivity"
     type 1D
     palette true
     audio_reactive true
   }
 
+  data topLED[1]
+  data gravCnt[1]
+
   render {
-    fade(32)
+    fade(249)
 
-    let vol = volume * intensity / 128
-    if vol > 255 { vol = 255 }
-    let lit = vol * LEN / 256
+    // segmentSampleAvg = volume * intensity / 255 * 0.25
+    // We approximate: vol * intensity / 1024
+    let seg_avg = volume * intensity / 1024
+    // mySampleAvg = map(seg_avg*2, 0, 64, 0, SEGLEN-1)
+    // = seg_avg * 2 * (SEGLEN-1) / 64 = seg_avg * (SEGLEN-1) / 32
+    let bar = seg_avg * 2 * LEN / 64
+    if bar < 0 { bar = 0 }
+    if bar > LEN - 1 { bar = LEN - 1 }
 
-    for i in 0..LEN {
-      if i < lit {
-        let c = palette(i * 255 / LEN)
-        pixel(i, color_fade(c, vol))
+    // Gravity: 8 - speed/32
+    let grav = 8 - speed / 32
+    if grav < 1 { grav = 1 }
+
+    // Update topLED with gravity
+    let top = topLED[0]
+    if bar >= top {
+      top = bar
+    } else {
+      let gc = gravCnt[0]
+      gc = gc + 1
+      if gc >= grav {
+        gc = 0
+        top = top - 1
       }
+      gravCnt[0] = gc
+    }
+    if top < 0 { top = 0 }
+    topLED[0] = top
+
+    // Draw bar with noise-based palette, blended with color1
+    // blend amount = seg_avg * 8, clamped to 255
+    let bri = seg_avg * 8
+    if bri > 255 { bri = 255 }
+    for i in 0..bar {
+      let idx = noise2(i * seg_avg + NOW, 5000 + i * seg_avg)
+      let c = blend(color1, palette(idx), bri)
+      pixel(i, c)
+    }
+
+    // Draw gravity dot
+    if top > 0 {
+      pixel(top, palette(NOW))
     }
 
     frame()

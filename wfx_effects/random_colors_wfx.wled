@@ -1,48 +1,38 @@
-// Random Colors — Entire strip fades smoothly to a new random palette color periodically.
-// Speed controls how often a new target color is chosen,
-// intensity controls the fade smoothness.
+// Random Colors — Entire strip fades between random color_wheel colors.
+// C++ original: cycleTime = 200 + (255-speed)*50. Crossfade based on
+// intensity. Uses color_wheel for hue-based random colors.
 
 effect "Random Colors WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Smoothness"
-    palette true
+    slider intensity "Fade time"
   }
 
   render {
-    // Use step_val to track the current palette index
-    // Use aux0 to track the target palette index
-    // Use aux1 as a blend progress counter
+    let cycleTime = 200 + (255 - speed) * 50
+    let it = NOW / cycleTime
+    let rem = NOW % cycleTime
 
-    let cur = step_val
-    let target = aux0
-    let progress = aux1
-
-    // Pick a new target periodically
-    if progress >= 255 {
-      step_val = target
-      cur = target
-      aux0 = random(255)
-      aux1 = 0
-      progress = 0
+    let fadedur = cycleTime * intensity / 256
+    let fade = 255
+    if fadedur > 0 {
+      fade = rem * 255 / fadedur
+      if fade > 255 { fade = 255 }
     }
 
-    // Advance blend progress based on speed
-    let inc = speed / 16 + 1
-    progress = progress + inc
-    if progress > 255 {
-      progress = 255
+    if CALL == 0 {
+      aux0 = random(0, 256)
+      step_val = 2
     }
-    aux1 = progress
 
-    // Blend between current and target palette colors
-    let c1 = palette(cur)
-    let c2 = palette(aux0)
-    let amt = scale8(progress, intensity)
-    let c = blend(c1, c2, amt)
+    if it != step_val {
+      aux1 = aux0
+      aux0 = (aux0 + random(42, 214)) % 256
+      step_val = it
+    }
 
-    fill(c)
+    fill(blend(color_wheel(aux1), color_wheel(aux0), fade))
 
-    frame()
+    frame(16)
   }
 }

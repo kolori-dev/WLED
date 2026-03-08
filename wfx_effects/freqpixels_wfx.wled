@@ -1,27 +1,51 @@
-// Freqpixels — Random pixels colored by audio frequency.
+// Freqpixels — Random pixels colored by dominant frequency.
+// C++ original: mode_freqpixels() by Andrew Tuline
+// Metadata: "Freqpixels@Fade rate,Starting color and # of pixels;!,!;!;1f"
 
 effect "Freqpixels WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Gain"
-    type 1D
+    slider speed "Fade rate"
+    slider intensity "Starting color and # of pixels"
     palette true
     audio_reactive true
   }
 
   render {
-    fade(speed / 4 + 16)
+    // Fade: C++ uses speed*speed mapped to 1-255
+    let fr = speed * speed / 256
+    if fr < 1 { fr = 1 }
+    if fr > 255 { fr = 255 }
+    let dly = (256 - speed) / 64
+    if dly <= 1 or CALL % max(dly, 1) == 0 {
+      fade(fr)
+    }
 
-    let vol = volume * intensity / 128
-    if vol > 255 { vol = 255 }
-    let cnt = vol / 4
+    // Find dominant FFT bin (approximates FFT_MajorPeak)
+    let maxVal = 0
+    let maxBin = 0
+    for b in 0..16 {
+      let v = fft(b)
+      if v > maxVal {
+        maxVal = v
+        maxBin = b
+      }
+    }
 
+    // Color from dominant frequency
+    fr = maxBin * 255 / 16
+
+    // Brightness from volume
+    dly = volume / 4
+    if dly > 255 { dly = 255 }
+
+    // Place intensity/32+1 random pixels
+    let cnt = intensity / 32 + 1
     for i in 0..cnt {
-      let pos = random(LEN)
-      let bin = random(16)
-      let val = fft(bin)
-      let c = palette(val + bin * 16)
-      pixel(pos, c)
+      maxVal = random(LEN)
+      // Pre-compute to avoid temp overflow
+      maxBin = palette(intensity + fr)
+      maxBin = blend(color1, maxBin, dly)
+      pixel(maxVal, maxBin)
     }
 
     frame()

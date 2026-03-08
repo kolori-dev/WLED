@@ -1,42 +1,72 @@
+// Fire 2012 — Classic fire simulation with proper heat diffusion.
+// C++ original: heat[k] = (heat[k-1] + heat[k-2]*2) / 3.
+// Ignition zone (10% of strip or min 3 pixels) has minimum temperature.
+// Time-gated updates (it = now >> 5).
+
 effect "Fire 2012 WFX" {
   meta {
     slider speed "Cooling"
-    slider intensity "Sparking"
+    slider intensity "Spark rate"
     palette true
   }
 
   data heat[256]
 
   render {
-    // Cool down every cell a little
+    // Time gate: only update physics every 32ms
+    let it = NOW / 32
+    let doUpdate = 0
+    if it != step_val {
+      doUpdate = 1
+      step_val = it
+    }
+
+    // Ignition area: 10% of strip or minimum 3
+    let ignition = LEN / 10
+    if ignition < 3 { ignition = 3 }
+
+    // Step 1: Cool down every cell
     for i in 0..LEN {
-      let cool = random(0, speed / 5 + 2)
+      let coolRate = 0
+      if doUpdate {
+        coolRate = random(0, (20 + speed / 3) * 16 / LEN + 2)
+      } else {
+        coolRate = random(0, 4)
+      }
       let h = heat[i]
-      let newh = qsub8(h, cool)
-      heat[i] = newh
+      let temp = qsub8(h, coolRate)
+
+      // Ignition zone minimum temperature
+      if i < ignition {
+        let minTemp = (ignition - i) / 4 + 16
+        if temp < minTemp { temp = minTemp }
+      }
+      heat[i] = temp
     }
 
-    // Heat drifts up and diffuses
-    for k in LEN - 1..1 step -1 {
-      let below = heat[k - 1]
-      let below2 = heat[k - 2]
-      let cur = heat[k]
-      heat[k] = (below + below2 + cur) / 3
+    if doUpdate {
+      // Step 2: Heat drifts up and diffuses (heat[k-2] weighted double)
+      for k in LEN - 1..1 step -1 {
+        let below1 = heat[k - 1]
+        let below2 = heat[k - 2]
+        heat[k] = (below1 + below2 * 2) / 3
+      }
+
+      // Step 3: Randomly ignite new sparks near bottom
+      if random(255) < intensity {
+        let y = random(ignition)
+        let h = heat[y]
+        heat[y] = qadd8(h, random(160, 255))
+      }
     }
 
-    // Randomly ignite new sparks near bottom
-    if random(255) < intensity {
-      let y = random(7)
-      let h = heat[y]
-      heat[y] = qadd8(h, random(160, 255))
-    }
-
-    // Map heat to palette colors
+    // Step 4: Map heat to palette colors
     for j in 0..LEN {
-      let colorindex = scale8(heat[j], 240)
+      let colorindex = heat[j]
+      if colorindex > 240 { colorindex = 240 }
       pixel(j, palette(colorindex))
     }
 
-    frame()
+    frame(16)
   }
 }

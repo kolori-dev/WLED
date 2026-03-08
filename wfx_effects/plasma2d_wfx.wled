@@ -1,7 +1,12 @@
+// Plasma Ball — Animated plasma ball effect on 2D matrix.
+// C++ original: mode_2DPlasmaball() by Stepko.
+// Metadata: "Plasma Ball@Speed,,Fade,Blur;;!;2"
+
 effect "Plasma 2D WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Scale"
+    slider custom1 "Fade"
+    slider custom2 "Blur"
     type 2D
     palette true
   }
@@ -11,12 +16,22 @@ effect "Plasma 2D WFX" {
 
     for y in 0..HEIGHT {
       for x in 0..WIDTH {
-        let v1 = sin8(x * intensity / 4 + t)
-        let v2 = cos8(y * intensity / 4 + t)
-        let v3 = sin8((x + y) * intensity / 8 + t / 2)
-        let idx = (v1 + v2 + v3) / 3
-        pixel2d(x, y, palette(idx))
+        let v1 = sin8(x * 32 + t)
+        let v2 = cos8(y * 32 + t)
+        let v3 = sin8((x + y) * 16 + t / 2)
+        v1 = (v1 + v2 + v3) / 3
+        pixel2d(x, y, palette(v1))
       }
+    }
+
+    // Fade
+    if custom1 > 0 {
+      fade(255 - custom1)
+    }
+
+    // Blur
+    if custom2 > 0 {
+      blur2d(custom2)
     }
 
     frame()

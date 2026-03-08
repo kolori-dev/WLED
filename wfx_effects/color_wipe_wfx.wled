@@ -1,27 +1,57 @@
-effect "Color Wipe WFX" {
+// Wipe — LEDs turn on in sequence (palette), then turn off (SEGCOLOR(1)).
+// C++ original: color_wipe(false, false). cycleTime = 750 + (255-speed)*150.
+// First half: fill forward with palette. Second half: fill forward with color1.
+// Edge pixel has sub-pixel blending via intensity.
+
+effect "Wipe WFX" {
   meta {
     slider speed "Speed"
+    slider intensity "Smoothness"
     palette true
   }
 
   render {
-    let progress = (NOW * speed / 1024) % (LEN * 2)
+    let cycleTime = 750 + (255 - speed) * 150
+    let perc = NOW % cycleTime
+    let prog = perc * 65535 / cycleTime
+    let back = 0
+    if prog > 32767 {
+      back = 1
+      prog = prog - 32767
+    }
+
+    let ledIndex = prog * LEN / 32768
 
     for i in 0..LEN {
-      if progress < LEN {
-        // Wipe forward with palette color
-        if i <= progress {
+      if i < ledIndex {
+        if back {
+          pixel(i, color1)
+        } else {
           pixel(i, palette(i * 255 / LEN))
         }
       } else {
-        // Wipe backward with black
-        let rev = progress - LEN
-        if i <= rev {
-          pixel(i, rgb(0, 0, 0))
+        if back {
+          pixel(i, palette(i * 255 / LEN))
+        } else {
+          pixel(i, color1)
         }
       }
     }
 
-    frame()
+    // Edge blend at the transition point
+    if ledIndex >= 0 {
+      if ledIndex < LEN {
+        let rem = prog * LEN * 2 / (intensity + 1)
+        if rem > 255 { rem = 255 }
+        let pc = palette(ledIndex * 255 / LEN)
+        if back {
+          pixel(ledIndex, blend(pc, color1, rem))
+        } else {
+          pixel(ledIndex, blend(color1, pc, rem))
+        }
+      }
+    }
+
+    frame(16)
   }
 }

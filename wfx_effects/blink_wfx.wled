@@ -1,3 +1,6 @@
+// Blink — Alternates between palette-colored on state and SEGCOLOR(1) off state.
+// C++ original: cycleTime = (255-speed)*20, onTime based on intensity duty cycle.
+
 effect "Blink WFX" {
   meta {
     slider speed "Speed"
@@ -6,18 +9,32 @@ effect "Blink WFX" {
   }
 
   render {
-    let cycle = NOW * speed / 255
-    let on = cycle % 512 < intensity * 2
+    // C++: cycleTime = (255-speed)*20, onTime = FRAMETIME + cycleTime*intensity/256
+    // cycleTime += FRAMETIME*2. We approximate FRAMETIME as ~16ms.
+    let cycleTime = (255 - speed) * 20 + 32
+    let onTime = 16 + (255 - speed) * 20 * intensity / 256
+    let rem = NOW % cycleTime
+
+    // Force on for first frame of new iteration (matches C++ it != step check)
+    let it = NOW / cycleTime
+    let prevIt = aux0
+    aux0 = it
+    let on = 0
+    if it != prevIt {
+      on = 1
+    }
+    if rem < onTime {
+      on = 1
+    }
 
     if on {
       for i in 0..LEN {
-        let c = palette(i * 255 / LEN)
-        pixel(i, c)
+        pixel(i, palette(i * 255 / LEN))
       }
     } else {
-      fill(rgb(0, 0, 0))
+      fill(color1)
     }
 
-    frame()
+    frame(16)
   }
 }

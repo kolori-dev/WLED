@@ -1,40 +1,64 @@
-// Wipe Random — Like color wipe but with a random color each cycle.
-// Fills the strip one pixel at a time, then wipes back to black.
-// A new random color is chosen each full wipe cycle.
+// Wipe Random — Wipes forward with random color, repeats with new color each cycle.
+// C++ original: color_wipe(rev=false, useRandomColors=true).
+// cycleTime = 750 + (255-speed)*150. Uses color_wheel(aux0/aux1) instead of palette/color1.
+// Always wipes in the same direction (no reversal unlike sweep).
 
 effect "Wipe Random WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Smoothness"
     palette false
   }
 
   render {
-    let cycle = (NOW * speed / 1024) % (LEN * 2)
-
-    // Pick a new random hue each full cycle using step_val as persistent hue
-    if cycle == 0 {
-      step_val = random(256)
+    // Initialize random colors on first call
+    if CALL == 0 {
+      aux0 = random(255)
+      aux1 = random(255)
+      step_val = 0
     }
 
-    let hue = step_val
-    let c = color_wheel(hue)
+    let cycleTime = 750 + (255 - speed) * 150
+    let perc = NOW % cycleTime
+    let prog = perc * 65535 / cycleTime
+    let back = 0
+    if prog > 32767 {
+      back = 1
+      prog = prog - 32767
+    }
 
+    // Detect direction change to swap colors
+    let prevBack = step_val
+    if back != prevBack {
+      step_val = back
+      if back {
+        aux0 = random(255)
+      } else {
+        aux1 = random(255)
+      }
+    }
+
+    let ledIndex = prog * LEN / 32768
+
+    let col0 = color_wheel(aux1)
+    let col1 = color_wheel(aux0)
+
+    // No reversal (rev=false): always i, not LEN-1-i
     for i in 0..LEN {
-      if cycle < LEN {
-        // Wipe forward with the random color
-        if i <= cycle {
-          pixel(i, c)
+      if i < ledIndex {
+        if back {
+          pixel(i, col1)
+        } else {
+          pixel(i, col0)
         }
       } else {
-        // Wipe backward with black
-        let rev = cycle - LEN
-        if i <= rev {
-          pixel(i, rgb(0, 0, 0))
+        if back {
+          pixel(i, col0)
+        } else {
+          pixel(i, col1)
         }
       }
     }
 
-    frame()
+    frame(16)
   }
 }

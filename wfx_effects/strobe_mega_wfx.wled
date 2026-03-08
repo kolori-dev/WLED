@@ -1,26 +1,50 @@
-// Strobe Mega — Very fast, intense flashes with longer dark periods.
-// The flash is extremely brief while the dark gap is extended.
+// Strobe Mega — Multi-flash burst pattern with palette background.
+// Matches mode_multi_strobe: palette background, then bursts of
+// flash/dark pairs controlled by intensity.
 
 effect "Strobe Mega WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Flash intensity"
+    slider intensity "Number of Flashes"
+    palette true
   }
 
   render {
-    let t = NOW * speed / 64
-    let cycle = t % 512
-
-    // Very short flash (only 8-16 ticks out of 512)
-    let flash = 8 + intensity / 32
-
-    if cycle < flash {
-      let bri = 128 + intensity / 2
-      fill(rgb(bri, bri, bri))
-    } else {
-      fill(rgb(0, 0, 0))
+    // Draw palette background
+    for i in 0..LEN {
+      pixel(i, palette(i * 255 / LEN))
     }
 
-    frame()
+    // C++: count = 2 * ((intensity / 10) + 1)
+    let count = 2 * (intensity / 10 + 1)
+
+    // aux1 tracks which sub-step of the burst we're on
+    // Even aux1 = flash (fill white), odd aux1 = dark gap
+    if aux1 < count {
+      if aux1 % 2 == 0 {
+        // Flash frame: fill with color0 (white strobe)
+        fill(color0)
+        // Short flash delay: 15ms
+        step_val = 15
+      } else {
+        // Dark gap between flashes: 50ms
+        step_val = 50
+      }
+    } else {
+      // Long pause between bursts
+      // C++: 50 + 20 * (255 - speed)
+      step_val = 50 + 20 * (255 - speed)
+    }
+
+    // Advance sub-step based on timing
+    if NOW - aux0 > step_val {
+      aux1 = aux1 + 1
+      if aux1 > count {
+        aux1 = 0
+      }
+      aux0 = NOW
+    }
+
+    frame(16)
   }
 }

@@ -1,53 +1,53 @@
-// Crazy Bees — Multiple bright dots buzz around randomly like bees.
-// Each bee moves in a random direction each frame, occasionally
-// reversing or jumping. Uses data buffers for positions and colors.
+// Crazy Bees — Bright dots buzz around randomly on 2D matrix.
+// C++ original: mode_2Dcrazybees() by stepko.
+// Metadata: "Crazy Bees@!,Blur,,,,Smear;;!;2;pal=11,ix=0"
 
 effect "Crazy Bees WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Bee Count"
+    slider intensity "Blur"
+    type 2D
     palette true
   }
 
-  data pos[16]
-  data hue[16]
+  data bx[5]
+  data by[5]
 
   render {
-    let count = intensity / 32 + 2
-    if count > 16 {
-      count = 16
-    }
-
-    // Initialize bees on first frame
-    if step_val == 0 {
-      for i in 0..count {
-        pos[i] = random(LEN)
-        hue[i] = random(255)
+    if CALL == 0 {
+      for i in 0..5 {
+        let a = random(WIDTH)
+        bx[i] = a
+        a = random(HEIGHT)
+        by[i] = a
       }
-      step_val = 1
     }
 
-    fade(220)
+    // Fade trails
+    fade(240)
 
-    // Move and draw each bee
-    for i in 0..count {
-      let p = pos[i]
-
-      // Random walk: move -2 to +2
-      let dir = random(5) - 2
-      p = p + dir
+    for i in 0..5 {
+      // Random walk
+      let px = bx[i] + random(3) - 1
+      let py = by[i] + random(3) - 1
 
       // Wrap around
-      if p < 0 {
-        p = p + LEN
-      }
-      if p >= LEN {
-        p = p - LEN
-      }
-      pos[i] = p
+      if px < 0 { px = WIDTH - 1 }
+      if px >= WIDTH { px = 0 }
+      if py < 0 { py = HEIGHT - 1 }
+      if py >= HEIGHT { py = 0 }
+      bx[i] = px
+      by[i] = py
 
-      // Draw bee as a bright pixel
-      pixel(p, palette(hue[i]))
+      // Draw bee
+      let c = palette(i * 50 + NOW / 20)
+      pixel2d(px, py, c)
+    }
+
+    // Blur
+    let ba = intensity / 8
+    if ba > 0 {
+      blur2d(ba)
     }
 
     frame()

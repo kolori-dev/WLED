@@ -1,4 +1,8 @@
-effect "Spiral Galaxy" {
+// Spiral Galaxy — Two counter-rotating sine arms create a spinning galaxy effect.
+// Custom effect: dual sine waves with intensity-scaled frequency simulate
+// spiral arms. Speed controls rotation rate, intensity controls arm count.
+
+effect "Spiral Galaxy WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Arms"

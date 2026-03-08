@@ -1,3 +1,8 @@
+// Twinkle — Deterministic PRNG: same "random" pixels light up consistently.
+// C++ original: fade_out(224), one new pixel per speed-based cycle,
+// up to maxOn=map(intensity,0,255,1,SEGLEN) pixels lit simultaneously.
+// Resets and picks new seed when maxOn reached.
+
 effect "Twinkle WFX" {
   meta {
     slider speed "Speed"
@@ -6,18 +11,33 @@ effect "Twinkle WFX" {
   }
 
   render {
-    fade(240)
+    fade(224)
 
-    // Light up random pixels
-    let count = intensity / 32 + 1
-    for j in 0..count {
-      let pos = random(LEN)
-      let bright = random(128, 255)
-      let c = palette(random(255))
-      let faded = color_fade(c, bright)
-      pixel(pos, faded)
+    let cycleTime = 20 + (255 - speed) * 5
+    let it = NOW / cycleTime
+
+    if it != step_val {
+      // maxOn = map(intensity, 0, 255, 1, SEGLEN)
+      let maxOn = 1 + intensity * (LEN - 1) / 255
+      if aux0 >= maxOn {
+        aux0 = 0
+        // New seed — we'll use CALL as a simple seed
+        aux1 = random(65535)
+      }
+      aux0 = aux0 + 1
+      step_val = it
     }
 
-    frame()
+    // Replay the PRNG sequence to light the same pixels each frame
+    let prng = aux1
+    for j in 0..aux0 {
+      // Simple PRNG: prng = prng * 2053 + 13849 (16-bit)
+      prng = (prng * 2053 + 13849) % 65536
+      let pos = prng * LEN / 65536
+      if pos >= LEN { pos = LEN - 1 }
+      pixel(pos, palette(pos * 255 / LEN))
+    }
+
+    frame(16)
   }
 }

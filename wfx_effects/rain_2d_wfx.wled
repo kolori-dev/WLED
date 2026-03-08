@@ -1,22 +1,21 @@
-// Rain 2D — Raindrops falling down the matrix. Random drops spawn
-// at the top and fall downward with gravity-like acceleration.
+// Rain — Drops falling with palette colors and fade trails.
+// C++ original: mode_rain() — 1D/2D effect.
+// Metadata: "Rain@!,Spawning rate;!,!;!;12;ix=128,pal=0"
 
 effect "Rain 2D WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Density"
+    slider intensity "Spawning rate"
     type 2D
     palette true
   }
 
   render {
-    // Shift existing pixels down and fade
     fade(220)
     move_pixels(3, 1, 0)
 
-    // Spawn new drops at the top row
-    let count = intensity / 32 + 1
-    for j in 0..count {
+    let cnt = intensity / 32 + 1
+    for j in 0..cnt {
       if random(255) < speed / 2 + 16 {
         let x = random(WIDTH)
         let bri = random(128) + 127

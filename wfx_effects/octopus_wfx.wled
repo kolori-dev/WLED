@@ -1,9 +1,13 @@
-// Octopus — Wavy tentacle patterns from center.
+// Octopus — Wavy tentacle patterns from center on 2D matrix.
+// C++ original: mode_2Doctopus()
+// Metadata: "Octopus@!,,Offset X,Offset Y,Legs,fasttan;;!;2;"
 
 effect "Octopus WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Arms"
+    slider custom1 "Offset X"
+    slider custom2 "Offset Y"
+    slider custom3 "Legs"
     type 2D
     palette true
   }
@@ -13,12 +17,12 @@ effect "Octopus WFX" {
 
     for y in 0..HEIGHT {
       for x in 0..WIDTH {
-        let dx = x * 256 / WIDTH - 128
-        let dy = y * 256 / HEIGHT - 128
+        let dx = x * 256 / WIDTH - 128 + custom1 - 128
+        let dy = y * 256 / HEIGHT - 128 + custom2 - 128
         let dist = abs(dx) + abs(dy)
         dx = dx * 128 / max(dist, 1)
         if dy < 0 { dx = 256 - dx }
-        dy = intensity / 32 + 3
+        dy = custom3 / 8 + 3
         let sa = dx * dy + step_val
         sa = sin8(sa)
         dy = max(255 - dist, 0)

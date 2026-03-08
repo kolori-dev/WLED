@@ -1,38 +1,59 @@
-// Chase Flash Random — A chase effect with random-colored flash bursts.
-// The chase body uses palette colors while the leading pixel flashes
-// a random bright color. Speed controls chase rate, intensity controls width.
+// Chase Flash Rnd — Chase with random-colored trail and flash at head.
+// C++ original: Fills behind with color_wheel(aux0), flashes at head with
+// SEGCOLOR(0). New random color chosen on position wrap.
 
 effect "Chase Flash Rnd WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Width"
     palette true
   }
 
   render {
-    let width = max(intensity / 16, 2)
-    let pos = (NOW * speed / 512) % LEN
-
-    fill(rgb(0, 0, 0))
-
-    // Draw chase body with palette colors
-    for j in 0..width {
-      let idx = (pos + j) % LEN
-      pixel(idx, palette(j * 255 / width))
+    // Fill behind the chase head with current random color
+    let bgColor = color_wheel(aux0)
+    for i in 0..aux1 {
+      pixel(i, bgColor)
     }
 
-    // Random-colored flash at the head
-    let flash = (NOW * speed / 64) % 4
-    if flash < 2 {
-      let head = (pos + width) % LEN
-      // Random flash color
-      let rh = random(255)
-      pixel(head, color_wheel(rh))
-      // Glow behind flash
-      let h2 = (pos + width - 1) % LEN
-      pixel(h2, color_fade(color_wheel(rh), 160))
+    let flash_step = CALL % 9  // (FLASH_COUNT*2)+1 = 9
+    let delay = 1 + 10 * (255 - speed) / LEN
+
+    if flash_step < 8 {
+      let n = aux1
+      let m = (aux1 + 1) % LEN
+      if flash_step % 2 == 0 {
+        // Flash on: primary color at head
+        pixel(n, color0)
+        pixel(m, color0)
+      } else {
+        // Flash off: show background/secondary
+        pixel(n, bgColor)
+        pixel(m, color1)
+      }
     }
 
-    frame()
+    // Advance position based on timing
+    let elapsed = NOW - step_val
+    let shouldAdvance = 0
+    if flash_step < 8 {
+      if flash_step % 2 == 0 {
+        if elapsed > 20 { shouldAdvance = 1 }
+      } else {
+        if elapsed > 30 { shouldAdvance = 1 }
+      }
+    } else {
+      if elapsed > delay { shouldAdvance = 1 }
+    }
+
+    if shouldAdvance {
+      aux1 = (aux1 + 1) % LEN
+      if aux1 == 0 {
+        // Wrapped: pick new distinct random color
+        aux0 = (aux0 + random(42, 214)) % 256
+      }
+      step_val = NOW
+    }
+
+    frame(16)
   }
 }

@@ -1,33 +1,46 @@
 // Lissajous — Animated Lissajous curve on a 2D matrix.
+// C++ original: mode_2DLissajous() by Andrew Tuline.
+// Metadata: "Lissajous@X frequency,Fade rate,Blur,,Speed,Smear;!;!;2;c1=0"
 
 effect "Lissajous WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Complexity"
+    slider speed "X frequency"
+    slider intensity "Fade rate"
+    slider custom1 "Blur"
+    slider custom3 "Speed"
     type 2D
     palette true
   }
 
   render {
-    fade(intensity / 4 + 16)
+    // C++: fadeToBlackBy(intensity)
+    fade(255 - intensity)
 
-    step_val = NOW / 10
-    aux0 = WIDTH * 2 + 8
+    // C++: phase = (now * (1 + custom3)) / 32
+    let phase = NOW * (1 + custom3) / 32
 
-    for i in 0..aux0 {
-      let ph = i * 256 / aux0
-      let fx = intensity / 64 + 2
-      let px = sin8(ph * fx + step_val)
-      px = px * WIDTH / 256
-      let py = cos8(ph * (intensity / 48 + 3) + step_val / 2)
-      py = py * HEIGHT / 256
+    // 256 dots along the curve
+    for i in 0..256 {
+      // C++: x = sin8(phase/2 + (i*speed)/32)
+      let sx = sin8(phase / 2 + i * speed / 32)
+      // C++: y = cos8(phase/2 + i*2)
+      let sy = cos8(phase / 2 + i * 2)
+
+      // Map to pixel coordinates with proper rounding
+      let px = sx * (WIDTH - 1) / 255
+      let py = sy * (HEIGHT - 1) / 255
       if px >= WIDTH { px = WIDTH - 1 }
       if py >= HEIGHT { py = HEIGHT - 1 }
-      fx = ph + step_val / 3
-      pixel2d(px, py, palette(fx))
+
+      pixel2d(px, py, palette(NOW / 100 + i))
     }
 
-    blur2d(16)
+    // C++: blur(custom1 >> (1 + check1*3), check1) — without check1, blur by custom1/2
+    let blurAmt = custom1 / 2
+    if blurAmt > 0 {
+      blur2d(blurAmt)
+    }
+
     frame()
   }
 }

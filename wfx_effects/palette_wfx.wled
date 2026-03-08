@@ -1,23 +1,41 @@
-// Palette — Simple palette display: maps the current palette evenly across
-// the strip, slowly rotating over time. Speed controls rotation rate,
-// intensity controls how many times the palette repeats across the strip.
+// Palette — Displays the current palette across the strip with scrolling.
+// C++ original: speed controls shift animation rate, intensity controls
+// palette repetition size. Animate Shift mode: paletteOffset increments
+// based on speed. Size: <=128 fractional, >128 multiplied repeat.
+// Core 1D: colorIndex = i * 255 / SEGLEN + paletteOffset, scaled by size.
 
 effect "Palette WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Repeats"
+    slider speed "Shift"
+    slider intensity "Size"
     palette true
   }
 
   render {
-    let t = NOW * speed / 1024
-
-    let repeats = intensity / 32 + 1
+    // Animated shift: speed controls scroll rate
+    // C++: paletteOffset = (now * ((speed>>3)+1)) >> 8
+    let offset = NOW * (speed / 8 + 1) / 256
 
     for i in 0..LEN {
-      let idx = i * 256 * repeats / LEN + t
-      idx = idx % 256
-      pixel(i, palette(idx))
+      // Base color index
+      let cidx = i * 255 / LEN
+
+      // Apply size scaling based on intensity
+      // intensity <= 128: fractional (fewer repeats)
+      // intensity > 128: multiple repeats
+      if intensity <= 128 {
+        // Scale down: multiply by intensity/128
+        // At intensity=128 => 1x, at intensity=0 => nearly 0x
+        cidx = cidx * intensity / 128
+      } else {
+        // Scale up: multiply by (intensity-112)/16
+        // At intensity=128 => 1x, at intensity=255 => ~9x
+        let mult = intensity - 112
+        cidx = cidx * mult / 16
+      }
+
+      cidx = (cidx + offset) % 256
+      pixel(i, palette(cidx))
     }
 
     frame()

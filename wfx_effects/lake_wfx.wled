@@ -1,38 +1,26 @@
-// Lake — Calm lake reflections: slow noise-based palette with gentle wave motion.
-// Simulates light reflecting off rippling water with soft palette colors.
-// Speed controls ripple speed, intensity controls ripple density.
+// Lake — Calm lake reflections using beatsin8 waves and cubicwave8.
+// C++ original: sp=speed/10, three beatsin8 waves for wave offsets,
+// cos8+cubicwave8 for index, brightness threshold from wave3.
 
 effect "Lake WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Ripples"
     palette true
   }
 
   render {
-    let t = NOW * speed / 4096
+    let sp = speed / 10
+    let w1 = beat8(sp + 2, 192, 64)
+    let w2 = beat8(sp + 1, 192, 64)
+    let w3 = beat8(sp + 2, 0, 80)
 
     for i in 0..LEN {
-      let pos = i * (intensity / 8 + 4)
-
-      // Slow noise for base color
-      let n = noise2(pos, t)
-
-      // Gentle sine wave for shimmer
-      let shimmer = sin8(i * 16 + t * 4)
-      shimmer = shimmer / 4
-
-      // Combine noise index with shimmer
-      let idx = n + shimmer
-      idx = idx % 256
-
-      // Soft brightness variation like light on water
-      let bri = noise2(pos + 4000, t + 2000)
-      bri = bri / 4 + 192
-
-      pixel(i, color_fade(palette(idx), bri))
+      let idx = cos8(i * 15 + w1) / 2 + quad8(i * 23 + w2) / 2
+      let lum = 0
+      if idx > w3 { lum = idx - w3 }
+      pixel(i, color_fade(palette(idx), lum))
     }
 
-    frame()
+    frame(16)
   }
 }

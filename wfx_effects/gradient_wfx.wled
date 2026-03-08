@@ -1,15 +1,38 @@
+// Gradient — Moving gradient between SEGCOLOR(0) and palette colors.
+// C++ original: gradient_base(false). Moving point sweeps, blends color0
+// with palette based on distance, with wrapping.
+
 effect "Gradient WFX" {
   meta {
     slider speed "Speed"
+    slider intensity "Spread"
     palette true
   }
 
   render {
-    let offset = NOW * speed / 1024
+    let counter = NOW * (speed / 4 + 1)
+    let pp = counter * LEN / 65536 % LEN
+    let brd = 1 + intensity / 4
 
     for i in 0..LEN {
-      let idx = (i * 255 / LEN + offset) % 256
-      pixel(i, palette(idx))
+      // Distance from moving point, with wrapping
+      let d = pp - i
+      if d < 0 { d = 0 - d }
+      let d2 = pp - LEN - i
+      if d2 < 0 { d2 = 0 - d2 }
+      if d2 < d { d = d2 }
+      d2 = pp + LEN - i
+      if d2 < 0 { d2 = 0 - d2 }
+      if d2 < d { d = d2 }
+
+      if brd > d {
+        d = d * 255 / brd
+      } else {
+        d = 255
+      }
+
+      let c = palette(i * 255 / LEN)
+      pixel(i, blend(color0, c, d))
     }
 
     frame()

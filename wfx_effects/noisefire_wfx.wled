@@ -1,24 +1,52 @@
-// Noisefire — Volume-driven animated fire noise pattern.
+// Noisefire — Volume-reactive fire noise pattern. By Andrew Tuline.
+// Uses custom fire coloring (no palette).
 
 effect "Noisefire WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Scale"
     type 1D
-    palette true
     audio_reactive true
   }
 
   render {
-    let vol = volume
-    step_val = step_val + vol / 4 + 1
+    if CALL == 0 {
+      fill(0)
+    }
+
+    let bri = volume * 2
+    if bri > 255 { bri = 255 }
 
     for i in 0..LEN {
-      let nx = i * (intensity / 4 + 8)
-      let val = noise(nx + step_val)
-      val = val * vol / 256
-      nx = palette(val)
-      pixel(i, nx)
+      // Noise: X = i*speed/64, Y = NOW*speed/64*LEN/255
+      let nx = i * speed / 64
+      let ny = NOW * speed / 64 * LEN / 255
+      let idx = noise2(nx, ny)
+
+      // Scale index: (255 - i*256/LEN) * idx / (256-intensity)
+      nx = 255 - i * 256 / max(LEN, 1)
+      if nx < 0 { nx = 0 }
+      ny = 256 - intensity
+      if ny < 1 { ny = 1 }
+      idx = nx * idx / ny
+
+      // Fire palette: dark red -> red -> orange -> yellow
+      // Apply volume as brightness
+      let r = 0
+      let g = 0
+      if idx < 85 {
+        r = idx * 3
+      } else {
+        r = 255
+        if idx < 170 {
+          g = (idx - 85) * 3
+        } else {
+          g = 255
+        }
+      }
+      r = r * bri / 255
+      g = g * bri / 255
+      pixel(i, rgb(r, g, 0))
     }
 
     frame()

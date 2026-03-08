@@ -1,34 +1,41 @@
-// Spots Fade — Evenly spaced spots with smooth brightness falloff.
+// Spots Fade — Like Spots but the threshold oscillates, making spots pulse.
+// C++ original: Same as spots_base but threshold = triwave16(counter)*3/4.
+// Counter = strip.now * (speed/4 + 8).
 
 effect "Spots Fade WFX" {
   meta {
-    slider speed "Speed"
+    slider speed "Spread"
     slider intensity "Width"
     palette true
   }
 
   render {
-    let numSpots = 3 + scale8(intensity, 13)
-    let spacing = LEN / numSpots
-    if spacing < 1 {
-      spacing = 1
-    }
-    let half = spacing / 2
-    if half < 1 {
-      half = 1
-    }
-    let offset = NOW * speed / 50000
+    fill(color1)
+
+    // Oscillating threshold via triangle wave
+    let t = NOW * (speed / 4 + 8) / 256 % 256
+    if t < 0 { t = t + 256 }
+    t = tri8(t) * 192
+
+    let zones = 1 + intensity * LEN / 1024
+    let zl = LEN / zones
+    let off = (LEN - zones * zl) / 2
 
     for i in 0..LEN {
-      let pos = (i + offset) % spacing
-      if pos > half {
-        pos = spacing - pos
-      }
-      let bri = 255 - pos * 255 / half
-      if bri > 0 {
-        pixel(i, color_fade(palette(i * 255 / LEN), bri))
-      } else {
-        pixel(i, rgb(0, 0, 0))
+      let rel = i - off
+      if rel >= 0 {
+        let w = (rel % zl) * 65535 / zl
+        if w >= 32768 {
+          w = 131071 - w * 2
+        } else {
+          w = w * 2
+        }
+        if w > t {
+          w = (w - t) * 255 / (65535 - t)
+          let pc = palette(i * 255 / LEN)
+          w = 255 - w
+          pixel(i, blend(pc, color1, w))
+        }
       }
     }
 

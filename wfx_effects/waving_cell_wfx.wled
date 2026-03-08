@@ -1,26 +1,38 @@
 // Waving Cell — Cellular wave pattern on 2D matrix.
+// C++ original: mode_2Dwavingcell()
+// Metadata: "Waving Cell@!,Blur,Amplitude 1,Amplitude 2,Amplitude 3,,Flow;;!;2;ix=0"
 
 effect "Waving Cell WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Cell Size"
+    slider intensity "Blur"
+    slider custom1 "Amplitude 1"
+    slider custom2 "Amplitude 2"
+    slider custom3 "Amplitude 3"
     type 2D
     palette true
   }
 
   render {
-    step_val = NOW * speed / 512
+    // Store amplitude params in aux0/aux1/step_val
+    aux0 = custom1 / 16 + 9
+    aux1 = custom2 / 16 + 1
+    step_val = custom3 + 1
 
-    for y in 0..HEIGHT {
-      for x in 0..WIDTH {
-        let cs = max(intensity / 16 + 1, 1)
-        let cx = x / cs
-        let cy = y / cs
-        let v = sin8(cx * 64 + step_val) / 2 + cos8(cy * 64 + step_val / 2) / 2
-        cs = v + cx * 32
-        cs = palette(cs)
-        pixel2d(x, y, color_fade(cs, v))
+    // t = (now * (speed+1)) >> 3
+    let t = NOW * (speed + 1) / 8
+
+    for x in 0..WIDTH {
+      for y in 0..HEIGHT {
+        let inner = (y * 256 + t) * aux1 / 256
+        let wave = sin8(x * aux0 + sin8(inner)) + cos8(y * step_val)
+        inner = wave + t / 256
+        pixel2d(x, y, palette(inner))
       }
+    }
+
+    if intensity > 0 {
+      blur2d(intensity)
     }
 
     frame()

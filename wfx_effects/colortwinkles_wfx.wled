@@ -1,61 +1,65 @@
-// Color Twinkles — Persistent colored twinkles that slowly change hue.
-// Each pixel has a brightness stored in the data buffer. Pixels randomly
-// start brightening, reach peak, then fade. Color shifts over time.
+// Colortwinkles — Per-pixel twinkles that slowly brighten then dim.
+// C++ original: fadeUpAmount = 8+(speed>>2), fadeDownAmount = 8+(speed>>3).
+// Rising pixels brighten by adding color_fade(cur, fadeUpAmount).
+// Falling pixels fade by (255-fadeDownAmount). Spawn rate: random8()<=intensity.
+// Up to SEGLEN/50 spawn attempts per frame. Palette colors.
 
-effect "Color Twinkles WFX" {
+effect "Colortwinkles WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Density"
+    slider speed "Fade speed"
+    slider intensity "Spawn speed"
     palette true
   }
 
-  data bright[256]
+  // Per-pixel brightness (0=off, 1-127=rising, 128-255=falling)
+  data bri[256]
 
   render {
-    let rate = speed / 16 + 1
+    // C++ fade rates
+    let fadeUp = 8 + speed / 4
+    let fadeDown = 8 + speed / 8
 
-    // Randomly start new twinkles
-    let count = intensity / 32 + 1
-    for j in 0..count {
-      if random(255) < intensity / 4 + 4 {
+    // Spawn new twinkles: up to SEGLEN/50+1 attempts per frame
+    let spawns = LEN / 50 + 1
+    for j in 0..spawns {
+      if random(255) <= intensity {
         let pos = random(LEN)
-        if bright[pos] == 0 {
-          // Start brightening — use odd values for "rising" phase
-          bright[pos] = 1
+        // Only spawn on dark pixels (brightness 0)
+        if bri[pos] == 0 {
+          // Start rising phase at low brightness
+          bri[pos] = 1
         }
       }
     }
 
-    let hue_shift = NOW * speed / 2048
-
     // Update all pixels
     for i in 0..LEN {
-      let b = bright[i]
+      let b = bri[i]
       if b > 0 {
-        // Check if rising (< 128) or falling (>= 128)
         if b < 128 {
-          // Rising phase
-          b = b + rate
+          // Rising phase: add fadeUp
+          b = b + fadeUp
           if b >= 128 {
+            // Switch to falling phase at max brightness
             b = 255
           }
-          bright[i] = b
+          bri[i] = b
         } else {
-          // Falling phase
-          if b > rate {
-            b = b - rate
+          // Falling phase: subtract fadeDown
+          if b > fadeDown {
+            b = b - fadeDown
           } else {
             b = 0
           }
-          if b < 128 and b > 0 {
+          // If fell below 128, pixel is done
+          if b < 128 {
             b = 0
           }
-          bright[i] = b
+          bri[i] = b
         }
 
-        // Color slowly shifts with position and time
-        let hue = (i * 17 + hue_shift) % 256
-        let c = palette(hue)
+        // Render with palette color at brightness
+        let c = palette(i * 255 / LEN)
         pixel(i, color_fade(c, b))
       } else {
         pixel(i, rgb(0, 0, 0))

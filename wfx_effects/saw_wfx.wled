@@ -1,25 +1,34 @@
-// Saw — Sawtooth wave pattern scrolling along the strip.
-// Brightness ramps up linearly then drops, creating a repeating
-// sawtooth pattern. Speed controls scroll rate, intensity controls
-// the number of teeth (repetitions) along the strip.
+// Saw — Sawtooth wave with sharp leading edge.
+// C++ original: running_base(true). Sawtooth transform: if a<16: 192+a*8,
+// else map(a,16,255,64,192), then 255-a. Blends palette with SEGCOLOR(1).
 
 effect "Saw WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Teeth"
+    slider intensity "Width"
     palette true
   }
 
   render {
-    let offset = NOW * speed / 256
-    let teeth = intensity / 16 + 1
+    let x_scale = intensity / 4
+    let counter = NOW * speed / 512
 
     for i in 0..LEN {
-      // Sawtooth: ramp from 0..255 within each tooth
-      let phase = (i * teeth * 256 / LEN + offset) % 256
-      let bri = phase
-      let pidx = (i * 255 / LEN + offset / 4) % 256
-      pixel(i, color_fade(palette(pidx), bri))
+      let a = (i * x_scale - counter) % 256
+      if a < 0 { a = a + 256 }
+
+      // Sawtooth transform from C++
+      let s = a
+      if a < 16 {
+        s = 192 + a * 8
+      } else {
+        // map(a, 16, 255, 64, 192) = 64 + (a-16)*128/239
+        s = 64 + (a - 16) * 128 / 239
+      }
+      s = 255 - s
+
+      let c = palette(i * 255 / LEN)
+      pixel(i, blend(color1, c, s))
     }
 
     frame()

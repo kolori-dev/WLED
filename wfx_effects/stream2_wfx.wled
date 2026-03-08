@@ -1,27 +1,59 @@
-// Stream 2 — Palette colors enter from both ends and meet in the middle.
-// Each half mirrors the other, creating a symmetric flowing pattern.
+// Stream 2 — Random color chase with gradual mutation along the strip.
+// C++ original: mode_random_chase() shifts pixels and mutates one random
+// RGB channel per pixel with 1/6 probability. Creates smoothly evolving
+// color streams. cycleTime = 25 + 3*(255-speed).
 
 effect "Stream 2 WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Color Spread"
-    palette true
   }
 
-  render {
-    let t = NOW * speed / 512
-    let half = LEN / 2
+  data hue[256]
 
-    for i in 0..LEN {
-      // Distance from the nearest end
-      let d = i
-      if i > half {
-        d = LEN - 1 - i
+  render {
+    // Initialize on first call
+    if CALL == 0 {
+      for i in 0..LEN {
+        hue[i] = random(256)
       }
-      let idx = (t + d * intensity / 4) % 256
-      pixel(i, palette(idx))
     }
 
-    frame()
+    // Match C++ cycle time: 25 + 3*(255-speed)
+    let cycleTime = 25 + 3 * (255 - speed)
+    let it = NOW / cycleTime
+
+    // Only update when iteration changes
+    if it != step_val {
+      step_val = it
+
+      // Shift all pixels down by 1
+      for i in LEN - 1..0 step -1 {
+        hue[i] = hue[i - 1]
+      }
+
+      // Mutate leading pixel's hue slightly
+      // C++ mutates individual R/G/B channels with 1/6 chance each
+      // Approximate: shift hue by small random amount
+      let prevHue = hue[1]
+      let drift = random(6)
+      if drift == 0 {
+        // Large mutation — jump to new random hue
+        prevHue = random(256)
+      } else {
+        if drift < 3 {
+          // Small mutation — nudge hue
+          let nudge = random(32)
+          prevHue = (prevHue + nudge) % 256
+        }
+      }
+      hue[0] = prevHue
+    }
+
+    // Render using color_wheel
+    for i in 0..LEN {
+      pixel(i, color_wheel(hue[i]))
+    }
+
+    frame(16)
   }
 }

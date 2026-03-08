@@ -1,64 +1,73 @@
-// Ripple — Random color ripples expanding from random positions.
-// Data buffer stores 6 ripples: center, radius, hue, active flag.
+// Ripple — Expanding color ripples from random positions.
+// C++ original: ripple_base with state machine per ripple, speed-based
+// propagation and decay, triwave8 amplitude, palette colors.
+// Fill SEGCOLOR(1) as background, optional blur via custom1.
 
 effect "Ripple WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Size"
+    slider intensity "Wave #"
+    slider custom1 "Blur"
     palette true
   }
 
-  // 6 ripples: center(0-5), radius(6-11), hue(12-17), active(18-23)
-  data ripples[24]
+  // 16 ripples max, each: state(0), pos(1), color(2) = 3 elements
+  data rip[48]
 
   render {
-    fade(64)
+    if custom1 > 0 {
+      fade(250)
+    } else {
+      fill(color1)
+    }
 
-    let maxRad = intensity / 8 + 4
+    let maxR = LEN / 4 + 1
+    if maxR > 16 { maxR = 16 }
 
-    // Spawn new ripples
-    if random(255) < speed / 4 + 4 {
-      for r in 0..6 {
-        if ripples[r + 18] == 0 {
-          ripples[r] = random(LEN)
-          ripples[r + 6] = 0
-          ripples[r + 12] = random(255)
-          ripples[r + 18] = 1
-          r = 6
+    for k in 0..maxR {
+      let st = rip[k * 3]
+      if st > 0 {
+        let decay = speed / 16 + 1
+        let origin = rip[k * 3 + 1]
+        let prop = (st / decay - 1) * (speed + 1) / 256
+
+        // Amplitude: triwave8 for early, decreasing for later
+        let amp = 0
+        if st < 17 {
+          amp = tri8((st - 1) * 8)
+        } else {
+          amp = 255 - (st - 17) * 253 / 238
+          if amp < 2 { amp = 2 }
+        }
+
+        let c = color_fade(palette(rip[k * 3 + 2]), amp)
+
+        // Draw expanding ring at ±prop from origin
+        decay = origin - prop
+        if decay >= 0 and decay < LEN {
+          pixel(decay, blend(get_pixel(decay), c, amp))
+        }
+        decay = origin + prop
+        if decay >= 0 and decay < LEN {
+          pixel(decay, blend(get_pixel(decay), c, amp))
+        }
+
+        st = st + speed / 16 + 1
+        if st > 254 { st = 0 }
+        rip[k * 3] = st
+      } else {
+        if random(0, 15100) <= intensity {
+          rip[k * 3] = 1
+          rip[k * 3 + 1] = random(0, LEN)
+          rip[k * 3 + 2] = random(0, 256)
         }
       }
     }
 
-    // Update and draw ripples
-    for r in 0..6 {
-      if ripples[r + 18] > 0 {
-        let rad = ripples[r + 6]
-        let bri = 255 - rad * 255 / maxRad
-        if bri < 0 {
-          bri = 0
-        }
-        let c = color_fade(palette(ripples[r + 12]), bri)
-        let cen = ripples[r]
-
-        // Draw expanding ring (two points)
-        let p = cen + rad
-        if p >= 0 and p < LEN {
-          pixel(p, c)
-        }
-        p = cen - rad
-        if p >= 0 and p < LEN {
-          pixel(p, c)
-        }
-
-        // Expand radius
-        rad = rad + 1
-        ripples[r + 6] = rad
-        if rad >= maxRad {
-          ripples[r + 18] = 0
-        }
-      }
+    if custom1 > 0 {
+      blur(custom1 / 2)
     }
 
-    frame()
+    frame(16)
   }
 }

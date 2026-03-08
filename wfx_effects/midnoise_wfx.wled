@@ -1,37 +1,40 @@
-// Mid Noise — Noise pattern centered in the middle of the strip,
-// expanding outward symmetrically. The center is brightest with
-// noise-driven palette colors radiating to both edges.
+// Midnoise — Volume-driven noise pattern centered in the middle.
+// By Andrew Tuline.
 
-effect "Mid Noise WFX" {
+effect "Midnoise WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Scale"
+    slider speed "Fade rate"
+    slider intensity "Max. length"
+    type 1D
     palette true
+    audio_reactive true
   }
 
   render {
-    let t = NOW * speed / 512
+    // Double fade at speed rate
+    fade(speed)
+    fade(speed)
+
+    // tmpSound2 = volume * intensity / 256, then * intensity / 128
+    let ts = volume * intensity / 256
+    ts = ts * intensity / 128
+
+    // maxLen = map(ts, 0, 127, 0, LEN/2)
     let half = LEN / 2
+    let maxl = ts * half / 127
+    if maxl > half { maxl = half }
 
-    for i in 0..LEN {
-      // Distance from center
-      let dist = abs(i - half)
-
-      // Noise based on distance and time
-      let n = noise2(dist * intensity / 16, t)
-
-      // Brightness falls off from center
-      let bri = 255 - dist * 255 / half
-      if bri < 0 {
-        bri = 0
-      }
-
-      // Modulate brightness with noise
-      bri = bri * n / 255
-
-      let idx = n
-      pixel(i, color_fade(palette(idx), bri))
+    // Fill center region with noise-based palette
+    let lo = half - maxl
+    let hi = half + maxl
+    for i in lo..hi {
+      let idx = noise2(i * volume + aux0, aux1 + i * volume)
+      pixel(i, palette(idx))
     }
+
+    // Evolve aux0/aux1 with beat8
+    aux0 = aux0 + beat8(5, 0, 10)
+    aux1 = aux1 + beat8(4, 0, 10)
 
     frame()
   }

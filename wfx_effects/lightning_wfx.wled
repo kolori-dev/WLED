@@ -1,51 +1,49 @@
-// Lightning — Random bright white flashes at random positions with brief afterglow.
-// speed controls flash frequency, intensity controls flash width.
+// Lightning — Random bright flashes with leader/follower pattern.
+// C++ original: State machine with leader flash (dim), followed by
+// multiple bright sub-flashes with delays, then long inter-strike delay.
+// aux1 = flash counter, aux0 = delay duration, step_val = timestamp.
 
 effect "Lightning WFX" {
   meta {
-    slider speed "Frequency"
-    slider intensity "Width"
+    slider speed "Speed"
+    slider intensity "# Flashes"
     palette true
   }
 
   render {
-    // Fade previous flashes
-    fade(200)
+    fill(color1)
 
-    // Random chance to trigger a lightning bolt
-    if random(255) < speed / 8 + 2 {
-      let center = random(LEN)
-      let width = random(intensity / 8 + 2, intensity / 4 + 4)
-      let bright = random(200, 255)
-      let c = rgb(255, 255, 255)
+    let bri = 255 / random(1, 3)
 
-      // Draw lightning bolt section
-      for i in 0..width {
-        let p = center - width / 2 + i
-        if p >= 0 and p < LEN {
-          let dist = abs(i - width / 2)
-          let bri = bright - dist * 40
-          if bri < 50 { bri = 50 }
-          pixel(p, color_fade(c, bri))
-        }
+    if aux1 == 0 {
+      // Init new lightning strike
+      aux1 = random(4, 4 + intensity / 20) * 2
+      bri = 52
+      aux0 = 200
+    }
+
+    if aux1 > 3 and aux1 % 2 == 0 {
+      // Flash on even count > 2
+      let start = random(0, LEN)
+      let end = start + 1 + random(0, LEN - start)
+      if end > LEN { end = LEN }
+      for i in start..end {
+        pixel(i, color_fade(palette(i * 255 / LEN), bri))
       }
-
-      // Secondary smaller flash nearby
-      if random(255) < 128 {
-        let p2 = center + random(5, 15)
-        if p2 < LEN {
-          let w2 = width / 3 + 1
-          c = rgb(220, 220, 255)
-          for j in 0..w2 {
-            let pp = p2 + j
-            if pp >= 0 and pp < LEN {
-              pixel(pp, color_fade(c, 180))
-            }
-          }
+      aux1 = aux1 - 1
+      step_val = NOW
+    } else {
+      if NOW - step_val > aux0 {
+        aux1 = aux1 - 1
+        if aux1 < 2 { aux1 = 0 }
+        aux0 = 50 + random(0, 100)
+        if aux1 == 2 {
+          aux0 = random(0, 255 - speed) * 100
         }
+        step_val = NOW
       }
     }
 
-    frame()
+    frame(16)
   }
 }

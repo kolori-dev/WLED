@@ -1,28 +1,40 @@
-// Railway — Alternating colored segments blink like railway crossing lights.
-// Two groups swap between lit and dark in a steady rhythm.
-// Speed controls blink rate, intensity controls segment size.
+// Railway — Christmas fairy lights / railway crossing pattern.
+// C++ original: Alternating pixel pairs slowly ramp between two palette
+// positions. Step accumulates FRAMETIME, direction reverses at dur.
 
 effect "Railway WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Segment Size"
+    slider intensity "Smoothness"
     palette true
   }
 
   render {
-    let seg = max(intensity / 16, 1)
-    let cycle = NOW * speed / 512
-    let phase = (cycle / 256) % 2
+    let dur = (256 - speed) * 40
+    let ramp = dur * intensity / 256
+
+    if step_val > dur {
+      step_val = 0
+      if aux0 > 0 { aux0 = 0 } else { aux0 = 1 }
+    }
+
+    let pos = 255
+    if ramp > 0 {
+      pos = step_val * 255 / ramp
+      if pos > 255 { pos = 255 }
+    }
+    if aux0 > 0 { pos = 255 - pos }
 
     for i in 0..LEN {
-      let group = (i / seg) % 2
-      if group == phase {
-        pixel(i, palette(i * 255 / LEN))
+      if i % 2 == 0 {
+        pixel(i, palette(255 - pos))
       } else {
-        pixel(i, rgb(0, 0, 0))
+        pixel(i, palette(pos))
       }
     }
 
-    frame()
+    step_val = step_val + 16
+
+    frame(16)
   }
 }

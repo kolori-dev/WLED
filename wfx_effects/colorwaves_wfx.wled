@@ -1,34 +1,55 @@
-// Color Waves — Flowing palette-based color waves.
-// Multiple sine waves at different frequencies create flowing, organic
-// color patterns across the strip, reminiscent of lava lamps or auroras.
+// Color Waves — Flowing palette waves with modulated brightness.
+// C++ original: colorwaves_pride_base(false). Uses palette colors with
+// beatsin88-driven brightness depth, hue increment, and temporal smoothing.
+// Hue uses a folded triangle pattern for interesting color mixing.
 
 effect "Color Waves WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Complexity"
+    slider intensity "Hue"
     palette true
   }
 
   render {
-    let t = NOW * speed / 1024
+    let bt = beat8(2, 0, 255)
+    let bdepth = 96 + sin8(bt) * 128 / 255
+    bt = beat8(1, 0, 255)
+    let btinc = 6400 + sin8(bt) * 3840 / 255
+    bt = beat8(1, 0, 255)
+    bt = 23 + sin8(bt) * 37 / 255
+    step_val = step_val + (10 + speed) * bt
+    let bth = step_val
+
+    bt = beat8(1, 0, 255)
+    let hinc = 60 + sin8(bt) * 240 / 255
+    hinc = hinc * intensity * 10 / 255
+
+    bt = beat8(2, 0, 255)
+    bt = 5 + sin8(bt) * 4 / 255
+    aux0 = aux0 + (10 + speed) * bt
+    bt = aux0
 
     for i in 0..LEN {
-      let pos = i * 256 / LEN
+      bt = bt + hinc
 
-      // Layer multiple sine waves at different frequencies
-      let w1 = sin8(pos * 2 + t)
-      let w2 = sin8(pos * 3 + t / 2 + 64)
-      let w3 = sin8(pos + t / 3 + 128)
-      let w4 = sin8(pos * intensity / 64 + t * 2 + 192)
+      // Folded hue: triangle pattern for richer color variation
+      let h = bt / 128
+      let hue = h / 2
+      if h % 512 > 255 {
+        hue = 255 - hue
+      }
+      hue = hue % 256
 
-      // Combine waves for palette index
-      let idx = (w1 + w2 + w3 + w4) / 4
+      bth = bth + btinc
+      h = sin16(bth / 256) + 32768
+      if h < 0 { h = 0 }
+      h = h * h / 65536
+      h = h * bdepth / 65536
+      h = h + 255 - bdepth
+      if h > 255 { h = 255 }
+      if h < 0 { h = 0 }
 
-      // Brightness modulation from another wave
-      let bri = sin8(pos + t / 4 + 32)
-      bri = bri / 3 + 170
-
-      pixel(i, color_fade(palette(idx), bri))
+      pixel(i, color_fade(palette(hue), h))
     }
 
     frame()

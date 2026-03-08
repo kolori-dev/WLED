@@ -1,6 +1,6 @@
-// Scanner Dual — Two scanners bouncing in opposite directions with
-// fade trails. One scanner uses color0, the other uses color1,
-// creating crossing beams with afterglow trails.
+// Scanner Dual — Two Larson scanners (one in each direction).
+// Fades trail based on intensity, draws a head pixel and its mirror.
+// Matches mode_dual_larson_scanner / mode_larson_scanner with check1=true.
 
 effect "Scanner Dual WFX" {
   meta {
@@ -10,46 +10,36 @@ effect "Scanner Dual WFX" {
   }
 
   render {
-    fade(intensity)
-
-    let t = NOW * speed / 512
-
-    // Scanner 1: bounces normally
-    let cycle1 = t % (LEN * 2)
-    let pos1 = cycle1
-    if pos1 >= LEN {
-      pos1 = LEN * 2 - pos1 - 1
+    // Fade trail: C++ does fade_out(255 - intensity)
+    let fadeAmt = 255 - intensity
+    if fadeAmt < 1 {
+      fadeAmt = 1
     }
+    fade(fadeAmt)
 
-    // Scanner 2: bounces in opposite phase
-    let cycle2 = (t + LEN) % (LEN * 2)
-    let pos2 = cycle2
-    if pos2 >= LEN {
-      pos2 = LEN * 2 - pos2 - 1
-    }
+    // Speed mapping: C++ maps speed 0..255 to 96..2 for FRAMETIME multiplier
+    // We approximate a bouncing head position using NOW-based counter
+    let spd = 2 + (255 - speed) * 94 / 255
+    let t = NOW / spd
+    let cycle = t % (LEN * 2 - 2)
 
-    // Draw scanner 1 with palette
-    pixel(pos1, palette(t % 256))
-    if pos1 > 0 {
-      let p = pos1 - 1
-      pixel(p, color_fade(palette(t % 256), 128))
-    }
-    if pos1 < LEN - 1 {
-      let p = pos1 + 1
-      pixel(p, color_fade(palette(t % 256), 128))
+    // Bounce: 0..LEN-1..0
+    let pos = cycle
+    if pos >= LEN {
+      pos = LEN * 2 - 2 - pos
     }
 
-    // Draw scanner 2 with offset palette color
-    let hue2 = (t + 128) % 256
-    pixel(pos2, palette(hue2))
-    if pos2 > 0 {
-      let p = pos2 - 1
-      pixel(p, color_fade(palette(hue2), 128))
+    // Draw head pixel with palette color
+    let c1 = palette(pos * 255 / LEN)
+    pixel(pos, c1)
+
+    // Draw mirror pixel (dual mode, uses color2 if set, else same palette color)
+    let mirr = LEN - 1 - pos
+    let c2 = color2
+    if c2 == 0 {
+      c2 = c1
     }
-    if pos2 < LEN - 1 {
-      let p = pos2 + 1
-      pixel(p, color_fade(palette(hue2), 128))
-    }
+    pixel(mirr, c2)
 
     frame()
   }

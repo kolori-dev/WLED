@@ -1,60 +1,76 @@
-// Fairy Twinkle — Delicate fairy lights: very sparse, gentle white/warm
-// twinkles on a dark background. Soft and magical.
+// Fairy Twinkle — Per-pixel state machine: all pixels start lit with palette color,
+// some randomly dim and re-brighten creating a twinkle effect.
+// C++ original: per-pixel 2-bit state (0=off, 1=photon_start, 2=photon_start, 3=on)
+// Speed controls transition rate between states
 
 effect "Fairy Twinkle WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Density"
+    slider speed "!"
+    slider intensity "!"
+    palette true
   }
 
-  data bright[256]
+  // Per-pixel state: 2 bytes each (brightness 0-255, state 0-3)
+  // Max 128 pixels tracked (256 bytes)
+  // 0-127 = brightness, 128-255 = state
+  data pix[256]
 
   render {
-    // Very sparse new twinkles
-    if random(255) < intensity / 8 + 2 {
-      let pos = random(LEN)
-      if bright[pos] == 0 {
-        bright[pos] = 1
+    let count = LEN
+    if count > 128 { count = 128 }
+
+    // Transition speed
+    let rate = speed / 16 + 1
+
+    // Initialize: all pixels start fully lit (state=3, brightness=255)
+    if CALL == 0 {
+      for i in 0..count {
+        pix[i] = 255
+        pix[i + 128] = 3
       }
     }
 
-    let rate = speed / 32 + 1
+    for i in 0..count {
+      let bri = pix[i]
+      let st = pix[i + 128]
 
-    for i in 0..LEN {
-      let b = bright[i]
-      if b > 0 and b < 128 {
-        // Rising
-        b = b + rate
-        if b >= 128 {
-          b = 255
+      // State transitions
+      if st == 3 {
+        // On: randomly start dimming
+        if random(255) < (256 - intensity) / 8 + 1 {
+          st = 0
         }
-        bright[i] = b
-      } else if b >= 128 {
-        // Falling
-        if b > rate {
-          b = b - rate
+      }
+
+      if st == 0 {
+        // Dimming
+        if bri > rate {
+          bri = bri - rate
         } else {
-          b = 0
+          bri = 0
+          st = 1
         }
-        if b < 128 and b > 0 {
-          b = 0
+      } else if st == 1 {
+        // Off: wait then start brightening
+        if random(255) < intensity / 4 + 4 {
+          st = 2
         }
-        bright[i] = b
+      } else if st == 2 {
+        // Brightening
+        bri = bri + rate
+        if bri > 255 {
+          bri = 255
+          st = 3
+        }
       }
 
-      if b > 0 {
-        // Warm white color with slight variation per pixel
-        let warm = (i * 13) % 32
-        let r = b
-        let g = b * 3 / 4
-        let bl = b / 3 + warm
-        if r > 255 { r = 255 }
-        if g > 255 { g = 255 }
-        if bl > 255 { bl = 255 }
-        pixel(i, rgb(r, g, bl))
-      } else {
-        pixel(i, rgb(0, 0, 0))
-      }
+      pix[i] = bri
+      pix[i + 128] = st
+
+      // Draw pixel with palette color at current brightness
+      let hue = (i * 37 + 50) % 256
+      let c = color_fade(palette(hue), bri)
+      pixel(i, c)
     }
 
     frame()

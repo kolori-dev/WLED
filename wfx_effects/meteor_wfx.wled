@@ -1,40 +1,41 @@
-// Meteor — A bright head with a decaying trail falling down the strip.
-// speed controls fall rate, intensity controls trail decay.
+// Meteor — Bright head with randomly decaying trail.
+// C++ original: per-pixel trail array, random decay via scale8,
+// meteorSize = 1 + SEGLEN/20, counter-based position.
 
 effect "Meteor WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Decay"
+    slider intensity "Trail"
     palette true
   }
 
+  data trail[300]
+
   render {
-    // Random decay of trail pixels for organic look
+    let meteorSize = 1 + LEN / 20
+
+    // Position: counter-based wrapping
+    let rate = speed / 4 + 8
+    let period = 65536 / rate
+    let pos = NOW % period * rate * LEN / 65536
+
+    // Randomly decay trail pixels
     for i in 0..LEN {
-      if random(255) < intensity / 2 + 10 {
-        let c = get_pixel(i)
-        pixel(i, color_fade(c, 128))
+      if random(0, 256) <= 255 - intensity {
+        let r = 128 + random(127)
+        trail[i] = scale8(trail[i], r)
       }
+      let c = palette(trail[i])
+      pixel(i, color_fade(c, trail[i]))
     }
 
-    // Meteor head position — wraps around
-    let t = NOW * speed / 256
-    let pos = t % LEN
-
-    // Draw meteor head (several bright pixels)
-    let headLen = 5
-    for h in 0..headLen {
-      let p = pos - h
-      if p < 0 {
-        p = p + LEN
-      }
-      let bri = 255 - h * 40
-      if bri < 0 {
-        bri = 0
-      }
-      pixel(p, color_fade(palette(t / 4), bri))
+    // Draw meteor head (overwrites trail)
+    for j in 0..meteorSize {
+      let idx = (pos + j) % LEN
+      trail[idx] = 240
+      pixel(idx, palette(idx * 255 / LEN))
     }
 
-    frame()
+    frame(16)
   }
 }

@@ -1,4 +1,6 @@
-// Washing Machine — Palette colors sloshing back and forth.
+// Washing Machine — Palette colors sloshing back and forth with direction changes.
+// C++ original: tristate_square8 for forward/pause/reverse speed changes,
+// sin8 wave across strip, step-based position accumulator.
 
 effect "Washing Machine WFX" {
   meta {
@@ -8,22 +10,22 @@ effect "Washing Machine WFX" {
   }
 
   render {
-    let t = NOW / (5 + 255 - speed)
-    let slosh = sin8(t) - 128
-    let turb = (sin8(t * 3 + 100) - 128) / 4
-    let spread = 1 + scale8(intensity, 4)
+    // Approximate tristate_square8(now>>7, 90, 15)
+    // Forward → pause → reverse → pause cycle
+    let phase = NOW / 128 % 256
+    let spd = 0
+    if phase < 90 { spd = 127 }
+    if phase >= 105 and phase < 195 { spd = -128 }
+
+    step_val = step_val + spd * 2048 / (512 - speed)
+
+    let freq = intensity / 25 + 1
 
     for i in 0..LEN {
-      let pos = i * 256 / LEN
-      let sh = (pos + slosh + turb) * spread
-      let w2 = sin8(pos * 2 + t * 2) / 4
-      let cidx = (sh + w2) % 256
-      if cidx < 0 {
-        cidx = cidx + 256
-      }
-      pixel(i, palette(cidx))
+      let col = sin8(freq * 255 * i / LEN + step_val / 128)
+      pixel(i, palette(col))
     }
 
-    frame()
+    frame(16)
   }
 }

@@ -1,51 +1,113 @@
-// Oscillate — Three colored segments oscillate back and forth,
-// overlapping and blending with additive color mixing.
+// Oscillate — Three independent bouncing oscillators with random speed changes.
+// C++ original: Each oscillator bounces independently with position, size, direction,
+// speed. Speed changes randomly at boundaries. Size from SEGLEN/(3+intensity/8).
+// Colors are SEGCOLOR(0/1/2), blended on overlap.
 
 effect "Oscillate WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Width"
-    palette false
   }
 
+  // 3 oscillators: pos(word), speed(byte), dir(byte) = 3 bytes each = 9 total
+  data osc[9]
+
   render {
-    let w = intensity / 16 + 2
-    let t = NOW * speed / 256
-    let span = LEN - w
+    // Initialize on first call
+    if CALL == 0 {
+      osc[0] = LEN / 4
+      osc[1] = 1
+      osc[2] = 1
+      osc[3] = LEN * 3 / 4
+      osc[4] = 2
+      osc[5] = 1
+      osc[6] = LEN / 2
+      osc[7] = 1
+      osc[8] = 0
+    }
 
-    fill(rgb(0, 0, 0))
+    let it = NOW / (20 + 2 * (255 - speed))
+    let doStep = 0
+    if it != step_val {
+      doStep = 1
+      step_val = it
+    }
 
-    let c = color_fade(color0, 200)
-    let pos = sin8(t) * span / 255
-    for j in 0..w {
-      let idx = pos + j
-      if idx < LEN {
-        let cur = get_pixel(idx)
-        pixel(idx, color_add(cur, c))
+    let size = LEN / (3 + intensity / 8)
+    if size < 1 { size = 1 }
+
+    // Update oscillator positions
+    for k in 0..3 {
+      let b = k * 3
+
+      if doStep {
+        if osc[b + 2] == 1 {
+          osc[b] = osc[b] + osc[b + 1]
+        } else {
+          osc[b] = osc[b] - osc[b + 1]
+        }
+      }
+
+      if osc[b + 2] == 0 {
+        if osc[b] > 60000 {
+          osc[b] = 0
+          osc[b + 2] = 1
+          if speed > 100 {
+            osc[b + 1] = random(2, 4)
+          } else {
+            osc[b + 1] = random(1, 3)
+          }
+        }
+      }
+      if osc[b + 2] == 1 {
+        if osc[b] >= LEN - 1 {
+          osc[b] = LEN - 1
+          osc[b + 2] = 0
+          if speed > 100 {
+            osc[b + 1] = random(2, 4)
+          } else {
+            osc[b + 1] = random(1, 3)
+          }
+        }
       }
     }
 
-    c = color_fade(color1, 200)
-    pos = sin8(t + t / 3) * span / 255
-    for j in 0..w {
-      let idx = pos + j
-      if idx < LEN {
-        let cur = get_pixel(idx)
-        pixel(idx, color_add(cur, c))
+    // Render (unrolled inner loop to save registers)
+    let black = rgb(0, 0, 0)
+    for i in 0..LEN {
+      let c = black
+      let p = osc[0]
+      if i >= p - size {
+        if i <= p + size {
+          c = color0
+        }
       }
+
+      p = osc[3]
+      if i >= p - size {
+        if i <= p + size {
+          if c == black {
+            c = color1
+          } else {
+            c = blend(c, color1, 128)
+          }
+        }
+      }
+
+      p = osc[6]
+      if i >= p - size {
+        if i <= p + size {
+          if c == black {
+            c = color2
+          } else {
+            c = blend(c, color2, 128)
+          }
+        }
+      }
+
+      pixel(i, c)
     }
 
-    c = color_fade(color2, 200)
-    let phase = t + t / 2 + 85
-    pos = sin8(phase) * span / 255
-    for j in 0..w {
-      let idx = pos + j
-      if idx < LEN {
-        let cur = get_pixel(idx)
-        pixel(idx, color_add(cur, c))
-      }
-    }
-
-    frame()
+    frame(16)
   }
 }

@@ -1,30 +1,52 @@
-effect "Glitter" {
+// Glitter — Scrolling palette background with random glitter sparkles.
+// C++ original: counter = (now * ((speed>>3)+1)) & 0xFFFF then >>8.
+// Background: palette(i*255/SEGLEN - counter). Glitter: SEGLEN/20+1
+// attempts, each with probability intensity. Glitter color = SEGCOLOR(2)
+// or white if SEGCOLOR(2) is black.
+
+effect "Glitter WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Glitter amount"
     palette true
-    type 1D
   }
+
   render {
-    // Draw palette base: gentle cycling gradient
-    let offset = (NOW * speed) / 30000
+    // Match C++ scrolling palette background
+    // counter = (now * ((speed>>3)+1)) & 0xFFFF then >>8
+    let counter = 0
+    if speed != 0 {
+      counter = (NOW * (speed / 8 + 1)) % 65536
+      counter = counter / 256
+    }
+
+    // Draw palette background
     for i in 0..LEN {
-      let cidx = (i * 255) / LEN
-      let shifted = (cidx + offset) % 256
-      pixel(i, palette(shifted))
+      let cidx = (i * 255 / LEN - counter) % 256
+      pixel(i, palette(cidx))
     }
-    // Fade existing pixels slightly for smooth transitions
-    fade(224)
-    // Add random glitter sparkles
-    let numGlitter = 1 + scale8(intensity, 6)
-    for g in 0..numGlitter {
-      let pos = random(LEN)
-      let pcol = (pos * 255) / LEN
-      let col = palette((pcol + offset) % 256)
-      // Brighten the glitter pixel by blending with white
-      let sparkle = blend(col, rgb(255, 255, 255), 180)
-      pixel(pos, sparkle)
+
+    // Glitter color: SEGCOLOR(2) or white if black
+    let gc = color2
+    let r2 = red(gc)
+    let g2 = green(gc)
+    let b2 = blue(gc)
+    if r2 == 0 {
+      if g2 == 0 {
+        if b2 == 0 {
+          gc = rgb(255, 255, 255)
+        }
+      }
     }
+
+    // Add glitter: SEGLEN/20+1 attempts, each with probability intensity
+    let count = LEN / 20 + 1
+    for j in 0..count {
+      if random(255) <= intensity {
+        pixel(random(LEN), gc)
+      }
+    }
+
     frame()
   }
 }

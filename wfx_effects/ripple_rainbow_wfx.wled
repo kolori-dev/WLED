@@ -1,59 +1,79 @@
-// Ripple Rainbow — Expanding ripples with rainbow colors from color_wheel.
+// Ripple Rainbow — Ripples over slowly drifting rainbow background.
+// C++ original: aux0 drifts toward random aux1 target hue,
+// very dim color_wheel background, then ripple_base on top.
 
 effect "Ripple Rainbow WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Size"
-    palette false
+    slider intensity "Wave #"
+    palette true
   }
 
-  // 6 ripples: center(0-5), radius(6-11), hue(12-17), active(18-23)
-  data ripples[24]
+  // 16 ripples: state, pos, color = 3 each
+  data rip[48]
 
   render {
-    fade(64)
+    // Init random hues
+    if CALL == 0 {
+      aux0 = random(0, 256)
+      aux1 = random(0, 256)
+    }
 
-    let maxRad = intensity / 8 + 4
+    // Drift aux0 toward aux1
+    if aux0 == aux1 {
+      aux1 = random(0, 256)
+    } else {
+      if aux1 > aux0 {
+        aux0 = aux0 + 1
+      } else {
+        aux0 = aux0 - 1
+      }
+    }
 
-    // Spawn new ripples
-    if random(255) < speed / 4 + 4 {
-      for r in 0..6 {
-        if ripples[r + 18] == 0 {
-          ripples[r] = random(LEN)
-          ripples[r + 6] = 0
-          ripples[r + 12] = (NOW / 16) % 256
-          ripples[r + 18] = 1
-          r = 6
+    // Very dim rainbow background (~8% brightness)
+    fill(color_fade(color_wheel(aux0 % 256), 20))
+
+    let maxR = LEN / 4 + 1
+    if maxR > 16 { maxR = 16 }
+
+    for k in 0..maxR {
+      let st = rip[k * 3]
+      if st > 0 {
+        let decay = speed / 16 + 1
+        let origin = rip[k * 3 + 1]
+        let prop = (st / decay - 1) * (speed + 1) / 256
+
+        let amp = 0
+        if st < 17 {
+          amp = tri8((st - 1) * 8)
+        } else {
+          amp = 255 - (st - 17) * 253 / 238
+          if amp < 2 { amp = 2 }
+        }
+
+        let c = color_fade(palette(rip[k * 3 + 2]), amp)
+
+        decay = origin - prop
+        if decay >= 0 and decay < LEN {
+          pixel(decay, blend(get_pixel(decay), c, amp))
+        }
+        decay = origin + prop
+        if decay >= 0 and decay < LEN {
+          pixel(decay, blend(get_pixel(decay), c, amp))
+        }
+
+        st = st + speed / 16 + 1
+        if st > 254 { st = 0 }
+        rip[k * 3] = st
+      } else {
+        if random(0, 15100) <= intensity {
+          rip[k * 3] = 1
+          rip[k * 3 + 1] = random(0, LEN)
+          rip[k * 3 + 2] = random(0, 256)
         }
       }
     }
 
-    // Update and draw ripples
-    for r in 0..6 {
-      if ripples[r + 18] > 0 {
-        let rad = ripples[r + 6]
-        let bri = 255 - rad * 255 / maxRad
-        if bri < 0 {
-          bri = 0
-        }
-        let c = color_fade(color_wheel(ripples[r + 12]), bri)
-        let p = ripples[r] + rad
-        if p >= 0 and p < LEN {
-          pixel(p, c)
-        }
-        p = ripples[r] - rad
-        if p >= 0 and p < LEN {
-          pixel(p, c)
-        }
-
-        rad = rad + 1
-        ripples[r + 6] = rad
-        if rad >= maxRad {
-          ripples[r + 18] = 0
-        }
-      }
-    }
-
-    frame()
+    frame(16)
   }
 }

@@ -1,34 +1,52 @@
-// Ocean Waves — Deep blue swells with white foam at the crests.
-// Two overlapping sine waves create organic rolling motion.
-// When the combined wave peaks above a threshold, foam appears.
+// Ocean (Pacifica) — Multi-layer ocean wave simulation.
+// C++ original: 4 wave layers at different speeds and scales, blended
+// together. Each layer uses sine waves with palette color lookups.
+// Extra deepening from edges. Uses Ocean palette (pal=51).
+// Speed controls animation rate, intensity controls wave angle.
 
 effect "Ocean WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Foam"
+    slider intensity "Angle"
+    palette true
   }
 
   render {
-    let t = NOW * speed / 1024
+    // Speed factor for time bases
+    let sp = speed / 4 + 1
+
+    // Intensity affects wave scale/angle
+    let sc = intensity / 4 + 4
 
     for i in 0..LEN {
       let pos = i * 256 / LEN
 
-      // Two overlapping waves at different frequencies
-      let w1 = sin8(pos * 3 + t)
-      let w2 = sin8(pos * 2 + t / 2 + 100)
-      let wave = (w1 + w2) / 2
+      // Layer 1: primary wave
+      let t1 = NOW * sp / 128
+      let v = sin8(pos * sc / 8 + t1)
 
-      // Deep blue base, brighter at peaks
-      let b = wave / 2 + 128
-      let g = wave / 4
+      // Layer 2: secondary wave at different frequency
+      t1 = NOW * (sp / 2 + 1) / 256
+      v = v / 4 + sin8(pos * sc / 6 + t1 + 64) / 4
 
-      // White foam at crests
-      if wave > 255 - intensity {
-        pixel(i, rgb(200, 230, 255))
-      } else {
-        pixel(i, rgb(0, g, b))
+      // Layer 3: tertiary wave
+      t1 = NOW * (sp * 2 / 3 + 1) / 192
+      v = v + cos8(pos * sc / 10 + t1) / 4
+
+      // Layer 4: slow background undulation
+      t1 = NOW * (sp / 3 + 1) / 384
+      v = v + sin8(pos * sc / 12 + t1 + 128) / 4
+
+      // Deepening from edges
+      let ed = i
+      if i > LEN / 2 {
+        ed = LEN - 1 - i
       }
+      ed = ed * 255 / (LEN / 2 + 1)
+      if ed > 255 { ed = 255 }
+
+      let bri = qadd8(scale8(v, ed), 64)
+      pixel(i, color_fade(palette(v), bri))
     }
 
     frame()

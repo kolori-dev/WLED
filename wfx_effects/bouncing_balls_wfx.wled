@@ -1,86 +1,70 @@
-// Bouncing Balls — Simulates 3 balls with gravity bouncing off the bottom.
-// Ball heights and velocities are stored in a data buffer.
-// speed controls ball speed, intensity controls gravity strength.
+// Bouncing Balls — Physics simulation with parabolic trajectories.
+// C++ original: height = 0.5*gravity*t^2 + velocity*t, with damping per ball.
+// Intensity controls number of balls (1-16), speed controls time scale.
+// Uses real physics with per-ball impact velocity and damping.
 
 effect "Bouncing Balls WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Gravity"
+    slider speed "Gravity"
+    slider intensity "# of balls"
     palette true
   }
 
-  // Layout: 0-2 = height (0-255 mapped to strip), 3-5 = velocity
-  data balls[8]
+  // 16 balls max, 2 bytes each: height(0-255), velocity(0-255)
+  data balls[32]
 
   render {
-    // Initialize on first call
-    if step_val == 0 {
-      balls[0] = 255
-      balls[1] = 200
-      balls[2] = 150
-      balls[3] = 0
-      balls[4] = 0
-      balls[5] = 0
-      step_val = 1
-    }
+    let numBalls = intensity * 15 / 255 + 1
+    if numBalls > 16 { numBalls = 16 }
 
-    fade(64)
+    fill(color1)
 
-    let grav = intensity / 32 + 1
+    for i in 0..numBalls {
+      let d = i * 2
+      let h = balls[d]
+      let v = balls[d + 1]
 
-    for b in 0..3 {
-      // Read height and velocity
-      let h = balls[b]
-      let v = balls[b + 3]
+      if CALL == 0 {
+        h = 0
+        v = random(190, 240)
+      }
 
-      // Apply velocity (velocity is signed via offset: 128 = zero)
+      // Apply velocity (signed: 128 = zero)
       let sv = v - 128
       h = h + sv
 
-      // Apply gravity (pull downward)
-      v = v - grav
-      if v < 0 {
-        v = 0
-      }
+      // Apply gravity (reuse sv)
+      sv = (255 - speed) / 64 + 1
+      v = v - sv
 
       // Bounce off bottom
       if h <= 0 {
         h = 0
+        // Damping factor (reuse sv)
+        sv = 230 - i * 255 / (numBalls * numBalls)
+        if sv < 50 { sv = 50 }
         // Reverse velocity with damping
-        let bounce = 128 + (128 - v)
-        if bounce > 250 {
-          bounce = 250
-        }
-        v = bounce
-        // Give it a random kick if nearly stopped
-        if v < 135 {
-          v = random(180, 250)
+        let nv = (128 - v) * sv / 256
+        v = 128 + nv
+        if nv < 5 {
+          v = random(190, 240)
         }
       }
 
-      // Clamp height
-      if h > 255 {
-        h = 255
-      }
+      if h > 255 { h = 255 }
+      if v < 0 { v = 0 }
+      if v > 255 { v = 255 }
 
-      balls[b] = h
-      balls[b + 3] = v
+      balls[d] = h
+      balls[d + 1] = v
 
       // Map height to pixel position
-      let pos = h * LEN / 256
-      if pos >= LEN {
-        pos = LEN - 1
-      }
+      sv = h * (LEN - 1) / 255
+      if sv >= LEN { sv = LEN - 1 }
+      if sv < 0 { sv = 0 }
 
-      let c = palette(b * 85)
-      pixel(pos, c)
-      // Add glow around ball
-      if pos > 0 {
-        pixel(pos - 1, color_fade(c, 100))
-      }
-      if pos < LEN - 1 {
-        pixel(pos + 1, color_fade(c, 100))
-      }
+      d = i * 256 / numBalls
+      pixel(sv, color_wheel(d))
     }
 
     frame()

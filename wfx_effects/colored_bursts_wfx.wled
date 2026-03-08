@@ -1,68 +1,41 @@
-// Colored Bursts — Random bursts of colored lines radiating outward
-// from random points on the 2D matrix. Lines expand in all directions
-// from burst centers, creating a starburst effect.
+// Colored Bursts — Lines drawn between beatsin8 endpoints.
+// C++ original: mode_2DColoredBursts() by ldirko.
+// Metadata: "Colored Bursts@Speed,# of lines,,,Blur,Gradient,Smear,Dots;;!;2;c3=16"
 
-effect "Colored Bursts 2D WFX" {
+effect "Colored Bursts WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Frequency"
+    slider intensity "# of lines"
+    slider custom3 "Blur"
     type 2D
     palette true
   }
 
-  // 6 burst slots: x, y, radius, color index
-  data bx[6]
-  data by[6]
-  data br[6]
-  data bc[6]
-
   render {
-    fade(210)
+    aux0 = aux0 + 1
+    fade(215)
 
-    // Spawn new bursts
-    let chance = intensity / 16 + 4
-    if random(255) < chance {
-      for i in 0..6 {
-        if br[i] == 0 {
-          bx[i] = random(WIDTH)
-          by[i] = random(HEIGHT)
-          br[i] = 1
-          bc[i] = random(255)
-          i = 6
-        }
-      }
+    let num = intensity / 16 + 1
+    let bpm = speed / 16
+
+    for i in 0..num {
+      let v = NOW * (2 + bpm) / 1000 + i * 24
+      let x1 = sin8(v) * (WIDTH - 1) / 255
+      v = NOW * (5 + bpm) / 1000 + i * 24
+      let y1 = sin8(v) * (WIDTH - 1) / 255
+      v = NOW * (1 + bpm) / 1000
+      let x2 = sin8(v) * (HEIGHT - 1) / 255
+      v = NOW * (3 + bpm) / 1000 + i * 48 + 64
+      let y2 = sin8(v) * (HEIGHT - 1) / 255
+
+      v = i * 255 / max(num, 1) + aux0
+      v = palette(v)
+      draw_line(x1, x2, y1, y2, v)
     }
 
-    // Draw and expand active bursts
-    for i in 0..6 {
-      if br[i] > 0 {
-        let x = bx[i]
-        let y = by[i]
-        let r = br[i]
-        let col = palette(bc[i])
-        let faded = color_fade(col, 255 - r * 10)
-
-        // Draw radiating lines in 8 directions
-        draw_line(x, y, x + r, y, faded)
-        draw_line(x, y, x - r, y, faded)
-        draw_line(x, y, x, y + r, faded)
-        draw_line(x, y, x, y - r, faded)
-        draw_line(x, y, x + r, y + r, faded)
-        draw_line(x, y, x - r, y - r, faded)
-        draw_line(x, y, x + r, y - r, faded)
-        draw_line(x, y, x - r, y + r, faded)
-
-        // Expand
-        let grow = speed / 128 + 1
-        br[i] = r + grow
-
-        // Expire when too large
-        let maxr = WIDTH + HEIGHT
-        maxr = maxr / 2
-        if br[i] > maxr {
-          br[i] = 0
-        }
-      }
+    let ba = custom3 / 2
+    if ba > 0 {
+      blur2d(ba)
     }
 
     frame()

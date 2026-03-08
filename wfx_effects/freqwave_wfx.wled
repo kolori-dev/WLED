@@ -1,24 +1,72 @@
-// Freqwave — Frequency-driven scrolling wave with palette.
+// Freqwave — Frequency-colored pixels expanding outward from center.
+// C++ original: mode_freqwave() by Andreas Pleschung
+// Metadata: "Freqwave@Speed,Sound effect,Low bin,High bin,Pre-amp;;;01f"
 
 effect "Freqwave WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Scale"
-    type 1D
+    slider intensity "Sound effect"
+    slider custom1 "Low bin"
+    slider custom2 "High bin"
+    slider custom3 "Pre-amp"
     palette true
     audio_reactive true
   }
 
   render {
-    step_val = step_val + volume / 4
+    // Speed-timed update
+    let tick = NOW / max(256 - speed, 1)
+    let hand = (tick / 4) % 16
+    if aux0 != hand {
+      aux0 = hand
 
-    for i in 0..LEN {
-      let pos = i * 16 / max(LEN, 1)
-      let val = fft(pos)
-      val = val * intensity / 128
-      if val > 255 { val = 255 }
-      pos = palette(i * 255 / LEN + step_val)
-      pixel(i, color_fade(pos, val))
+      // Pre-amp from custom3 (0-31 -> 1-10)
+      let sens = custom3 / 3 + 1
+      if sens > 10 { sens = 10 }
+
+      // Brightness from volume
+      let bri = volume * intensity * sens / 256
+      if bri > 255 { bri = 255 }
+
+      // Find dominant FFT bin
+      let maxBin = 0
+      tick = 0
+      for b in 0..16 {
+        hand = fft(b)
+        if hand > tick {
+          tick = hand
+          maxBin = b
+        }
+      }
+
+      // Map dominant bin to hue using custom1/custom2
+      sens = 0
+      if tick > 16 {
+        if custom1 != custom2 {
+          sens = (maxBin - custom1) * 255 / max(custom2 - custom1, 1)
+        } else {
+          sens = maxBin * 16
+        }
+      }
+
+      // Color from hue, faded by brightness
+      if tick < 8 { bri = 0 }
+      let c = color_fade(color_wheel(sens), bri)
+
+      // Set center pixel
+      let half = LEN / 2
+      pixel(half, c)
+
+      // Shift pixels outward from center
+      // Right half: shift right
+      for i in 1..half {
+        sens = LEN - i
+        pixel(sens, get_pixel(sens - 1))
+      }
+      // Left half: shift left
+      for i in 0..half {
+        pixel(i, get_pixel(i + 1))
+      }
     }
 
     frame()

@@ -1,36 +1,28 @@
-// Phased — Phase-shifted sine waves creating interference patterns with palette colors.
-// Multiple sine waves with progressive phase offsets per pixel create
-// beautiful constructive and destructive interference.
+// Phased — Phase-shifted sine waves creating interference. By Andrew Tuline.
+// C++ original: cubicwave8 with modulated phase per pixel (modVal=5 fixed),
+// cutoff from intensity, blend palette with SEGCOLOR(1). Phase via step_val.
 
 effect "Phased WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Phase Shift"
+    slider intensity "Cutoff"
     palette true
   }
 
   render {
-    let t = NOW * speed / 512
+    let cutoff = 255 - intensity
+    step_val = step_val + speed / 16
+    let idx = NOW / 64 % 256
 
     for i in 0..LEN {
-      let pos = i * 256 / LEN
-
-      // Three sine waves with progressive phase offsets
-      let phase = i * intensity / LEN
-      let w1 = sin8(t + phase)
-      let w2 = sin8(t * 2 + phase * 2 + 85)
-      let w3 = sin8(t / 2 + phase * 3 + 170)
-
-      // Combine for color index
-      let idx = (w1 + w2) / 2
-
-      // Brightness from interference
-      let bri = abs(w1 - 128) + abs(w3 - 128)
-      if bri > 255 { bri = 255 }
-
-      pixel(i, color_fade(palette(idx), bri))
+      let val = (i + 1) * 16 + step_val * (i % 5 + 1) / 2
+      let bri = quad8(tri8(val))
+      bri = bri - cutoff
+      if bri < 0 { bri = 0 }
+      pixel(i, blend(color1, palette(idx), bri))
+      idx = idx + 256 / LEN
     }
 
-    frame()
+    frame(16)
   }
 }

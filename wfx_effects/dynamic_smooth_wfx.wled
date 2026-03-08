@@ -1,55 +1,48 @@
-// Dynamic Smooth — Like dynamic but changes happen smoothly with fading between colors.
-// Each pixel has a current and target hue, and smoothly fades between them.
-// Speed controls transition speed, intensity controls how often new targets are chosen.
+// Dynamic Smooth — Randomly changes per-pixel color targets, smoothly blends toward them.
+// C++ original: cycleTime = 50 + (255-speed)*15. Each cycle, random pixels get new targets.
+// Each frame: blendPixelColor(i, color_wheel(data[i]), 16) — blends by 16/255 toward target.
 
 effect "Dynamic Smooth WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Change Rate"
+    slider intensity "Change rate"
+    palette false
   }
 
-  data current[256]
-  data target[256]
+  data targets[256]
 
   render {
     // Initialize on first call
-    if step_val == 0 {
+    if CALL == 0 {
       for i in 0..LEN {
-        let h = random(255)
-        current[i] = h
-        target[i] = h
+        targets[i] = random(255)
       }
-      step_val = 1
+      step_val = NOW
     }
 
-    // Randomly assign new targets
-    let changes = intensity / 16 + 1
-    for j in 0..changes {
-      let pos = random(LEN)
-      target[pos] = random(255)
+    // C++: cycleTime = 50 + (255 - speed) * 15
+    let cycleTime = 50 + (255 - speed) * 15
+    let it = NOW / cycleTime
+
+    // Check if we're in a new time step
+    if it != aux0 {
+      if speed > 0 {
+        for i in 0..LEN {
+          if random(255) <= intensity {
+            targets[i] = random(255)
+          }
+        }
+      }
+      aux0 = it
     }
 
-    // Smoothly move current toward target
+    // Smooth blend: each frame blends current pixel toward target by 16/255
     for i in 0..LEN {
-      let cur = current[i]
-      let tgt = target[i]
-
-      if cur < tgt {
-        let diff = tgt - cur
-        let inc = diff / 8 + 1
-        cur = cur + inc
-        if cur > tgt { cur = tgt }
-      } else if cur > tgt {
-        let diff = cur - tgt
-        let inc = diff / 8 + 1
-        cur = cur - inc
-        if cur < tgt { cur = tgt }
-      }
-      current[i] = cur
-
-      pixel(i, color_wheel(cur))
+      let tgt = color_wheel(targets[i])
+      let cur = get_pixel(i)
+      pixel(i, blend(cur, tgt, 16))
     }
 
-    frame()
+    frame(16)
   }
 }

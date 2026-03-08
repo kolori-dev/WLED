@@ -1,15 +1,24 @@
-// Swirl — Rotating spiral pattern with palette colors.
+// Swirl — Audio-reactive rotating spiral on 2D matrix.
+// C++ original: mode_2DSwirl() by Mark Kriegsman.
+// Metadata: "Swirl@!,Sensitivity,Blur;,Bg Swirl;!;2v;ix=64"
 
 effect "Swirl WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Arms"
+    slider intensity "Sensitivity"
+    slider custom1 "Blur"
     type 2D
     palette true
+    audio_reactive true
   }
 
   render {
-    step_val = NOW / 15
+    // Fade
+    fade(240)
+
+    // Audio-modulated swirl speed
+    let vol = volume * intensity / 256
+    let t = NOW * (speed + vol) / 512
 
     for y in 0..HEIGHT {
       for x in 0..WIDTH {
@@ -17,15 +26,19 @@ effect "Swirl WFX" {
         let dy = y - HEIGHT / 2
         let dist = abs(dx) + abs(dy) + 1
         dx = noise2(dx * 32 + 128, dy * 32 + 128)
-        dy = intensity / 32 + 2
-        dy = dx + dist * dy - step_val
+        dy = 4
+        dy = dx + dist * dy - t
         dx = palette(dy)
         dy = min(dist * 24, 255)
         pixel2d(x, y, color_fade(dx, dy))
       }
     }
 
-    blur2d(16)
+    let ba = custom1
+    if ba > 0 {
+      blur2d(ba)
+    }
+
     frame()
   }
 }

@@ -1,39 +1,58 @@
-// Sweep — A colored bar sweeps back and forth across the strip.
-// Uses color0 and color1 for the bar and background.
-// Width is controlled by the intensity slider.
+// Sweep — Wipes palette forward, then wipes color1 backward (reversed direction).
+// C++ original: color_wipe(rev=true, useRandomColors=false).
+// cycleTime = 750 + (255-speed)*150. Edge pixel has sub-pixel blend via intensity.
 
 effect "Sweep WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Width"
+    slider intensity "Smoothness"
     palette true
   }
 
   render {
-    let width = max(intensity / 16, 2)
-    let cycle = (NOW * speed / 512) % (LEN * 2)
-    let pos = cycle
-
-    // Bounce: reverse direction in second half
-    if pos >= LEN {
-      pos = LEN * 2 - pos - 1
+    let cycleTime = 750 + (255 - speed) * 150
+    let perc = NOW % cycleTime
+    let prog = perc * 65535 / cycleTime
+    let back = 0
+    if prog > 32767 {
+      back = 1
+      prog = prog - 32767
     }
 
-    fade(192)
+    let ledIndex = prog * LEN / 32768
 
-    for j in 0..width {
-      let idx = pos + j
-      if idx >= 0 and idx < LEN {
-        // First half palette-colored, second half uses color1
-        let half = width / 2
-        if j < half {
-          pixel(idx, palette(j * 255 / width))
+    // Sweep reverses direction on back pass (rev=true)
+    for i in 0..LEN {
+      let index = i
+      if back {
+        index = LEN - 1 - i
+      }
+      let col0 = palette(index * 255 / LEN)
+      if i < ledIndex {
+        if back {
+          pixel(index, color1)
         } else {
-          pixel(idx, color1)
+          pixel(index, col0)
+        }
+      } else {
+        if back {
+          pixel(index, col0)
+        } else {
+          pixel(index, color1)
+        }
+        if i == ledIndex {
+          // Edge blend at transition point
+          let rem = prog * LEN * 2 / (intensity + 1)
+          if rem > 255 { rem = 255 }
+          if back {
+            pixel(index, blend(col0, color1, rem))
+          } else {
+            pixel(index, blend(color1, col0, rem))
+          }
         }
       }
     }
 
-    frame()
+    frame(16)
   }
 }

@@ -1,51 +1,43 @@
-// Two Dots — Two dots bouncing from opposite ends, meeting in the
-// middle. One dot starts from position 0 moving right, the other
-// starts from the end moving left. They bounce when they reach
-// the edges.
+// Two Dots — Two colored dots chase around the strip, 180 degrees apart.
+// C++ original: width = SEGLEN*(intensity+1)/512, offset from timed counter.
+// Background = color2. Two dots of color0 and color1.
 
 effect "Two Dots WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Trail"
-    palette true
+    slider intensity "Dot size"
+    palette false
   }
 
   render {
-    fade(intensity)
+    // C++: delay = 1 + (FRAMETIME<<3) / SEGLEN; it = now / map(speed, 0, 255, delay<<4, delay)
+    // Simplified timing: faster speed = faster chase
+    let divisor = 1 + 128 / LEN
+    divisor = divisor * 16 + speed * (divisor - divisor * 16) / 255
+    if divisor < 1 { divisor = 1 }
+    let offset = NOW / divisor % LEN
 
-    let cycle = (NOW * speed / 512) % (LEN * 2)
+    let width = LEN * (intensity + 1) / 512
+    if width < 1 { width = 1 }
 
-    // Dot 1: bounces from left
-    let pos1 = cycle
-    if pos1 >= LEN {
-      pos1 = LEN * 2 - pos1 - 1
+    // Fill background with color2
+    fill(color2)
+
+    // Store offset in aux0 so we can reuse registers
+    aux0 = offset
+
+    // Draw dot 1 at offset with color0
+    for i in 0..width {
+      let idx = (aux0 + i) % LEN
+      pixel(idx, color0)
     }
 
-    // Dot 2: bounces from right (opposite phase)
-    let pos2 = LEN - 1 - pos1
-
-    // Draw dot 1 with color0
-    pixel(pos1, color0)
-    if pos1 > 0 {
-      let p = pos1 - 1
-      pixel(p, color_fade(color0, 96))
-    }
-    if pos1 < LEN - 1 {
-      let p = pos1 + 1
-      pixel(p, color_fade(color0, 96))
+    // Draw dot 2 at offset + SEGLEN/2 with color1
+    for i in 0..width {
+      let idx = (aux0 + i + LEN / 2) % LEN
+      pixel(idx, color1)
     }
 
-    // Draw dot 2 with color1
-    pixel(pos2, color1)
-    if pos2 > 0 {
-      let p = pos2 - 1
-      pixel(p, color_fade(color1, 96))
-    }
-    if pos2 < LEN - 1 {
-      let p = pos2 + 1
-      pixel(p, color_fade(color1, 96))
-    }
-
-    frame()
+    frame(16)
   }
 }

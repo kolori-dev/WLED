@@ -1,4 +1,6 @@
-// Polar Lights — Aurora borealis effect using noise and palette.
+// Polar Lights — Aurora borealis effect using Perlin noise.
+// C++ original: mode_2DPolarLights() by Kostyantyn Matviyevskyy.
+// Metadata: "Polar Lights@!,Scale,,,,Flip Palette;;!;2;pal=71"
 
 effect "Polar Lights WFX" {
   meta {
@@ -9,19 +11,39 @@ effect "Polar Lights WFX" {
   }
 
   render {
-    step_val = NOW / 30
+    if CALL == 0 {
+      fill(0)
+      step_val = 0
+    }
 
-    for y in 0..HEIGHT {
-      for x in 0..WIDTH {
-        let sc = intensity / 12 + 6
-        let nx = x * sc + step_val
-        let val = noise2(nx, y * sc / 2)
-        let bri = val * (HEIGHT - y) / HEIGHT
-        pixel2d(x, y, color_fade(palette(val), bri))
+    // adjustHeight and scale stored in aux0/aux1
+    aux0 = 28 - (HEIGHT - 8) * 16 / 24
+    if aux0 < 12 { aux0 = 12 }
+    if aux0 > 28 { aux0 = 28 }
+
+    aux1 = 310 - (WIDTH - 8) * 247 / 56
+    if aux1 < 63 { aux1 = 63 }
+    let sc = 30 + intensity * (aux1 - 30) / 255
+
+    // _speed for noise evolution
+    let spd = 128 - speed * 112 / 255
+    if spd < 16 { spd = 16 }
+
+    for x in 0..WIDTH {
+      for y in 0..HEIGHT {
+        step_val = step_val + 1
+        let nx = (step_val % 2) + x * sc
+        let pidx = noise2(nx, y * 16 + step_val % 16)
+
+        // Subtract distance from center row
+        nx = abs(HEIGHT / 2 - y) * aux0
+        pidx = pidx - nx
+        if pidx < 0 { pidx = 0 }
+
+        pixel2d(x, y, color_fade(palette(pidx), pidx))
       }
     }
 
-    blur2d(intensity / 8 + 20)
     frame()
   }
 }

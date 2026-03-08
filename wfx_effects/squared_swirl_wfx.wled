@@ -1,27 +1,43 @@
-// Squared Swirl — Rotating colorful squares using noise and palette.
+// Squared Swirl — Three dots tracing beatsin8 paths, building pattern.
+// C++ original: mode_2Dsquaredswirl() by Mark Kriegsman.
+// Metadata: "Squared Swirl@,Fade,,,Blur;;!;2"
 
 effect "Squared Swirl WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Scale"
+    slider intensity "Fade"
+    slider custom3 "Blur"
     type 2D
     palette true
   }
 
   render {
-    let t = NOW / 20
-    let sc = intensity / 16 + 4
+    let fb = 1 + intensity / 5
+    fade(255 - fb)
 
-    for y in 0..HEIGHT {
-      for x in 0..WIDTH {
-        let dist = abs(x - WIDTH / 2) + abs(y - HEIGHT / 2)
-        let n = noise2(x * sc + t, y * sc + t)
-        let idx = (n + dist * 4 + t / 2) % 256
-        pixel2d(x, y, palette(idx))
-      }
+    fb = custom3 / 2
+    if fb > 0 {
+      blur2d(fb)
     }
 
-    blur2d(intensity / 8 + 16)
+    // 3 x-coords, 3 y-coords via beatsin8
+    let px = beat8(19, 2, WIDTH - 3)
+    let py = beat8(18, 2, HEIGHT - 3)
+    let prev = get_pixel2d(px, py)
+    let c = palette(NOW / 29)
+    pixel2d(px, py, color_add(prev, c))
+
+    px = beat8(22, 2, WIDTH - 3)
+    py = beat8(15, 2, HEIGHT - 3)
+    prev = get_pixel2d(px, py)
+    c = palette(NOW / 41)
+    pixel2d(px, py, color_add(prev, c))
+
+    px = beat8(17, 2, WIDTH - 3)
+    py = beat8(20, 2, HEIGHT - 3)
+    prev = get_pixel2d(px, py)
+    c = palette(NOW / 73)
+    pixel2d(px, py, color_add(prev, c))
+
     frame()
   }
 }

@@ -1,30 +1,67 @@
-// Aurora Borealis — Northern lights curtains drifting across the strip.
-// Two sine waves set the palette color, a third creates dark gaps
-// between bright curtains by squaring the brightness.
+// Aurora — Northern lights simulation with drifting wave objects.
+// C++ original: uses AuroraWave structs with position, width, and color
+// index that drift, overlap, and create curtain-like patterns.
+// Intensity controls number of waves (2-8). Each wave drifts independently
+// with palette-colored glow that overlaps additively.
 
 effect "Aurora WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Curtain Width"
+    slider intensity "# of waves"
     palette true
   }
 
   render {
-    let t = NOW * speed / 1024
+    // Number of waves: 2 + intensity/32 (2..6)
+    step_val = 2 + intensity / 32
+    if step_val > 6 { step_val = 6 }
+
+    // Wave positions via beat8 (each at different BPM)
+    let p0 = beat8(speed / 4 + 2, 0, LEN - 1)
+    let p1 = beat8(speed / 4 + 3, 0, LEN - 1)
+    let p2 = beat8(speed / 4 + 4, 0, LEN - 1)
+
+    // Wave widths via beat8
+    let w0 = beat8(speed / 4 + 4, 10, 40)
+    let w1 = beat8(speed / 4 + 5, 8, 35)
+
+    // Palette hue drift
+    aux0 = beat8(2, 0, 255)
 
     for i in 0..LEN {
-      let pos = i * 256 / LEN
+      let total = 0
 
-      // Two drifting waves determine palette hue
-      let w1 = sin8(pos * 2 + t)
-      let w2 = sin8(pos + t / 3 + 64)
-      let idx = (w1 + w2) / 2
+      // Wave 0
+      let d = abs(i - p0)
+      if d < w0 {
+        let b = (w0 - d) * 255 / w0
+        total = total + b * b / 255
+      }
 
-      // Brightness from a third wave — squared for sharp curtain edges
-      let bri = sin8(pos * intensity / 64 + t / 2)
-      bri = bri * bri / 255
+      // Wave 1
+      d = abs(i - p1)
+      if d < w1 {
+        let b = (w1 - d) * 255 / w1
+        total = total + b * b / 255
+      }
 
-      pixel(i, color_fade(palette(idx), bri))
+      // Wave 2 (if enabled)
+      if step_val > 2 {
+        d = abs(i - p2)
+        if d < 20 {
+          let b = (20 - d) * 255 / 20
+          total = total + b * b / 255
+        }
+      }
+
+      if total > 255 { total = 255 }
+
+      if total > 0 {
+        let c = palette((aux0 + i * 3) % 256)
+        pixel(i, color_fade(c, total))
+      } else {
+        pixel(i, 0)
+      }
     }
 
     frame()

@@ -1,32 +1,39 @@
 // Popcorn — Kernels pop up to random heights then fall back down.
-// Data buffer stores kernel positions and velocities.
-// speed controls pop frequency, intensity controls kernel count.
+// C++ original: gravity = -0.0125*(speed+2), launch velocity = random 0.5-1.0
+// numPopcorn = min(21, max(1, 2+(SEGLEN>>3))), launch if random8() < intensity/16+1
+// Background = SEGCOLOR(1), kernel color from palette or color_wheel
 
 effect "Popcorn WFX" {
   meta {
-    slider speed "Pop Rate"
-    slider intensity "Kernels"
+    slider speed "!"
+    slider intensity "!"
     palette true
   }
 
-  // Layout: 0-7 = height (0=ground), 8-15 = velocity (offset by 128)
-  // 16-23 = hue per kernel
-  data kernels[32]
+  // Up to 8 kernels, 3 bytes each: height(0-255), velocity(0-255 offset 128), hue
+  // Layout: 0-7 = height, 8-15 = velocity, 16-23 = hue/color index
+  data kernels[24]
 
   render {
-    fade(64)
+    // Background is SEGCOLOR(1)
+    fill(color1)
 
-    let maxK = intensity / 32 + 2
-    if maxK > 8 {
-      maxK = 8
-    }
+    // Number of kernels: min(8, max(1, 2 + LEN/8))
+    let maxK = 2 + LEN / 8
+    if maxK > 8 { maxK = 8 }
+    if maxK < 1 { maxK = 1 }
 
-    // Pop new kernels
-    if random(255) < speed / 2 + 4 {
+    // Gravity: higher speed = less gravity (faster pops, higher jumps)
+    // C++ gravity = -0.0125 * (speed+2), scaled to byte: ~1-4
+    let grav = (257 - speed) / 64 + 1
+
+    // Try to launch new kernels
+    if random(255) < intensity / 16 + 1 {
       for k in 0..maxK {
         if kernels[k] == 0 and kernels[k + 8] <= 128 {
-          // Launch upward with random velocity
-          kernels[k + 8] = random(160, 240)
+          // Launch with random upward velocity
+          // C++ launch vel = 0.5-1.0, scaled: 128 + 64..128 = 192..255
+          kernels[k + 8] = random(192, 255)
           kernels[k + 16] = random(255)
           k = maxK
         }
@@ -36,16 +43,14 @@ effect "Popcorn WFX" {
     for k in 0..maxK {
       let h = kernels[k]
       let v = kernels[k + 8]
-      let sv = v - 128
 
-      // Apply velocity
+      // Apply velocity (signed around 128)
+      let sv = v - 128
       h = h + sv
 
       // Apply gravity
-      v = v - 3
-      if v < 0 {
-        v = 0
-      }
+      v = v - grav
+      if v < 0 { v = 0 }
 
       // Hit ground
       if h <= 0 {
@@ -53,10 +58,7 @@ effect "Popcorn WFX" {
         v = 128
       }
 
-      // Clamp
-      if h > 255 {
-        h = 255
-      }
+      if h > 255 { h = 255 }
 
       kernels[k] = h
       kernels[k + 8] = v
@@ -64,9 +66,8 @@ effect "Popcorn WFX" {
       // Draw kernel
       if h > 0 {
         let pos = h * (LEN - 1) / 255
-        if pos >= LEN {
-          pos = LEN - 1
-        }
+        if pos >= LEN { pos = LEN - 1 }
+        // C++: uses SEGCOLOR(0) or palette or random color_wheel
         pixel(pos, palette(kernels[k + 16]))
       }
     }

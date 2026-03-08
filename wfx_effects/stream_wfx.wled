@@ -1,22 +1,60 @@
-// Stream — Palette colors streaming along the strip in one direction.
-// New colors continuously enter from the first pixel and push older
-// colors down the strip, creating a flowing river of palette hues.
+// Stream — Random colored zones flowing along the strip via PRNG.
+// C++ original: mode_running_random() uses a PRNG to create color zones
+// that scroll. Zone size = ((255-intensity)>>4)+1. Speed controls scroll rate.
+// cycleTime = 25 + 3*(255-speed). Each zone gets a color_wheel color.
 
 effect "Stream WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Color Spread"
+    slider intensity "Zone size"
     palette true
   }
 
-  render {
-    let t = NOW * speed / 512
+  data hue[256]
 
-    for i in 0..LEN {
-      let idx = (t + i * intensity / 4) % 256
-      pixel(i, palette(idx))
+  render {
+    // Initialize data buffer on first call
+    if CALL == 0 {
+      for i in 0..LEN {
+        hue[i] = random(256)
+      }
     }
 
-    frame()
+    // Match C++ cycle time: 25 + 3*(255-speed)
+    let cycleTime = 25 + 3 * (255 - speed)
+    let it = NOW / cycleTime
+
+    // Zone size from intensity: ((255-intensity)>>4)+1 = 1..16
+    let zoneSize = (255 - intensity) / 16 + 1
+
+    // Only shift when iteration changes
+    if it != step_val {
+      step_val = it
+
+      // Shift all pixels down by 1
+      for i in LEN - 1..0 step -1 {
+        hue[i] = hue[i - 1]
+      }
+
+      // Decide if we need a new zone color at position 0
+      // aux0 tracks position within current zone
+      aux0 = aux0 + 1
+      if aux0 >= zoneSize {
+        // New zone: pick new random hue (ensure contrast)
+        let newHue = random(256)
+        hue[0] = newHue
+        aux0 = 0
+      } else {
+        // Same zone: keep same hue as previous leading pixel
+        hue[0] = hue[1]
+      }
+    }
+
+    // Render using color_wheel for each pixel's stored hue
+    for i in 0..LEN {
+      pixel(i, color_wheel(hue[i]))
+    }
+
+    frame(16)
   }
 }

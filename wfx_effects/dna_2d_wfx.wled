@@ -1,51 +1,54 @@
-// DNA Double Helix — Two sine waves running down the matrix connected
-// by rungs, creating a classic DNA strand visualization.
+// DNA — C++ origin: mode_2Ddna() by ldirko, updated by Preyy, WLED
+// conversion by Andrew Tuline.
+// Metadata: "DNA@Scroll speed,Blur,,,,Smear;;!;2;ix=0"
+// Two sine strands scrolling across columns using sin8 for Y position,
+// palette colored by column index + time offset. Blur controlled by intensity.
 
 effect "DNA 2D WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Twist"
+    slider speed "Scroll speed"
+    slider intensity "Blur"
     type 2D
     palette true
   }
 
   render {
-    let t = NOW * speed / 512
+    // fadeToBlackBy(64)
+    fade(191)
 
-    // Clear
-    fill(0)
+    aux0 = speed / 8
+    if aux0 < 1 { aux0 = 1 }
 
-    let cx = WIDTH / 2
+    for i in 0..WIDTH {
+      // Strand 1: phase offset i*4
+      let phase = NOW * aux0 * 256 / 3822 + i * 4
+      let y = sin8(phase)
+      y = y * (HEIGHT - 1) / 255
 
-    for y in 0..HEIGHT {
-      let phase = y * intensity / 8 + t
-      let s = sin8(phase)
-      let x1 = cx + (s - 128) * WIDTH / 512
+      let bri = sin8(NOW / 50 + i * 10)
+      bri = 55 + bri * 200 / 255
 
-      // Draw strand 1
-      if x1 >= 0 and x1 < WIDTH {
-        let c = palette(y * 255 / HEIGHT + t)
-        pixel2d(x1, y, c)
-      }
+      step_val = i * 5 + NOW / 17
+      let c = palette(step_val)
+      c = color_fade(c, bri)
+      pixel2d(i, y, c)
 
-      // Save strand 1 position for rungs
-      aux0 = x1
+      // Strand 2: same but phase offset +128
+      phase = phase + 128
+      y = sin8(phase)
+      y = y * (HEIGHT - 1) / 255
 
-      // Strand 2 (180 degrees offset) — reuse s and x1
-      s = sin8(phase + 128)
-      x1 = cx + (s - 128) * WIDTH / 512
+      bri = sin8(NOW / 50 + i * 10 + 128)
+      bri = 55 + bri * 200 / 255
 
-      if x1 >= 0 and x1 < WIDTH {
-        let c = palette(y * 255 / HEIGHT + t + 128)
-        pixel2d(x1, y, c)
-      }
+      c = palette(step_val + 128)
+      c = color_fade(c, bri)
+      pixel2d(i, y, c)
+    }
 
-      // Draw rungs between strands every 4 rows
-      if y % 4 == 0 {
-        let c = palette(y * 128 / HEIGHT + t + 64)
-        c = color_fade(c, 128)
-        draw_line(aux0, y, x1, y, c)
-      }
+    aux1 = intensity / 8
+    if aux1 > 0 {
+      blur2d(aux1)
     }
 
     frame()

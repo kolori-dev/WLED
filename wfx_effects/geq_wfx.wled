@@ -1,28 +1,32 @@
-// GEQ — Graphic equalizer visualization on 2D matrix.
+// GEQ — 2D graphic equalizer with FFT visualization.
+// C++ original: mode_2DGEQ()
+// Metadata: "GEQ@Fade speed,Ripple decay,# of bands,,Bin,Color bars;!,,Peaks;!;2f"
 
 effect "GEQ WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Gain"
+    slider speed "Fade speed"
+    slider intensity "Ripple decay"
+    slider custom1 "# of bands"
     type 2D
     palette true
     audio_reactive true
   }
 
   render {
-    fade(intensity / 4 + 8)
+    fade(speed)
 
+    // Use WIDTH as number of bands (simplified)
     for x in 0..WIDTH {
       let bin = x * 16 / max(WIDTH, 1)
       let val = fft(bin)
-      val = val * (intensity + 64) / 128
-      if val > 255 { val = 255 }
-      let h = val * HEIGHT / 256
+      val = val * HEIGHT / 256
+      if val > HEIGHT { val = HEIGHT }
+
       for y in 0..HEIGHT {
         let ry = HEIGHT - 1 - y
-        if ry < h {
-          bin = palette(x * 16 + val)
-          pixel2d(x, y, bin)
+        if ry < val {
+          bin = x * 255 / WIDTH
+          pixel2d(x, y, palette(bin))
         }
       }
     }

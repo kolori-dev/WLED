@@ -1,3 +1,7 @@
+// Chase Color — Two adjacent colored segments chase over a palette background.
+// C++ original: chase(SEGCOLOR(1), SEGCOLOR(2)?SEGCOLOR(2):SEGCOLOR(0), SEGCOLOR(0), true)
+// Background is palette. Two chase segments of color1 and color0.
+
 effect "Chase WFX" {
   meta {
     slider speed "Speed"
@@ -6,14 +10,26 @@ effect "Chase WFX" {
   }
 
   render {
-    let width = max(intensity / 16, 1)
-    let pos = (NOW * speed / 512) % LEN
+    // C++: counter = now * ((speed>>2)+1), position = (counter * SEGLEN) >> 16
+    let counter = NOW * (speed / 4 + 1)
+    let a = counter * LEN / 65536 % LEN
+    let size = 1 + intensity * LEN / 1024
 
-    fill(rgb(0, 0, 0))
+    // Draw palette background
+    for i in 0..LEN {
+      pixel(i, palette(i * 255 / LEN))
+    }
 
-    for j in 0..width {
-      let idx = (pos + j) % LEN
-      pixel(idx, palette(j * 255 / width))
+    // Draw first chase segment (color1) from a to a+size
+    for j in 0..size {
+      let idx = (a + j) % LEN
+      pixel(idx, color1)
+    }
+
+    // Draw second chase segment (color0) from a+size to a+2*size
+    for j in 0..size {
+      let idx = (a + size + j) % LEN
+      pixel(idx, color0)
     }
 
     frame()

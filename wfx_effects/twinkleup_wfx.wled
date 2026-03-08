@@ -1,6 +1,6 @@
-// Twinkle Up — Twinkles that fade UP from dark and then snap off.
-// Pixels gradually brighten from zero, and when they reach peak
-// brightness they instantly turn off.
+// Twinkle Up — Short twinkle with dual controls. By Andrew Tuline.
+// C++ original: Deterministic PRNG (seed 535) each frame, sin8 brightness
+// with time-based phase. Blend SEGCOLOR(1) with palette color.
 
 effect "Twinkle Up WFX" {
   meta {
@@ -9,42 +9,25 @@ effect "Twinkle Up WFX" {
     palette true
   }
 
-  data bright[256]
-
   render {
-    let rate = speed / 16 + 1
+    let prng = 535
 
-    // Seed new twinkles
-    let count = intensity / 32 + 1
-    for j in 0..count {
-      if random(255) < intensity / 4 + 4 {
-        let pos = random(LEN)
-        if bright[pos] == 0 {
-          bright[pos] = 1
-        }
-      }
-    }
-
-    // Update and render each pixel
     for i in 0..LEN {
-      let b = bright[i]
-      if b > 0 {
-        b = b + rate
-        if b >= 255 {
-          // Snap off at peak
-          b = 0
-        }
-        bright[i] = b
-      }
+      // Deterministic random start value
+      prng = (prng * 2053 + 13849) % 65536
+      let bri = sin8(prng % 256 + 16 * NOW / (256 - speed))
 
-      if b > 0 {
-        let c = palette((i * 31) % 256)
-        pixel(i, color_fade(c, b))
-      } else {
-        pixel(i, rgb(0, 0, 0))
-      }
+      // Density check
+      prng = (prng * 2053 + 13849) % 65536
+      if prng % 256 > intensity { bri = 0 }
+
+      // Color from palette with time-varying hue
+      prng = (prng * 2053 + 13849) % 65536
+      let hue = (prng % 256 + NOW / 100) % 256
+
+      pixel(i, blend(color1, palette(hue), bri))
     }
 
-    frame()
+    frame(16)
   }
 }

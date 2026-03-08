@@ -1,5 +1,6 @@
-// Dynamic — Each pixel gets assigned a random color, periodically reshuffled.
-// Speed controls reshuffle rate, intensity controls how many pixels change per frame.
+// Dynamic — Each pixel gets a random color_wheel hue, periodically reshuffled.
+// Speed controls reshuffle rate via time gating, intensity controls how many
+// pixels change per cycle. check1=Smooth enables smooth blending transitions.
 
 effect "Dynamic WFX" {
   meta {
@@ -10,27 +11,43 @@ effect "Dynamic WFX" {
   data colors[256]
 
   render {
-    // On first call, fill buffer with random colors
-    if step_val == 0 {
+    // Initialize: fill with random hues
+    if CALL == 0 {
       for i in 0..LEN {
-        colors[i] = random(255)
+        colors[i] = random(256)
       }
-      step_val = 1
+      step_val = 0
     }
 
-    // Reshuffle some pixels each frame
-    let count = intensity / 8 + 1
-    for j in 0..count {
-      let pos = random(LEN)
-      colors[pos] = random(255)
+    // Time-gated update: cycleTime = 50 + (255 - speed) * 15
+    let cycleTime = 50 + (255 - speed) * 15
+    let it = NOW / cycleTime
+
+    if it != step_val and speed != 0 {
+      // New cycle: randomly change some pixels
+      for i in 0..LEN {
+        if random(255) <= intensity {
+          colors[i] = random(256)
+        }
+      }
+      step_val = it
     }
 
-    // Render all pixels
-    for i in 0..LEN {
-      let hue = colors[i]
-      pixel(i, color_wheel(hue))
+    // Render pixels
+    if check1 == 1 {
+      // Smooth mode: blend toward target color
+      for i in 0..LEN {
+        let target = color_wheel(colors[i])
+        let cur = get_pixel(i)
+        pixel(i, blend(cur, target, 16))
+      }
+    } else {
+      // Normal mode: direct set
+      for i in 0..LEN {
+        pixel(i, color_wheel(colors[i]))
+      }
     }
 
-    frame()
+    frame(16)
   }
 }

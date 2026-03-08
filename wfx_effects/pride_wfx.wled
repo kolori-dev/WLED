@@ -1,38 +1,47 @@
-// Pride 2015 — Flowing rainbow waves with variable brightness and speed.
-// Multiple overlapping sine waves create a shimmering, organic rainbow.
-// Inspired by Mark Kriegsman's Pride2015 for FastLED.
+// Pride 2015 — Ever-changing rainbow waves by Mark Kriegsman.
+// C++ original uses beatsin88 for modulating brightness depth, hue increment,
+// and pseudo-time advancement. Uses persistent sPseudotime and sHue16 state.
+// We approximate beatsin88 with sin8(beat8(...)).
 
 effect "Pride WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Brightness"
-    palette true
+    palette false
   }
 
   render {
-    let t = NOW * speed / 512
+    let bt = beat8(2, 0, 255)
+    let bdepth = 96 + sin8(bt) * 128 / 255
+    bt = beat8(1, 0, 255)
+    let btinc = 6400 + sin8(bt) * 3840 / 255
+    bt = beat8(1, 0, 255)
+    bt = 23 + sin8(bt) * 37 / 255
+    step_val = step_val + (10 + speed) * bt
+    let bth = step_val
+
+    bt = beat8(1, 0, 255)
+    let hinc = 1 + sin8(bt) * 2999 / 255
+
+    bt = beat8(2, 0, 255)
+    bt = 5 + sin8(bt) * 4 / 255
+    aux0 = aux0 + (10 + speed) * bt
+    bt = aux0
 
     for i in 0..LEN {
-      let pos = i * 256 / LEN
+      bt = bt + hinc
+      let h = bt / 256 % 256
 
-      // Multiple sine waves create the flowing hue pattern
-      let hue = pos * 3 + t
-      let w1 = sin8(pos * 5 + t / 2)
-      let w2 = sin8(pos * 7 + t / 3 + 64)
-      let w3 = sin8(pos * 2 + t + 128)
+      bth = bth + btinc
+      let b = sin16(bth / 256) + 32768
+      if b < 0 { b = 0 }
+      b = b * b / 65536
+      b = b * bdepth / 65536
+      b = b + 255 - bdepth
+      if b > 255 { b = 255 }
+      if b < 0 { b = 0 }
 
-      // Combine waves to modulate the hue
-      hue = hue + (w1 - 128) / 4
-      hue = hue + (w2 - 128) / 6
-
-      // Brightness comes from overlapping waves
-      let bri = (w1 + w2 + w3) / 3
-      bri = scale8(bri, intensity)
-      // Ensure minimum brightness
-      bri = bri / 2 + 128
-
-      let idx = hue % 256
-      pixel(i, color_fade(palette(idx), bri))
+      let c = color_wheel(h)
+      pixel(i, color_fade(c, b))
     }
 
     frame()

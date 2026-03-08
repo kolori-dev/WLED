@@ -1,24 +1,35 @@
-// Noisemeter — Audio noise level meter with palette peak.
+// Noisemeter — Volume-driven noise bar. By Andrew Tuline.
 
 effect "Noisemeter WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Sensitivity"
+    slider speed "Fade rate"
+    slider intensity "Width"
     type 1D
     palette true
     audio_reactive true
   }
 
   render {
-    let vol = volume * intensity / 128
-    if vol > 255 { vol = 255 }
-    let c = palette(vol)
+    // fadeRate = map(speed, 0, 255, 200, 254)
+    // = 200 + speed * 54 / 255
+    let fr = 200 + speed * 54 / 255
+    fade(fr)
 
-    for i in 0..LEN {
-      let bri = vol - abs(i * 255 / LEN - vol)
-      if bri < 0 { bri = 0 }
-      pixel(i, color_fade(c, bri))
+    // tmpSound2 = volume * 2 * intensity / 255
+    let ts = volume * 2 * intensity / 255
+
+    // maxLen = map(ts, 0, 255, 0, LEN)
+    let maxl = ts * LEN / 255
+    if maxl < 0 { maxl = 0 }
+    if maxl > LEN { maxl = LEN }
+
+    for i in 0..maxl {
+      let idx = noise2(i * volume + aux0, aux1 + i * volume)
+      pixel(i, palette(idx))
     }
+
+    aux0 = aux0 + beat8(5, 0, 10)
+    aux1 = aux1 + beat8(4, 0, 10)
 
     frame()
   }

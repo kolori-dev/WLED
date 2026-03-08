@@ -1,60 +1,34 @@
-// Puddles — Random "puddles" of color appear and slowly expand then fade.
-// Uses data buffers to track puddle centers and their sizes.
+// Puddles — Volume-driven random splashes. By Andrew Tuline.
 
 effect "Puddles WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Max Size"
+    slider speed "Fade rate"
+    slider intensity "Puddle size"
+    type 1D
     palette true
+    audio_reactive true
   }
 
-  data centers[16]
-  data sizes[16]
-  data hues[16]
-
   render {
-    // Initialize on first frame
-    if step_val == 0 {
-      for i in 0..8 {
-        centers[i] = random(LEN)
-        sizes[i] = 0
-        hues[i] = random(255)
+    // fadeRate = map(speed, 0, 255, 224, 254)
+    let fr = 224 + speed * 30 / 255
+    fade(fr)
+
+    let pos = random(LEN)
+    let sz = 0
+
+    if volume > 1 {
+      // size = volume * intensity / 256 / 8 + 1
+      sz = volume * intensity / 256 / 8 + 1
+      // Clamp so we don't go past end
+      if pos + sz >= LEN {
+        sz = LEN - pos
       }
-      step_val = 1
     }
 
-    fill(0)
-
-    let maxsize = intensity / 8 + 4
-
-    for i in 0..8 {
-      let cx = centers[i]
-      let sz = sizes[i]
-
-      // Grow puddle
-      sz = sz + 1
-      if sz > maxsize {
-        // Reset puddle to new random position
-        centers[i] = random(LEN)
-        hues[i] = random(255)
-        sz = 0
-      }
-      sizes[i] = sz
-
-      // Brightness fades as puddle grows
-      let bri = 255 - sz * 255 / maxsize
-
-      // Draw puddle: fill from center outward
-      for j in 0..sz {
-        let p = cx - j
-        if p >= 0 and p < LEN {
-          pixel(p, color_fade(palette(hues[i]), bri))
-        }
-        p = cx + j
-        if p >= 0 and p < LEN {
-          pixel(p, color_fade(palette(hues[i]), bri))
-        }
-      }
+    for i in 0..sz {
+      let p = pos + i
+      pixel(p, palette(NOW))
     }
 
     frame()

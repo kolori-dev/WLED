@@ -1,79 +1,101 @@
-effect "Sunrise" {
+// Sunrise — Palette-based sunrise/sunset with symmetric rendering.
+// C++ original: speed 0=static, 1-60=sunrise mins, 61-120=sunset,
+// >120=quick breathing mode. Uses triwave16 for breathing and map()
+// for timed sunrise. Renders symmetric from center using palette colors.
+// wave = triwave16((i*stage)/SEGLEN), mapped to palette index.
+// Intensity controls wave width. Default palette = Fire (pal=35).
+
+effect "Sunrise WFX" {
   meta {
-    slider speed "Duration"
-    slider intensity "Brightness"
-    palette false
-    type 1D
+    slider speed "Time [min]"
+    slider intensity "Width"
+    palette true
   }
+
   render {
-    // Sunrise: gradual color temperature transition
-    // speed controls the cycle duration
-    // Use step_val as persistent phase counter (0-255)
-    let phase = step_val
-    // Advance phase slowly based on speed
-    if CALL % (2 + (255 - speed) / 8) == 0 {
-      phase = phase + 1
-      if phase > 255 {
-        phase = 0
-      }
-      step_val = phase
+    // Track speed changes and start time via aux0/step_val
+    // step_val stores the start time (millis)
+    // aux0 stores last known speed value
+    if CALL == 0 {
+      step_val = NOW
+      aux0 = speed
     }
-    // Color stages based on phase:
-    // 0-50: dark to deep red (night to first light)
-    // 50-100: deep red to orange (dawn)
-    // 100-150: orange to yellow (sunrise)
-    // 150-200: yellow to warm white (morning)
-    // 200-255: warm white to bright white (day)
-    for i in 0..LEN {
-      // Add slight gradient across strip
-      let adj = (i * 20) / LEN
-      let p = phase + adj
-      if p > 255 { p = 255 }
-      let r = 0
-      let g = 0
-      let b = 0
-      if p < 50 {
-        // Night to deep red
-        r = p * 3
-        g = 0
-        b = p / 4
-      } else {
-        if p < 100 {
-          // Deep red to orange
-          let t = p - 50
-          r = 150 + t * 2
-          g = t * 2
-          b = 0
-        } else {
-          if p < 150 {
-            // Orange to yellow
-            let t = p - 100
-            r = 255
-            g = 100 + t * 3
-            b = t / 2
-          } else {
-            if p < 200 {
-              // Yellow to warm white
-              let t = p - 150
-              r = 255
-              g = 250
-              b = 25 + t * 4
-            } else {
-              // Warm white to bright white
-              let t = p - 200
-              r = 255
-              g = 250 + t / 20
-              b = 225 + t / 10
-            }
-          }
+    if speed != aux0 {
+      step_val = NOW
+      aux0 = speed
+    }
+
+    // Clear strip
+    fill(rgb(0, 0, 0))
+
+    // Calculate stage (0-65535 progress value)
+    let stage = 65535
+
+    if speed > 120 {
+      // Quick breathing mode: triwave16 of counter
+      // counter = (now >> 1) * (((speed-120)>>1)+1)
+      let rate = (speed - 120) / 2 + 1
+      let counter = (NOW / 2) * rate
+      // triwave16: rise 0-32767, fall 32768-65535
+      // Approximate: use tri8 scaled to 16-bit
+      let phase = counter % 65536
+      // tri8 operates on 0-255, maps to 0-255 triangle
+      // We need triwave16: 0-32767 -> 0-65534, 32768-65535 -> 65534-0
+      let p8 = phase / 256
+      let tw = tri8(p8)
+      stage = tw * 257
+    } else {
+      if speed > 0 {
+        // Timed sunrise/sunset mode
+        let durMins = speed
+        if durMins > 60 {
+          durMins = durMins - 60
+        }
+        // deciseconds since start
+        let elapsed = (NOW - step_val) / 100
+        let target = durMins * 600
+        if elapsed > target {
+          elapsed = target
+        }
+        // map elapsed 0..target to 0..65535
+        if target > 0 {
+          stage = elapsed * 65535 / target
+        }
+        // Sunset mode: reverse
+        if speed > 60 {
+          stage = 65535 - stage
         }
       }
-      // Apply intensity as overall brightness
-      r = scale8(r, intensity)
-      g = scale8(g, intensity)
-      b = scale8(b, intensity)
-      pixel(i, rgb(r, g, b))
     }
-    frame(50)
+
+    // Render symmetric from center
+    let half = LEN / 2 + 1
+    for i in 0..half {
+      // wave = triwave16((i * stage) / SEGLEN)
+      // Approximate with tri8 scaled
+      let waveIn = i * stage / LEN
+      let w8 = (waveIn / 256) % 256
+      let wave = tri8(w8)
+
+      // wave = (wave>>8) + ((wave * intensity) >> 15)
+      // Since our wave is 0-255 (not 0-65535), adjust:
+      // Original shifts 16-bit wave. We scale differently.
+      // wave_out = wave + (wave * intensity) / 255
+      // but cap at 240
+      let waveOut = wave + wave * intensity / 255
+      if waveOut > 240 {
+        waveOut = 240
+      }
+
+      let c = palette(waveOut)
+      pixel(i, c)
+      // Mirror
+      let mirr = LEN - 1 - i
+      if mirr >= 0 {
+        pixel(mirr, c)
+      }
+    }
+
+    frame()
   }
 }

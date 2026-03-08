@@ -1,28 +1,49 @@
-// Blurz — Blurred audio-reactive frequency columns on 2D matrix.
+// Blurz — Audio-reactive: random pixel colored by cycling FFT bins, then blur.
+// C++ original: mode_blurz() by Andrew Tuline
+// Metadata: "Blurz@Fade rate,Blur;!,Color mix;!;1f"
 
 effect "Blurz WFX" {
   meta {
-    slider speed "Speed"
+    slider speed "Fade rate"
     slider intensity "Blur"
-    type 2D
     palette true
     audio_reactive true
   }
 
   render {
-    fade(speed / 8 + 8)
-
-    for x in 0..WIDTH {
-      let bin = x * 16 / max(WIDTH, 1)
-      let val = fft(bin)
-      let h = val * HEIGHT / 256
-      for y in 0..h {
-        bin = palette(val + x * 16)
-        pixel2d(x, HEIGHT - 1 - y, bin)
-      }
+    // Fade with speed-dependent delay: fade every N frames
+    // C++: fadeoutDelay = (256-speed)/32; if fadeoutDelay<=1 or call%fadeoutDelay==0 => fade_out(speed)
+    let dly = (256 - speed) / 32
+    if dly <= 1 or CALL % max(dly, 1) == 0 {
+      fade(speed)
     }
 
-    blur2d(intensity / 4 + 8)
+    // Speed-timed: accumulate step_val, act when threshold reached
+    // C++: SPEED_FORMULA_L ~ 5 + (50*(255-speed))/255
+    let thr = 5 + (50 * (255 - speed)) / 255
+    step_val = step_val + 1
+    if step_val > thr {
+      step_val = 1
+
+      // Pick random pixel, color by current FFT bin
+      let pos = random(LEN)
+      let bin = aux0 % 16
+      let val = fft(bin)
+
+      // Color: palette indexed by 2*val*240/(SEGLEN-1), brightness = 2*val
+      let idx = val * 480 / max(LEN - 1, 1)
+      let bri = val * 2
+      if bri > 255 { bri = 255 }
+      let c = blend(color1, palette(idx), bri)
+      pixel(pos, c)
+
+      // Advance to next FFT bin
+      aux0 = (aux0 + 1) % 16
+
+      // Blur at intensity level
+      blur(intensity)
+    }
+
     frame()
   }
 }

@@ -1,24 +1,31 @@
-// Pixels — Random individual pixels light up with palette colors.
-// Each pixel lasts a short time before fading away. New ones appear
-// at random positions each frame.
+// Pixels — Volume-controlled random pixels with palette colors.
+// C++ original: mode_pixels() by Andrew Tuline.
+// Metadata: "Pixels@Fade rate,# of pixels;!,!;!;1v"
+// Uses stored volume samples for color variation.
 
 effect "Pixels WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Density"
+    slider speed "Fade rate"
+    slider intensity "# of pixels"
     palette true
+    audio_reactive true
   }
 
   render {
-    fade(230)
+    // C++: fade_out(64 + (speed >> 1))
+    fade(64 + speed / 2)
 
-    let count = intensity / 24 + 1
-    for j in 0..count {
-      if random(255) < 80 {
-        let pos = random(LEN)
-        let c = palette(random(255))
-        pixel(pos, c)
-      }
+    // Number of pixels to place: intensity / 8
+    let cnt = intensity / 8
+    let bri = volume
+    if bri > 255 { bri = 255 }
+
+    for i in 0..cnt {
+      let pos = random(LEN)
+      // Color index varies with volume and position
+      let idx = volume + i * 4
+      let c = blend(color1, palette(idx), bri)
+      pixel(pos, c)
     }
 
     frame()

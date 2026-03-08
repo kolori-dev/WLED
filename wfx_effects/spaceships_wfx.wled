@@ -1,56 +1,46 @@
-// Spaceships — Bright dots zooming along the strip at different speeds,
-// like tiny spacecraft streaking through space. Each ship has a short
-// fading trail. Uses data buffer for ship positions.
+// Spaceships — 8 dots bouncing around 2D matrix, shifting in a random direction.
+// C++ original: mode_2Dspaceships() by stepko.
+// Metadata: "Spaceships@!,Blur,,,,Smear;;!;2"
 
 effect "Spaceships WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Ship Count"
+    slider intensity "Blur"
+    type 2D
     palette true
   }
 
-  data pos[32]
-  data spd[32]
-
   render {
-    let count = intensity / 32 + 2
-    if count > 32 {
-      count = 32
+    // Fade trails: map(speed, 0, 255, 248, 16)
+    let fb = 248 - speed * 232 / 255
+    if fb < 16 { fb = 16 }
+    fade(255 - fb)
+
+    // Direction change every ~4 seconds
+    let tb = NOW / 4096
+    if tb > step_val {
+      aux0 = aux0 + random(3) - 1
+      if aux0 > 7 { aux0 = 0 }
+      if aux0 < 0 { aux0 = 7 }
+      step_val = tb + random(4)
     }
 
-    // Initialize ships on first frame
-    if step_val == 0 {
-      for i in 0..count {
-        pos[i] = random(LEN)
-        spd[i] = random(1, 5)
-      }
-      step_val = 1
+    // Shift pixels in direction
+    move_pixels(aux0, 1, 0)
+
+    // 8 dots at beatsin8 positions
+    for i in 0..8 {
+      fb = beat8(12 + i, 2, WIDTH - 3)
+      tb = beat8(15 + i, 2, HEIGHT - 3)
+      let c = palette(beat8(12 + i, 0, 255))
+      let prev = get_pixel2d(fb, tb)
+      pixel2d(fb, tb, color_add(prev, c))
     }
 
-    fade(200)
-
-    // Move and draw each ship
-    for i in 0..count {
-      let p = pos[i]
-      let s = spd[i]
-
-      // Advance position
-      p = p + s
-      if p >= LEN {
-        p = 0
-        spd[i] = random(1, 5)
-      }
-      pos[i] = p
-
-      // Draw bright head
-      pixel(p, palette(i * 255 / count))
-
-      // Draw dim trail pixel behind
-      let trail = p - 1
-      if trail < 0 {
-        trail = LEN - 1
-      }
-      pixel(trail, color_fade(palette(i * 255 / count), 100))
+    // Blur
+    fb = intensity / 8
+    if fb > 0 {
+      blur2d(fb)
     }
 
     frame()

@@ -1,32 +1,57 @@
-// Waterfall — Scrolling audio spectrogram on 2D matrix.
+// Waterfall — Scrolling frequency display, pixels shift left with new FFT color.
+// C++ original: mode_waterfall() by Andrew Tuline.
+// Metadata: "Waterfall@!,Adjust color,Select bin,Volume (min);!,!;!;01f"
+// 1D effect: shifts all pixels left, new pixel at right from FFT_MajorPeak.
 
 effect "Waterfall WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Gain"
-    type 2D
+    slider intensity "Adjust color"
     palette true
     audio_reactive true
   }
 
   render {
-    // Shift rows down (copy from bottom up to avoid overwrites)
-    for y in 1..HEIGHT {
-      let ry = HEIGHT - y
-      for x in 0..WIDTH {
-        let c = get_pixel2d(x, ry - 1)
-        pixel2d(x, ry, c)
-      }
-    }
+    // Speed-timed update
+    // C++: secondHand = micros()/(256-speed)/500 + 1 % 16
+    let tick = NOW / max(256 - speed, 1)
+    let hand = (tick / 4) % 16
+    if aux0 != hand {
+      aux0 = hand
 
-    // Write new top row from FFT data
-    for x in 0..WIDTH {
-      let bin = x * 16 / max(WIDTH, 1)
-      let val = fft(bin)
-      val = val * intensity / 128
-      if val > 255 { val = 255 }
-      bin = palette(val)
-      pixel2d(x, 0, bin)
+      // Find dominant FFT bin
+      let maxVal = 0
+      let maxBin = 0
+      for b in 0..16 {
+        let v = fft(b)
+        if v > maxVal {
+          maxVal = v
+          maxBin = b
+        }
+      }
+
+      // Color from dominant bin position (0-255)
+      let pixCol = maxBin * 255 / 16
+      // Brightness from magnitude
+      let bri = maxVal / 2
+      if bri > 255 { bri = 255 }
+
+      // Last pixel gets new color
+      let k = LEN - 1
+
+      // Flash white-ish on peak
+      let c = 0
+      if peak > 0 {
+        c = color_wheel(92)
+      } else {
+        c = blend(color1, palette(pixCol + intensity), bri)
+      }
+      pixel(k, c)
+
+      // Shift all pixels left
+      for i in 0..k {
+        pixel(i, get_pixel(i + 1))
+      }
     }
 
     frame()

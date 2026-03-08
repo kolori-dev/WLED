@@ -1,5 +1,6 @@
-// Sinelon Rainbow — Sinelon but the dot color is rainbow, changing hue as it moves.
-// speed controls sweep rate, intensity controls trail length.
+// Sinelon Rainbow — Sinelon but the dot color is a rainbow wheel color
+// based on position. Matches mode_sinelon_rainbow.
+// C++: color1 = color_wheel((pos & 0x07) * 32)
 
 effect "Sinelon Rainbow WFX" {
   meta {
@@ -8,19 +9,42 @@ effect "Sinelon Rainbow WFX" {
   }
 
   render {
-    let fadeAmt = 255 - intensity
-    if fadeAmt < 16 {
-      fadeAmt = 16
+    // C++ does fade_out(intensity)
+    fade(intensity)
+
+    let bpm = speed / 10
+    if bpm < 1 {
+      bpm = 1
     }
-    fade(fadeAmt)
+    let pos = beat8(bpm, 0, LEN - 1)
 
-    let t = NOW * speed / 256
-    let wave = sin8(t)
-    let pos = wave * (LEN - 1) / 255
+    if CALL == 0 {
+      aux0 = pos
+    }
 
-    // Hue changes based on position for rainbow effect
-    let hue = pos * 255 / LEN
-    pixel(pos, color_wheel(hue))
+    // C++: color_wheel((pos & 0x07) * 32)
+    let hue = (pos % 8) * 32
+    let c = color_wheel(hue)
+    pixel(pos, c)
+
+    // Fill gaps with same rainbow color logic
+    if aux0 != pos {
+      if aux0 < pos {
+        for i in aux0..pos {
+          let h = (i % 8) * 32
+          pixel(i, color_wheel(h))
+        }
+      } else {
+        let j = pos + 1
+        for i in j..aux0 {
+          let h = (i % 8) * 32
+          pixel(i, color_wheel(h))
+        }
+        let h2 = (aux0 % 8) * 32
+        pixel(aux0, color_wheel(h2))
+      }
+      aux0 = pos
+    }
 
     frame()
   }

@@ -1,34 +1,35 @@
 // Puddlepeak — Peak-triggered puddle splashes at random positions.
+// C++ original: mode_puddles_base(peakdetect=true). By Andrew Tuline.
+// Metadata: "Puddlepeak@Fade rate,Puddle size,Select bin,Volume (min);!,!;!;1v"
 
 effect "Puddlepeak WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Spread"
-    type 1D
+    slider speed "Fade rate"
+    slider intensity "Puddle size"
     palette true
     audio_reactive true
   }
 
   render {
-    fade(speed / 4 + 16)
+    // fadeRate = map(speed, 0, 255, 224, 254)
+    let fr = 224 + speed * 30 / 255
+    fade(fr)
 
+    let pos = random(LEN)
+    let sz = 0
+
+    // Peak-triggered: flash on samplePeak
     if peak > 0 {
-      step_val = step_val + 37
-      let pos = random(LEN)
-      let c = palette(step_val)
-      let bri = volume
-      let w = intensity / 16 + 2
-      for i in 0..w {
-        let p = pos + i
-        let q = pos - i
-        let fb = bri - i * bri / max(w, 1)
-        if p >= 0 and p < LEN {
-          pixel(p, color_fade(c, fb))
-        }
-        if q >= 0 and q < LEN {
-          pixel(q, color_fade(c, fb))
-        }
+      // size = volumeSmth * intensity / 256 / 4 + 1
+      sz = volume * intensity / 256 / 4 + 1
+      if pos + sz >= LEN {
+        sz = LEN - pos
       }
+    }
+
+    for i in 0..sz {
+      let p = pos + i
+      pixel(p, palette(NOW))
     }
 
     frame()

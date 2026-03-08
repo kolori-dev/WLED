@@ -1,18 +1,26 @@
-effect "Rainbow WFX" {
+// Rainbow (Colorloop) — Fills entire segment with one slowly cycling rainbow hue.
+// C++ original: counter = (now * ((speed>>2)+2)) & 0xFFFF >> 8
+// Intensity < 128 blends with white for saturation control.
+
+effect "Colorloop WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Width"
+    slider intensity "Saturation"
     palette false
   }
 
   render {
-    let offset = NOW * speed / 256
+    let counter = NOW * (speed / 4 + 2) / 256
+    let hue = counter % 256
+    let c = color_wheel(hue)
 
-    for i in 0..LEN {
-      let hue = (i * 256 / LEN + offset) % 256
-      pixel(i, color_wheel(hue))
+    // Intensity < 128: blend with white for desaturation
+    if intensity < 128 {
+      let w = rgb(255, 255, 255)
+      c = blend(c, w, 128 - intensity)
     }
 
+    fill(c)
     frame()
   }
 }

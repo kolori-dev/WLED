@@ -1,25 +1,50 @@
-// Freqmap — Frequency bins mapped along the strip with palette.
+// Freqmap — Map dominant FFT frequency to strip position with palette coloring.
+// C++ original: mode_freqmap() by Andrew Tuline
+// Metadata: "Freqmap@Fade rate,Starting color;!,!;!;1f"
 
 effect "Freqmap WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Sensitivity"
-    type 1D
+    slider speed "Fade rate"
+    slider intensity "Starting color"
     palette true
     audio_reactive true
   }
 
   render {
-    fade(speed / 4 + 16)
-
-    for i in 0..LEN {
-      let bin = i * 16 / max(LEN, 1)
-      let val = fft(bin)
-      val = val * intensity / 128
-      if val > 255 { val = 255 }
-      bin = palette(bin * 16)
-      pixel(i, color_fade(bin, val))
+    // Fade with speed-dependent delay
+    // C++: fadeoutDelay = (256-speed)/32
+    let dly = (256 - speed) / 32
+    if dly <= 1 or CALL % max(dly, 1) == 0 {
+      fade(speed)
     }
+
+    // Find dominant FFT bin (approximates FFT_MajorPeak)
+    let maxVal = 0
+    let maxBin = 0
+    for b in 0..16 {
+      let v = fft(b)
+      if v > maxVal {
+        maxVal = v
+        maxBin = b
+      }
+    }
+
+    // Map dominant bin to pixel position along strip
+    // C++ uses log10(FFT_MajorPeak) scaled to SEGLEN
+    // We approximate: bin 0-15 maps linearly to strip position
+    let locn = maxBin * LEN / 16
+    if locn >= LEN { locn = LEN - 1 }
+
+    // Color index from frequency (approximates log10 scaling to 0-255)
+    let pixCol = maxBin * 255 / 16
+
+    // Brightness from magnitude (volume as proxy for my_magnitude)
+    let bright = volume / 4
+    if bright > 255 { bright = 255 }
+
+    // Set pixel: blend color1 with palette color at brightness
+    let c = blend(color1, palette(intensity + pixCol), bright)
+    pixel(locn, c)
 
     frame()
   }

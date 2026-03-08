@@ -1,59 +1,77 @@
-// Candle — Warm flickering candle flame simulation.
+// Candle — Target-seeking brightness with smooth fading.
+// C++ original: One candle for entire strip. Brightness seeks random targets
+// with speed-controlled fade rate. Blends palette with SEGCOLOR(1).
+// aux0=current brightness, aux1=target, step_val=fadeStep.
 
 effect "Candle WFX" {
   meta {
-    slider speed "Flicker Speed"
-    slider intensity "Flicker Intensity"
-    palette false
+    slider speed "Speed"
+    slider intensity "Flicker range"
+    palette true
   }
 
-  data flame[4]
-
   render {
-    let flick = 40 + scale8(intensity, 80)
-    let half = flick / 2
+    // Flicker range from intensity
+    let valrange = intensity
+    let rndval = valrange / 2
 
-    // Update flame levels with random flicker
-    let val = flame[0]
-    if random(255) < 180 {
-      val = val + random(flick) - half
+    // Speed factor: 252+=1 (epilepsy), >99=2, >49=3, else 4
+    let speedFactor = 4
+    if speed > 252 { speedFactor = 1 }
+    if speed > 99 {
+      if speed < 253 { speedFactor = 2 }
     }
-    if val < 80 { val = 80 }
-    if val > 255 { val = 255 }
-    flame[0] = val
-
-    val = flame[1]
-    if random(255) < 160 {
-      val = val + random(flick) - half
-    }
-    if val < 60 { val = 60 }
-    if val > 240 { val = 240 }
-    flame[1] = val
-
-    val = flame[2]
-    if random(255) < 140 {
-      val = val + random(flick) - half
-    }
-    if val < 40 { val = 40 }
-    if val > 200 { val = 200 }
-    flame[2] = val
-
-    val = flame[3]
-    if random(255) < 120 {
-      val = val + random(flick) - half
-    }
-    if val < 20 { val = 20 }
-    if val > 160 { val = 160 }
-    flame[3] = val
-
-    // Render warm candle color
-    for i in 0..LEN {
-      let b = flame[i * 4 / LEN]
-      let g = b * 45 / 100
-      let r2 = b * 8 / 100
-      pixel(i, rgb(b, g, r2))
+    if speed > 49 {
+      if speed < 100 { speedFactor = 3 }
     }
 
-    frame(15 + (255 - speed) / 8)
+    // Init
+    let s = aux0
+    let s_target = aux1
+    let fstep = step_val
+    if fstep == 0 {
+      s = 128
+      s_target = 130 + random(4)
+      fstep = 1
+    }
+
+    // Move toward target
+    let newTarget = 0
+    if s_target > s {
+      s = qadd8(s, fstep)
+      if s >= s_target { newTarget = 1 }
+    } else {
+      s = qsub8(s, fstep)
+      if s <= s_target { newTarget = 1 }
+    }
+
+    // Pick new target when reached
+    if newTarget {
+      s_target = random(rndval) + random(rndval)
+      if s_target < rndval / 2 {
+        s_target = rndval / 2 + random(rndval)
+      }
+      let offset = 255 - valrange
+      s_target = s_target + offset
+
+      let dif = s_target - s
+      if dif < 0 { dif = 0 - dif }
+      fstep = dif / speedFactor
+      if fstep < 1 { fstep = 1 }
+      if fstep > 255 { fstep = 255 }
+    }
+
+    // Store state
+    aux0 = s
+    aux1 = s_target
+    step_val = fstep
+
+    // Render: blend SEGCOLOR(1) with palette at brightness s
+    for j in 0..LEN {
+      let c = palette(j * 255 / LEN)
+      pixel(j, blend(color1, c, s))
+    }
+
+    frame(25)
   }
 }

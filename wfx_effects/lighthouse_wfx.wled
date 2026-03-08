@@ -1,39 +1,43 @@
-// Lighthouse — A bright beam sweeps around the strip like a lighthouse beacon.
-// The beam has a bright center that falls off to darkness, giving the
-// appearance of a rotating light. Speed controls rotation rate,
-// intensity controls beam width.
+// Lighthouse (Comet) — Unidirectional sweep with fading trail.
+// C++ original: counter = (now * ((speed>>2)+1)) & 0xFFFF, index = (counter * SEGLEN) >> 16.
+// fade_out(intensity) controls trail length. Fills gaps between frames.
 
 effect "Lighthouse WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Beam Width"
+    slider intensity "Fade rate"
     palette true
   }
 
   render {
-    let beamW = intensity / 8 + 3
-    let pos = (NOW * speed / 512) % LEN
+    fade(intensity)
 
-    for i in 0..LEN {
-      // Distance from beam center, wrapping around
-      let dist = i - pos
-      if dist < 0 {
-        dist = 0 - dist
-      }
-      // Handle wrap-around distance
-      let wrapDist = LEN - dist
-      if wrapDist < dist {
-        dist = wrapDist
-      }
+    // C++: counter = (now * ((speed>>2)+1)) & 0xFFFF, index = (counter * SEGLEN) >> 16
+    let counter = NOW * (speed / 4 + 1)
+    let index = counter * LEN / 65536 % LEN
 
-      if dist < beamW {
-        // Brightness falls off with distance from center
-        let bri = 255 - dist * 255 / beamW
-        pixel(i, color_fade(palette(i * 255 / LEN), bri))
-      } else {
-        pixel(i, rgb(0, 0, 0))
+    // Fill gap between previous position and current position
+    let prev = aux0
+    if CALL == 0 {
+      prev = index
+    }
+    if index > prev {
+      for i in prev..index + 1 {
+        pixel(i, palette(i * 255 / LEN))
+      }
+    } else {
+      if index < prev {
+        if index < 10 {
+          for i in 0..index + 1 {
+            pixel(i, palette(i * 255 / LEN))
+          }
+        }
       }
     }
+
+    // Draw current head
+    pixel(index, palette(index * 255 / LEN))
+    aux0 = index
 
     frame()
   }

@@ -1,42 +1,76 @@
-// Ripple Peak — Ripples expanding from center triggered by audio peaks.
+// Ripple Peak — Audio peak-triggered ripples expanding from random positions.
+// C++ original: mode_ripplepeak() by Andrew Tuline.
+// Metadata: "Ripple Peak@Fade rate,Max # of ripples,Select bin,Volume (min);!,!;!;1v"
+// Uses samplePeak to trigger new ripples, FFT_MajorPeak for color.
 
 effect "Ripple Peak WFX" {
   meta {
-    slider speed "Speed"
-    slider intensity "Width"
-    type 1D
+    slider speed "Fade rate"
+    slider intensity "Max # of ripples"
     palette true
     audio_reactive true
   }
 
+  // 16 ripples max, each: state(0), pos(1), color(2) = 3 elements
+  data rip[48]
+
   render {
-    fade(speed / 8 + 8)
+    // C++: fade_out(240) called twice
+    fade(240)
+    fade(240)
 
-    if peak > 0 {
-      step_val = 0
-      aux0 = volume
-      aux1 = aux1 + 37
-    }
+    let maxR = intensity / 16
+    if maxR < 1 { maxR = 1 }
+    if maxR > 16 { maxR = 16 }
 
-    if aux0 > 4 {
-      let ctr = LEN / 2
-      let rad = step_val
-      let w = intensity / 16 + 2
-      for i in 0..w {
-        let p = ctr + rad + i
-        let q = ctr - rad - i
-        let bri = aux0 - i * 255 / w
-        if bri < 0 { bri = 0 }
-        let c = palette(aux1)
-        if p >= 0 and p < LEN {
-          pixel(p, color_fade(c, bri))
-        }
-        if q >= 0 and q < LEN {
-          pixel(q, color_fade(c, bri))
+    for k in 0..maxR {
+      let st = rip[k * 3]
+
+      // If peak detected, activate this ripple
+      if peak > 0 and st == 254 {
+        st = 255
+      }
+
+      if st == 254 {
+        // Inactive — do nothing
+      } else {
+        if st == 255 {
+          // Initialize ripple
+          rip[k * 3 + 1] = random(LEN)
+          // Color from volume (approximates log10(FFT_MajorPeak)*128)
+          rip[k * 3 + 2] = volume / 2
+          st = 0
+          rip[k * 3] = st
+        } else {
+          if st == 0 {
+            // First step: draw center pixel
+            let origin = rip[k * 3 + 1]
+            let c = palette(rip[k * 3 + 2])
+            if origin >= 0 and origin < LEN {
+              pixel(origin, c)
+            }
+            rip[k * 3] = 1
+          } else {
+            if st >= 16 {
+              // End of ripple
+              rip[k * 3] = 254
+            } else {
+              // Middle steps: expanding ring
+              let origin = rip[k * 3 + 1]
+              let bri = 2 * 255 / st
+              if bri > 255 { bri = 255 }
+              let c = blend(color1, palette(rip[k * 3 + 2]), bri)
+
+              let p = (origin + st + LEN) % LEN
+              pixel(p, c)
+              p = (origin - st + LEN) % LEN
+              pixel(p, c)
+
+              rip[k * 3] = st + 1
+            }
+          }
         }
       }
-      step_val = step_val + speed / 32 + 1
-      aux0 = aux0 - 4
     }
 
     frame()

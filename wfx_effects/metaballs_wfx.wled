@@ -1,30 +1,69 @@
 // Metaballs — Soft blobby shapes that merge and separate.
+// C++ original: mode_2Dmetaballs() by Stefan Petrick.
+// Metadata: "Metaballs@!;;!;2"
 
 effect "Metaballs WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Size"
     type 2D
     palette true
   }
 
+  data bx[3]
+  data by[3]
+
   render {
-    let t = NOW / 20
+    // Compute ball positions into temp vars first, then store
+    let a = 1 + speed / 64
+    let t = NOW * a / 4
+    a = beat8(23, 0, WIDTH - 1)
+    bx[0] = a
+    a = beat8(28, 0, HEIGHT - 1)
+    by[0] = a
+    a = noise2(t, 25355)
+    a = a * (WIDTH - 1) / 255
+    bx[1] = a
+    a = noise2(t, 11685)
+    a = a * (HEIGHT - 1) / 255
+    by[1] = a
+    a = noise2(t, 55355)
+    a = a * (WIDTH - 1) / 255
+    bx[2] = a
+    a = noise2(t, 22685)
+    a = a * (HEIGHT - 1) / 255
+    by[2] = a
 
     for y in 0..HEIGHT {
       for x in 0..WIDTH {
-        // Ball 1 distance (Manhattan)
-        let bx = sin8(t * speed / 32) * WIDTH / 256
-        let by = cos8(t * speed / 32 + 64) * HEIGHT / 256
-        let d = abs(x - bx) + abs(y - by) + 1
-        let v = intensity * 8 / d
+        // Ball 1
+        a = x - bx[0]
+        if a < 0 { a = 0 - a }
+        t = y - by[0]
+        if t < 0 { t = 0 - t }
+        a = a + t
+        if a < 1 { a = 1 }
+        t = 2000 / a
+
         // Ball 2
-        bx = cos8(t * speed / 32 + 100) * WIDTH / 256
-        by = sin8(t * speed / 16) * HEIGHT / 256
-        d = abs(x - bx) + abs(y - by) + 1
-        v = v + intensity * 8 / d
-        if v > 255 { v = 255 }
-        pixel2d(x, y, palette(v))
+        a = x - bx[1]
+        if a < 0 { a = 0 - a }
+        let w = y - by[1]
+        if w < 0 { w = 0 - w }
+        a = a + w
+        if a < 1 { a = 1 }
+        t = t + 1000 / a
+
+        // Ball 3
+        a = x - bx[2]
+        if a < 0 { a = 0 - a }
+        w = y - by[2]
+        if w < 0 { w = 0 - w }
+        a = a + w
+        if a < 1 { a = 1 }
+        t = t + 1000 / a
+
+        w = palette(t)
+        pixel2d(x, y, w)
       }
     }
 

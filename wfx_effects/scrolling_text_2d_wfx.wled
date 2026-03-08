@@ -1,43 +1,39 @@
-// Scrolling Text 2D — Scrolls the segment name across a 2D matrix.
-// Set the segment name in the WLED UI to change the displayed text.
-// check1 = reverse scroll direction
+// Scrolling Text — Scrolls segment name across 2D matrix.
+// C++ original: mode_2Dscrollingtext()
+// Metadata: "Scrolling Text@!,Y Offset,Trail,Font size,Rotate,Gradient,,Reverse;!,!,Gradient;!;2;ix=128,c1=0"
 
 effect "Scrolling Text 2D WFX" {
   meta {
     slider speed "Speed"
     slider intensity "Y Offset"
-    slider custom1 "Font (0-4)"
-    slider custom2 "Trail"
+    slider custom1 "Trail"
+    slider custom2 "Font size"
     type 2D
     palette true
   }
 
   render {
-    // Initialize scroll position on first call
     if CALL == 0 {
       step_val = 0
     }
 
-    // Fade for trail effect (higher custom2 = more trail)
-    fade(255 - custom2)
+    // Fade for trail
+    fade(255 - custom1)
 
-    // Font selection: map custom1 (0-255) to font index (0-4)
-    let font = custom1 * 5 / 256
+    // Font selection
+    let font = custom2 * 5 / 256
     let fw = font_w(font)
 
-    // Text length — exit early if no name set
     let tlen = name_len()
     if tlen == 0 {
       frame()
     }
 
-    // Store total pixel width in aux0
     aux0 = tlen * fw
 
-    // Y position: map intensity across available height
+    // Y position
     let yoff = intensity * (HEIGHT - font_h(font)) / 255
 
-    // Draw each character
     for i in 0..tlen {
       let cx = i * fw + WIDTH - step_val
       if cx + fw > 0 {
@@ -49,7 +45,7 @@ effect "Scrolling Text 2D WFX" {
       }
     }
 
-    // Update scroll position
+    // Scroll
     let spd = speed / 16 + 1
     let wrap = aux0 + WIDTH
     if check1 {

@@ -1,26 +1,34 @@
-// Strobe Rainbow — Strobe but each flash is a different rainbow color.
-// The hue advances with each flash cycle.
+// Strobe Rainbow — Strobe with rainbow hue cycling every frame.
+// C++ original: blink(color_wheel(call & 0xFF), SEGCOLOR(1), true, false)
 
 effect "Strobe Rainbow WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Flash length"
+    palette false
   }
 
   render {
-    let t = NOW * speed / 128
-    let cycle = t % 256
-    let flash = intensity / 8 + 4
+    let cycleTime = (255 - speed) * 20 + 32
+    let rem = NOW % cycleTime
 
-    // Hue changes based on which flash cycle we are on
-    let hue = (t / 256) * 37 % 256
-
-    if cycle < flash {
-      fill(color_wheel(hue))
-    } else {
-      fill(rgb(0, 0, 0))
+    let it = NOW / cycleTime
+    let prevIt = aux0
+    aux0 = it
+    let on = 0
+    if it != prevIt {
+      on = 1
+    }
+    if rem < 16 {
+      on = 1
     }
 
-    frame()
+    if on {
+      let hue = CALL % 256
+      fill(color_wheel(hue))
+    } else {
+      fill(color1)
+    }
+
+    frame(16)
   }
 }

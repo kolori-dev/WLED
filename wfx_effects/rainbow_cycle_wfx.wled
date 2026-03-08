@@ -1,16 +1,33 @@
-effect "Rainbow Cycle WFX" {
+// Rainbow Cycle — Rainbow spread across entire strip with density control.
+// C++ original: index = (i * (16 << (intensity/29)) / SEGLEN) + counter
+// Density steps: 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16 rainbows per strip.
+
+effect "Rainbow WFX" {
   meta {
     slider speed "Speed"
-    slider intensity "Density"
+    slider intensity "Size"
     palette false
   }
 
   render {
-    let offset = NOW * speed / 512
+    let counter = NOW * (speed / 4 + 2) / 256
+
+    // Density: 16 << (intensity/29) gives exponential steps
+    // intensity/29: 0=1/16, 1=1/8, 2=1/4, 3=1/2, 4=1, 5=2, 6=4, 7=8, 8=16
+    let exp = intensity / 29
+    let density = 16
+    if exp >= 1 { density = 32 }
+    if exp >= 2 { density = 64 }
+    if exp >= 3 { density = 128 }
+    if exp >= 4 { density = 256 }
+    if exp >= 5 { density = 512 }
+    if exp >= 6 { density = 1024 }
+    if exp >= 7 { density = 2048 }
+    if exp >= 8 { density = 4096 }
 
     for i in 0..LEN {
-      let hue = (i * intensity + offset) % 256
-      pixel(i, color_wheel(hue))
+      let idx = i * density / LEN + counter
+      pixel(i, color_wheel(idx % 256))
     }
 
     frame()

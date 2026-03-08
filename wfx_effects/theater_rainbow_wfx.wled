@@ -1,6 +1,6 @@
-// Theater Rainbow — Theater chase with rainbow colors instead of
-// palette. Every Nth pixel is lit with a cycling rainbow hue,
-// creating the classic theater marquee effect in full spectrum.
+// Theater Rainbow — Theater chase with rainbow colors.
+// C++ original: running(color_wheel(step), SEGCOLOR(1), true)
+// Hue changes on each step advance.
 
 effect "Theater Rainbow WFX" {
   meta {
@@ -10,19 +10,26 @@ effect "Theater Rainbow WFX" {
   }
 
   render {
-    let gap = max(intensity / 32, 3)
-    let offset = (NOW * speed / 512) % gap
-    let hueShift = NOW * speed / 256
+    let width = 3 + intensity / 16
+    let cycleTime = 50 + 255 - speed
+    let it = NOW / cycleTime
 
-    fill(rgb(0, 0, 0))
+    if it != step_val {
+      aux0 = (aux0 + 1) % width
+      step_val = it
+    }
+
+    // Hue cycles based on step position (matching C++ SEGENV.step behavior)
+    let hue = aux0 * 256 / width
 
     for i in 0..LEN {
-      if (i + offset) % gap == 0 {
-        let hue = (i * 255 / LEN + hueShift) % 256
-        pixel(i, color_wheel(hue))
+      if i % width == aux0 {
+        pixel(i, color_wheel((hue + i * 256 / LEN) % 256))
+      } else {
+        pixel(i, color1)
       }
     }
 
-    frame()
+    frame(16)
   }
 }
