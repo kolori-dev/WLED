@@ -182,8 +182,13 @@ class Codegen {
       meta += ';!';
       // Section 3: Palette
       meta += ';' + (effect.meta.palette ? '!' : '');
-      // Section 4: Type flags (1=1D, 2=2D)
-      meta += ';' + (effect.meta.effectType === '2D' ? '2' : '1');
+      // Section 4: Flags — only emit audio reactivity flags.
+      // Do NOT emit type restriction ("1"/"2") — the VM handles both 1D
+      // and 2D segments gracefully, and type flags cause 2D effects to be
+      // hidden from the UI when only 1D segments are configured.
+      let flags = '';
+      if (effect.meta.audioReactive) flags += 'f';
+      meta += ';' + flags;
     }
     return meta;
   }

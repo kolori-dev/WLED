@@ -280,7 +280,8 @@ function createTree(element, editor){
 		});
 	}
 
-	function createLeaf(path,name,size){
+	function createLeaf(path, name, size, parent){
+		if (!parent) parent = treeRoot;
 		var leaf=cE("div");
 		leaf.style.cssText="cursor:pointer;padding:2px 4px;border-radius:2px;position:relative";
 		leaf.textContent=name;
@@ -290,7 +291,7 @@ function createTree(element, editor){
 		leaf.appendChild(span);
 		leaf.onmouseover=function(){ leaf.style.background="#333"; };
 		leaf.onmouseout=function(){ leaf.style.background=""; };
-		leaf.onclick=function(){ loadPreview(name, editor); };
+		leaf.onclick=function(){ loadPreview(path, editor); };
 
 		// Right-click context menu
 		leaf.oncontextmenu = function(e) {
@@ -325,15 +326,76 @@ function createTree(element, editor){
 			setTimeout(function() { d.onclick = cleanup; }, 100);
 		};
 
-		treeRoot.appendChild(leaf);
+		parent.appendChild(leaf);
 	}
 
-	function addList(path,items){
-		for(var i=0;i<items.length;i++){
-			if (items[i].type==="file" && items[i].name !== "wsec.json") { // hide wsec.json, this is redundant on purpose (done in C code too), just in case...
-				var fullPath = path === "/" ? "/" + items[i].name : path + "/" + items[i].name;
-				createLeaf(fullPath, items[i].name, items[i].size);
+	function createFolder(dirName, files) {
+		var folder = cE("div");
+		var header = cE("div");
+		header.style.cssText = "cursor:pointer;padding:4px 4px;font-weight:bold;color:#fa0;border-radius:2px";
+		var expanded = false;
+
+		function updateHeader() {
+			header.innerHTML = (expanded ? "&#x25BC; " : "&#x25B6; ") + dirName + "/ <span style='font-size:12px;color:#888;font-weight:normal'>" + files.length + " file" + (files.length !== 1 ? "s" : "") + "</span>";
+		}
+		updateHeader();
+
+		header.onmouseover = function(){ header.style.background="#333"; };
+		header.onmouseout = function(){ header.style.background=""; };
+
+		var contents = cE("div");
+		contents.style.cssText = "display:none;padding-left:16px;border-left:1px solid #444;margin-left:6px";
+
+		header.onclick = function() {
+			expanded = !expanded;
+			contents.style.display = expanded ? "block" : "none";
+			updateHeader();
+		};
+
+		// Sort files alphabetically by display name
+		files.sort(function(a, b) { return a.displayName.localeCompare(b.displayName); });
+
+		for (var i = 0; i < files.length; i++) {
+			createLeaf(files[i].fullPath, files[i].displayName, files[i].size, contents);
+		}
+
+		folder.appendChild(header);
+		folder.appendChild(contents);
+		treeRoot.appendChild(folder);
+	}
+
+	function addList(path, items){
+		var rootFiles = [];
+		var dirs = {};
+
+		for (var i = 0; i < items.length; i++) {
+			if (items[i].name === "wsec.json") continue;
+			var name = items[i].name;
+			// Normalize: strip leading slash
+			if (name.charAt(0) === "/") name = name.substring(1);
+
+			var slashIdx = name.indexOf("/");
+			if (slashIdx > 0) {
+				// File in a subdirectory
+				var dirName = name.substring(0, slashIdx);
+				var fileName = name.substring(slashIdx + 1);
+				if (!dirs[dirName]) dirs[dirName] = [];
+				dirs[dirName].push({fullPath: "/" + name, displayName: fileName, size: items[i].size});
+			} else {
+				rootFiles.push({fullPath: "/" + name, displayName: name, size: items[i].size});
 			}
+		}
+
+		// Render folders first (sorted)
+		var dirNames = Object.keys(dirs).sort();
+		for (var d2 = 0; d2 < dirNames.length; d2++) {
+			createFolder(dirNames[d2], dirs[dirNames[d2]]);
+		}
+
+		// Then root-level files (sorted)
+		rootFiles.sort(function(a, b) { return a.displayName.localeCompare(b.displayName); });
+		for (var i = 0; i < rootFiles.length; i++) {
+			createLeaf(rootFiles[i].fullPath, rootFiles[i].displayName, rootFiles[i].size);
 		}
 		fsMem();
 	}

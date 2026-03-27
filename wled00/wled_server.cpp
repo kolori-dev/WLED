@@ -274,17 +274,36 @@ static void createEditHandler() {
       File rootdir = WLED_FS.open("/", "r");
       File rootfile = rootdir.openNextFile();
       while (rootfile) {
-        String name = rootfile.name();
-        if (name.indexOf(FPSTR(s_wsec)) >= 0) {
-          rootfile = rootdir.openNextFile(); // skip wsec.json
-          continue;
+        if (rootfile.isDirectory()) {
+          // Recurse one level into subdirectories (e.g. /fx/)
+          // Normalize directory name to "/dirname" form
+          String dirName = rootfile.name();
+          if (!dirName.startsWith("/")) dirName = "/" + dirName;
+          File subfile = rootfile.openNextFile();
+          while (subfile) {
+            // file.name() may return just filename (core 3.x) or full path (core 2.x)
+            // Always construct canonical path: /dir/filename
+            String fname = subfile.name();
+            int ls = fname.lastIndexOf('/');
+            if (ls >= 0) fname = fname.substring(ls + 1);
+            String fullPath = dirName + "/" + fname;
+            if (fullPath.indexOf(FPSTR(s_wsec)) < 0) {
+              if (!first) response->write(',');
+              first = false;
+              response->printf_P(PSTR("{\"name\":\"%s\",\"type\":\"file\",\"size\":%u}"), fullPath.c_str(), subfile.size());
+            }
+            subfile = rootfile.openNextFile();
+          }
+        } else {
+          String name = rootfile.name();
+          if (name.indexOf(FPSTR(s_wsec)) < 0) {
+            if (!first) response->write(',');
+            first = false;
+            response->printf_P(PSTR("{\"name\":\"%s\",\"type\":\"file\",\"size\":%u}"), name.c_str(), rootfile.size());
+          }
         }
-        if (!first) response->write(',');
-        first = false;
-        response->printf_P(PSTR("{\"name\":\"%s\",\"type\":\"file\",\"size\":%u}"), name.c_str(), rootfile.size());
         rootfile = rootdir.openNextFile();
       }
-      rootfile.close();
       rootdir.close();
       response->write(']');
       request->send(response);
