@@ -1,0 +1,3473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WLED-Lang Simulator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+  #app {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---- Left: Editor panel ---- */
+  #editor-panel {
+    width: 50%;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    border-right: 2px solid #333;
+    background: #16213e;
+  }
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: #1a1a2e;
+    border-bottom: 1px solid #333;
+    flex-wrap: wrap;
+  }
+  .editor-toolbar .btn { font-size: 12px; padding: 4px 10px; }
+  .editor-toolbar select {
+    background: #2a2a4a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    max-width: 220px;
+  }
+  .editor-toolbar .spacer { flex: 1; }
+  .editor-toolbar .filename {
+    font-size: 12px;
+    color: #7fdbca;
+    font-family: monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
+
+  #editor {
+    flex: 1;
+    width: 100%;
+    background: #0d1117;
+    color: #c9d1d9;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 12px;
+    tab-size: 2;
+  }
+
+  .compile-status {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: monospace;
+    border-top: 1px solid #333;
+    background: #1a1a2e;
+    min-height: 28px;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+  .compile-status.ok { color: #c3e88d; }
+  .compile-status.err { color: #ff6b6b; }
+
+  /* ---- Right: Simulator panel ---- */
+  #sim-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 12px;
+    min-width: 380px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #333;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .header h1 {
+    font-size: 18px;
+    color: #7fdbca;
+    font-weight: 600;
+  }
+  .header-btns {
+    display: flex;
+    gap: 6px;
+  }
+  .effect-info {
+    width: 100%;
+    font-size: 12px;
+    color: #999;
+  }
+  .effect-info span { color: #c3e88d; }
+
+  .btn {
+    padding: 5px 12px;
+    border: 1px solid #555;
+    background: #2a2a4a;
+    color: #e0e0e0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .btn:hover { background: #3a3a5a; }
+  .btn.primary { background: #3d5a80; border-color: #5a8ab4; }
+  .btn.primary:hover { background: #4d6a90; }
+  .btn.success { background: #2d6a4f; border-color: #52b788; }
+  .btn.success:hover { background: #3d7a5f; }
+  .btn.danger { border-color: #ff6b6b; color: #ff6b6b; }
+  .btn.danger:hover { background: #3a2a2a; }
+
+  #canvas-wrap {
+    background: #111;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #333;
+    position: relative;
+    min-height: 160px;
+  }
+  #canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    border-radius: 4px;
+  }
+  #drop-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(61, 90, 128, 0.8);
+    border-radius: 8px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #fff;
+    pointer-events: none;
+  }
+
+  .playback {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    border-bottom: 1px solid #333;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .stats {
+    margin-left: auto;
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .control-group label {
+    font-size: 11px;
+    color: #999;
+    display: flex;
+    justify-content: space-between;
+  }
+  .control-group label span { color: #7fdbca; font-family: monospace; }
+  .control-group input[type="range"] {
+    width: 100%;
+    accent-color: #7fdbca;
+  }
+  .control-group input[type="number"] {
+    background: #2a2a4a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 3px 6px;
+    border-radius: 4px;
+    width: 70px;
+    font-size: 12px;
+  }
+  .control-group input[type="color"] {
+    width: 44px;
+    height: 26px;
+    border: 1px solid #444;
+    background: none;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .control-group input[type="text"] {
+    background: #2a2a4a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .control-group select {
+    background: #2a2a4a;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .row label { font-size: 11px; color: #999; }
+
+  .control-wide { grid-column: 1 / -1; }
+
+  .mode-toggle {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .mode-toggle label {
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .mode-toggle input { accent-color: #7fdbca; }
+
+  .check-row {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+  .check-row label {
+    font-size: 11px;
+    color: #999;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .check-row input { accent-color: #7fdbca; }
+
+  .colors-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .colors-row label { font-size: 11px; color: #999; }
+
+  #file-input { display: none; }
+
+  #resize-handle {
+    width: 4px;
+    cursor: col-resize;
+    background: #333;
+    transition: background 0.2s;
+  }
+  #resize-handle:hover { background: #7fdbca; }
+
+  .shortcut {
+    font-size: 10px;
+    color: #666;
+    padding: 4px 10px;
+    border-top: 1px solid #333;
+    background: #1a1a2e;
+  }
+  .shortcut kbd {
+    background: #2a2a4a;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid #444;
+    font-family: monospace;
+    font-size: 10px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Left: Editor Panel -->
+  <div id="editor-panel">
+    <div class="editor-toolbar">
+      <select id="example-browser" title="Load example effect">
+        <option value="">-- Examples --</option>
+      </select>
+      <button class="btn success" id="btn-compile" title="Compile & Run (Ctrl+Enter)">Compile & Run</button>
+      <button class="btn" id="btn-download" title="Download compiled .wfx">Download .wfx</button>
+      <button class="btn" id="btn-new">New</button>
+      <span class="spacer"></span>
+      <span class="filename" id="current-file">untitled.wled</span>
+    </div>
+    <textarea id="editor" spellcheck="false"></textarea>
+    <div class="compile-status" id="compile-status">Ready — write WLED-Lang code and press Compile & Run</div>
+    <div class="shortcut"><kbd>Ctrl+Enter</kbd> Compile & Run | <kbd>Tab</kbd> Indent | Drag & drop .wled / .wfx files</div>
+  </div>
+
+  <!-- Resize handle -->
+  <div id="resize-handle"></div>
+
+  <!-- Right: Simulator Panel -->
+  <div id="sim-panel">
+    <div class="header">
+      <h1>WLED-Lang Simulator</h1>
+      <div class="header-btns">
+        <button class="btn primary" id="btn-load">Load File</button>
+      </div>
+      <div class="effect-info" id="effect-info">No effect loaded — select an example or write your own</div>
+    </div>
+
+    <div id="canvas-wrap">
+      <canvas id="led-canvas" width="880" height="200"></canvas>
+      <div id="drop-overlay">Drop .wfx or .wled file here</div>
+    </div>
+
+    <div class="playback">
+      <button class="btn primary" id="btn-play">Play</button>
+      <button class="btn" id="btn-step">Step</button>
+      <button class="btn danger" id="btn-reset">Reset</button>
+      <div class="stats" id="stats">FPS: -- | Frame: 0</div>
+    </div>
+
+    <div class="controls">
+      <div class="control-group control-wide">
+        <div class="row">
+          <div class="mode-toggle">
+            <label><input type="radio" name="mode" value="1d" checked> 1D</label>
+            <label><input type="radio" name="mode" value="2d"> 2D</label>
+          </div>
+          <label>Width: <input type="number" id="seg-width" value="30" min="1" max="256"></label>
+          <label>Height: <input type="number" id="seg-height" value="1" min="1" max="256" disabled></label>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Speed <span id="val-speed">128</span></label>
+        <input type="range" id="seg-speed" min="0" max="255" value="128">
+      </div>
+      <div class="control-group">
+        <label>Intensity <span id="val-intensity">128</span></label>
+        <input type="range" id="seg-intensity" min="0" max="255" value="128">
+      </div>
+      <div class="control-group">
+        <label>Custom 1 <span id="val-c1">0</span></label>
+        <input type="range" id="seg-c1" min="0" max="255" value="0">
+      </div>
+      <div class="control-group">
+        <label>Custom 2 <span id="val-c2">0</span></label>
+        <input type="range" id="seg-c2" min="0" max="255" value="0">
+      </div>
+      <div class="control-group">
+        <label>Custom 3 <span id="val-c3">0</span></label>
+        <input type="range" id="seg-c3" min="0" max="255" value="0">
+      </div>
+      <div class="control-group">
+        <label>Palette</label>
+        <select id="seg-palette"></select>
+      </div>
+
+      <div class="control-group control-wide">
+        <div class="check-row">
+          <label><input type="checkbox" id="seg-check1"> Check 1</label>
+          <label><input type="checkbox" id="seg-check2"> Check 2</label>
+          <label><input type="checkbox" id="seg-check3"> Check 3</label>
+        </div>
+      </div>
+
+      <div class="control-group control-wide">
+        <div class="colors-row">
+          <label>Color 1: <input type="color" id="seg-color1" value="#ffffff"></label>
+          <label>Color 2: <input type="color" id="seg-color2" value="#000000"></label>
+          <label>Color 3: <input type="color" id="seg-color3" value="#000000"></label>
+        </div>
+      </div>
+
+      <div class="control-group control-wide">
+        <label>Segment Name</label>
+        <input type="text" id="seg-name" placeholder="Enter segment name (for text effects)">
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".wfx,.wled">
+<script>
+'use strict';
+
+// ===================================================================
+// Self-contained WLED-Lang Simulator — all JS inlined for file:// use
+// Built by: node wfx_compiler/simulator_static/build.js
+// ===================================================================
+
+// ==================== Palettes ====================
+// WLED palettes — extracted from wled00/palettes.cpp
+// Each palette is a CRGBPalette16 (16 RGBW32 entries)
+
+const PALETTES = [
+  { id: 0, name: "Default", colors: new Uint32Array([0x00ff0000,0x00ff6000,0x00ffc000,0x00deff00,0x007eff00,0x001eff00,0x0000ff42,0x0000ffa2,0x0000fcff,0x0000a2ff,0x000042ff,0x001e00ff,0x007e00ff,0x00de00ff,0x00ff00c0,0x00ff0060]) },
+  { id: 1, name: "Random Cycle", colors: new Uint32Array([0x00ff0000,0x00ff6000,0x00ffc000,0x00deff00,0x007eff00,0x001eff00,0x0000ff42,0x0000ffa2,0x0000fcff,0x0000a2ff,0x000042ff,0x001e00ff,0x007e00ff,0x00de00ff,0x00ff00c0,0x00ff0060]) },
+  { id: 2, name: "Color 1", colors: new Uint32Array([0x00ff0000,0x00ff6000,0x00ffc000,0x00deff00,0x007eff00,0x001eff00,0x0000ff42,0x0000ffa2,0x0000fcff,0x0000a2ff,0x000042ff,0x001e00ff,0x007e00ff,0x00de00ff,0x00ff00c0,0x00ff0060]) },
+  { id: 3, name: "Colors 1&2", colors: new Uint32Array([0x00ff0000,0x00ff6000,0x00ffc000,0x00deff00,0x007eff00,0x001eff00,0x0000ff42,0x0000ffa2,0x0000fcff,0x0000a2ff,0x000042ff,0x001e00ff,0x007e00ff,0x00de00ff,0x00ff00c0,0x00ff0060]) },
+  { id: 4, name: "Color Gradient", colors: new Uint32Array([0x00ff0000,0x00ff6000,0x00ffc000,0x00deff00,0x007eff00,0x001eff00,0x0000ff42,0x0000ffa2,0x0000fcff,0x0000a2ff,0x000042ff,0x001e00ff,0x007e00ff,0x00de00ff,0x00ff00c0,0x00ff0060]) },
+  { id: 5, name: "Colors Only", colors: new Uint32Array([0x00ff0000,0x00ff6000,0x00ffc000,0x00deff00,0x007eff00,0x001eff00,0x0000ff42,0x0000ffa2,0x0000fcff,0x0000a2ff,0x000042ff,0x001e00ff,0x007e00ff,0x00de00ff,0x00ff00c0,0x00ff0060]) },
+  { id: 6, name: "Party", colors: new Uint32Array([0x009b00d5,0x00bd00b8,0x00da0092,0x00f3005c,0x00f45500,0x00dc8f00,0x00d5b400,0x00d5d500,0x00d59b00,0x00ef6600,0x00f90044,0x00e10086,0x00c400b0,0x00a300cf,0x007600e8,0x000032fc]) },
+  { id: 7, name: "Cloud", colors: new Uint32Array([0x000000ff,0x0000008b,0x0000008b,0x0000008b,0x0000008b,0x0000008b,0x0000008b,0x0000008b,0x000000ff,0x0000008b,0x0087ceeb,0x0087ceeb,0x00add8e6,0x00ffffff,0x00add8e6,0x0087ceeb]) },
+  { id: 8, name: "Lava", colors: new Uint32Array([0x00000000,0x00800000,0x00000000,0x00800000,0x008b0000,0x00800000,0x008b0000,0x008b0000,0x008b0000,0x00ff0000,0x00ffa500,0x00ffffff,0x00ffa500,0x00ff0000,0x008b0000,0x00000000]) },
+  { id: 9, name: "Ocean", colors: new Uint32Array([0x00191970,0x0000008b,0x00191970,0x00000080,0x0000008b,0x000000cd,0x002e8b57,0x00008080,0x005f9ea0,0x000000ff,0x00008b8b,0x006495ed,0x007fffd4,0x002e8b57,0x0000ffff,0x0087cefa]) },
+  { id: 10, name: "Forest", colors: new Uint32Array([0x00006400,0x00006400,0x00556b2f,0x00006400,0x00008000,0x00228b22,0x006b8e23,0x00008000,0x002e8b57,0x0066cdaa,0x0032cd32,0x009acd32,0x0090ee90,0x007cfc00,0x0066cdaa,0x00228b22]) },
+  { id: 11, name: "Rainbow", colors: new Uint32Array([0x00ff0000,0x00eb7000,0x00d59b00,0x00d5ba00,0x00d5d500,0x009ceb00,0x0000ff00,0x0000eb70,0x0000d59b,0x00009cd4,0x000000ff,0x007000eb,0x009b00d5,0x00ba00bb,0x00d5009b,0x00eb0072]) },
+  { id: 12, name: "Rainbow Bands", colors: new Uint32Array([0x00ff0000,0x00000000,0x00d59b00,0x00000000,0x00d5d500,0x00000000,0x0000ff00,0x00000000,0x0000d59b,0x00000000,0x000000ff,0x00000000,0x009b00d5,0x00000000,0x00d5009b,0x00000000]) },
+  { id: 13, name: "Sunset", colors: new Uint32Array([0x00b50000,0x00d03e00,0x00e77200,0x00fba100,0x00ee8a1d,0x00d96242,0x00c94261,0x00bb277f,0x00ad0c9c,0x009a00ac,0x008200b1,0x006a00b5,0x005200ba,0x003c00bf,0x002800c5,0x001300ca]) },
+  { id: 14, name: "Rivendell", colors: new Uint32Array([0x0018452c,0x00204b30,0x00285034,0x002f5638,0x00375c3c,0x003f6241,0x00476745,0x00536f4b,0x00617851,0x006f8158,0x007d895f,0x008b956b,0x009aa279,0x00a9b088,0x00b7bd96,0x00c6caa4]) },
+  { id: 15, name: "Breeze", colors: new Uint32Array([0x00103033,0x00124549,0x00145a60,0x00167076,0x0018858c,0x001a9aa2,0x002eadb8,0x0058becc,0x0083cfe0,0x00ade0f4,0x00b7e3f8,0x0099d5e8,0x007ac7d8,0x005bbac7,0x003cacb7,0x001d9ea7]) },
+  { id: 16, name: "Red & Blue", colors: new Uint32Array([0x00290e63,0x00561356,0x00831849,0x00b51d3d,0x00e02233,0x00b12040,0x00811f4d,0x00571e5a,0x00311e66,0x00502765,0x006f3065,0x00913964,0x00af4264,0x00973d66,0x00803968,0x0069346a]) },
+  { id: 17, name: "Yellowout", colors: new Uint32Array([0x00debf08,0x00d7b608,0x00d1ae07,0x00caa507,0x00c49c06,0x00bd9306,0x00b68b05,0x00b08205,0x00a97904,0x00a37104,0x009c6804,0x00965f03,0x008f5603,0x00884e02,0x00824502,0x007b3c01]) },
+  { id: 18, name: "Analogous", colors: new Uint32Array([0x002600ff,0x003200ff,0x003e00ff,0x004b00ff,0x005700ff,0x006400ff,0x007100ff,0x007f00ff,0x008c00fd,0x009a00da,0x00a800b8,0x00b70095,0x00c50073,0x00d40056,0x00e20039,0x00f1001b]) },
+  { id: 19, name: "Splash", colors: new Uint32Array([0x00ba3fff,0x00bf38ea,0x00c431d4,0x00c92bbf,0x00cf24a9,0x00d41d94,0x00d9167e,0x00de0f69,0x00e30d58,0x00e54e82,0x00e890ad,0x00e9c9d4,0x00df8fc7,0x00d555ba,0x00cd26b0,0x00cd26b0]) },
+  { id: 20, name: "Pastel", colors: new Uint32Array([0x003d87b8,0x005b9fb1,0x0079b6ab,0x0092c8a6,0x00aad9a1,0x00c1ea9d,0x00dcee91,0x00fdd581,0x00fbca82,0x00fcd381,0x00fddc80,0x00ffe67f,0x00ffeb7d,0x00ffef7a,0x00fff278,0x00fff774]) },
+  { id: 21, name: "Sunset2", colors: new Uint32Array([0x00af793e,0x00956f3d,0x007d663c,0x006b5e3b,0x0059563a,0x00f4c047,0x00efcb5c,0x00ead873,0x00ddda85,0x00b7bc84,0x00919e82,0x006b8181,0x00536b80,0x003e567f,0x0029427f,0x00142d7e]) },
+  { id: 22, name: "Beech", colors: new Uint32Array([0x00fffeec,0x00fffeec,0x00a6fee8,0x0080fbec,0x005af8ef,0x0039edec,0x001ddfe3,0x000ad2db,0x0002b6c0,0x0030bad3,0x002ab3d0,0x0023acce,0x001da6cb,0x00179fc9,0x000f95c5,0x00078bc2]) },
+  { id: 23, name: "Vintage", colors: new Uint32Array([0x00291218,0x00330c17,0x003d0717,0x00470116,0x0079581e,0x00b3ad2d,0x00edb948,0x00ce853f,0x00883627,0x0060131c,0x00460216,0x003f0517,0x00390917,0x00320d17,0x002b1118,0x00291218]) },
+  { id: 24, name: "Departure", colors: new Uint32Array([0x00352200,0x00422800,0x004e2f00,0x0067430e,0x00966f34,0x00c89b61,0x00e1bf93,0x00f7eee1,0x00dcffdd,0x007fff82,0x0026ff28,0x0000ed00,0x0000bd00,0x00008c00,0x00008000,0x00008000]) },
+  { id: 25, name: "Landscape", colors: new Uint32Array([0x00000000,0x000d2608,0x001b4d10,0x002b721a,0x003b9724,0x004eb628,0x0067c81c,0x007fda10,0x00baea77,0x00cfe0ef,0x00bcd6ea,0x00a8c9f1,0x0093bcf8,0x007cadfb,0x005b97f2,0x003b80e9]) },
+  { id: 26, name: "Beach", colors: new Uint32Array([0x000c2d00,0x00575002,0x00ae7303,0x00dd9c0a,0x00c6c53d,0x0065b888,0x005cab7c,0x00549e70,0x004b9064,0x00428359,0x0039764d,0x00306941,0x00285b35,0x001f4e2a,0x0016411e,0x000d3312]) },
+  { id: 27, name: "Sherbet", colors: new Uint32Array([0x00ff6629,0x00ff743b,0x00ff824d,0x00ff825a,0x00ff615a,0x00ff3f5a,0x00ff4c6d,0x00ff748c,0x00ff9bab,0x00ffc1c9,0x00ffe7e6,0x00e9ffe0,0x00afff9c,0x0075ff59,0x007fff66,0x008fff78]) },
+  { id: 28, name: "Hult", colors: new Uint32Array([0x00fbd8fc,0x00fcd0fd,0x00fec8fe,0x00ffc0ff,0x00f99afa,0x00f374f4,0x00dc65ef,0x00b272e9,0x00887fe4,0x005d8cde,0x003399d9,0x002ba2cd,0x0024abc0,0x001cb4b4,0x0018b8ae,0x0018b8ae]) },
+  { id: 29, name: "Hult64", colors: new Uint32Array([0x0018b8ae,0x0014b3a8,0x0010ada2,0x000ca89d,0x0008a397,0x00339961,0x00648e25,0x008d980c,0x00aeb615,0x008c980c,0x00658d22,0x0040934d,0x001b9978,0x0005978b,0x00028b80,0x00008075]) },
+  { id: 30, name: "Drywet", colors: new Uint32Array([0x00776121,0x00a38836,0x00cfaf4b,0x00e2cd5d,0x00c8db6b,0x00afea79,0x0084ee9a,0x0053eec2,0x0024ebe8,0x0019bfea,0x000e93eb,0x000a67e3,0x00113acc,0x00190cb5,0x00150f9a,0x000c227f]) },
+  { id: 31, name: "Jul", colors: new Uint32Array([0x00e2060c,0x00c01517,0x009e2522,0x007c342e,0x005a4339,0x00385344,0x001f654f,0x004b8c56,0x0077b35c,0x0087ab56,0x008d934b,0x00937a40,0x00996235,0x009f4a29,0x00a5321e,0x00ab1a13]) },
+  { id: 32, name: "Grintage", colors: new Uint32Array([0x001d0803,0x002b0602,0x00390401,0x00480200,0x005a1506,0x006f330f,0x00845118,0x00997021,0x00b08f2c,0x00c6ae37,0x00cdbb3c,0x00beb139,0x00afa736,0x00a09e33,0x00929430,0x00838a2d]) },
+  { id: 33, name: "Rewhi", colors: new Uint32Array([0x00b1a0c7,0x00b7a0bc,0x00bd9fb1,0x00c49fa6,0x00ca9e9b,0x00da9d7e,0x00f28456,0x00f65f46,0x00d8615b,0x00be626e,0x00b66375,0x00ae637c,0x00a56383,0x009d648a,0x00946491,0x008c6598]) },
+  { id: 34, name: "Tertiary", colors: new Uint32Array([0x000019ff,0x000a36dc,0x001353b9,0x001d7196,0x00278e73,0x0033ab56,0x003fc739,0x004be41b,0x0057fd00,0x006ce005,0x0080c40a,0x0094a70f,0x00a88a13,0x00be6d19,0x00d4511e,0x00ea3424]) },
+  { id: 35, name: "Fire", colors: new Uint32Array([0x00000000,0x001b0000,0x00360000,0x00510000,0x00710000,0x00910000,0x00b10000,0x00cb340d,0x00de5916,0x00ea701c,0x00f58623,0x00ff9d29,0x00ffb929,0x00ffd629,0x00ffef29,0x00ffff66]) },
+  { id: 36, name: "Icefire", colors: new Uint32Array([0x00000000,0x00000e20,0x00001c3f,0x0000295f,0x00003781,0x000045a5,0x000052ca,0x000060ef,0x000b75ff,0x002091ff,0x0037abff,0x0050c5ff,0x0070d4ff,0x0093e0ff,0x00b7ebff,0x00dcf5ff]) },
+  { id: 37, name: "Cyane", colors: new Uint32Array([0x003d9b2c,0x0053a741,0x0066b254,0x0077ba65,0x0087be72,0x0091b178,0x009fa080,0x00bf6c8a,0x00f7fcc1,0x00d7eec5,0x00b7e1c9,0x009fd7cc,0x0090d0ce,0x0081c9d1,0x0072c3d3,0x0062bcd5]) },
+  { id: 38, name: "Light Pink", colors: new Uint32Array([0x004f206d,0x00562572,0x005d2a77,0x00652f7b,0x007a5d9c,0x009394c3,0x00abcae9,0x00e1f4fe,0x00c8bdeb,0x00b69ee1,0x00b48fd8,0x00b986cf,0x00bc80c9,0x00bf7bc4,0x00c177c0,0x00c473bc]) },
+  { id: 39, name: "Autumn", colors: new Uint32Array([0x005a0e05,0x00691608,0x00791f0a,0x0088270d,0x009b340f,0x00af4211,0x00bb9552,0x00b18903,0x00bbb250,0x00c0be6c,0x00b3571f,0x00a13a0f,0x008e2d0d,0x007b200b,0x00681608,0x00550b04]) },
+  { id: 40, name: "Magenta", colors: new Uint32Array([0x00000000,0x0000002d,0x00000059,0x00000089,0x000000bd,0x000000f2,0x002000ff,0x004a00ff,0x007400ff,0x00a900ff,0x00de00ff,0x00ff12ff,0x00ff43ff,0x00ff74ff,0x00ffa3ff,0x00ffd3ff]) },
+  { id: 41, name: "Magred", colors: new Uint32Array([0x00000000,0x001d001e,0x0039003b,0x00560059,0x00730077,0x0097009a,0x00ba00bc,0x00de00df,0x00ff00fd,0x00ff00da,0x00ff00b8,0x00ff0095,0x00ff0073,0x00ff0056,0x00ff0039,0x00ff001b]) },
+  { id: 42, name: "Yelmag", colors: new Uint32Array([0x00000000,0x002b0000,0x00560000,0x00850000,0x00bb0000,0x00f10000,0x00ff0021,0x00ff004c,0x00ff0078,0x00ff00ac,0x00ff00df,0x00ff12eb,0x00ff43b7,0x00ff7482,0x00ffa354,0x00ffd329]) },
+  { id: 43, name: "Yelblu", colors: new Uint32Array([0x000000ff,0x000021ff,0x000041ff,0x000062ff,0x000082ff,0x0000a2ff,0x0000c1ff,0x0000e1ff,0x0002fffd,0x001effda,0x003affb8,0x0057ff95,0x0073ff73,0x0097ff56,0x00baff39,0x00deff1b]) },
+  { id: 44, name: "Orange & Teal", colors: new Uint32Array([0x0000965c,0x0000965c,0x0000965c,0x0000965c,0x00109156,0x002c894c,0x00488042,0x00647738,0x00806f2e,0x009d6624,0x00b95e19,0x00d5550f,0x00f14c05,0x00ff4800,0x00ff4800,0x00ff4800]) },
+  { id: 45, name: "Tiamat", colors: new Uint32Array([0x0001020e,0x00010318,0x00020522,0x00986051,0x00a0624e,0x00a8644b,0x00b06648,0x00b76845,0x00bf6a41,0x00c76c3e,0x00cf6e3b,0x00d77038,0x00df7235,0x00e67432,0x00ee762f,0x00f6782b]) },
+  { id: 46, name: "April Night", colors: new Uint32Array([0x0001052d,0x00034761,0x00035c72,0x0001052d,0x000a272a,0x00218223,0x0001052d,0x0001052d,0x00ea8d08,0x0001052d,0x0001052d,0x00df5106,0x00120b2a,0x0001052d,0x0095203f,0x003c1034]) },
+  { id: 47, name: "Orangery", colors: new Uint32Array([0x00ff5f17,0x00ff580b,0x00fd4d01,0x00ec2905,0x00d41107,0x00aa2204,0x00a63905,0x00e15c0d,0x00ff630c,0x00ff4d03,0x00df3204,0x00ab140a,0x00bf290d,0x00eb4d11,0x00e8440d,0x00de3408]) },
+  { id: 48, name: "C9", colors: new Uint32Array([0x00b80400,0x00b80400,0x00b80400,0x00b80400,0x00982402,0x00902c02,0x00902c02,0x00902c02,0x003c4b02,0x00046002,0x00046002,0x00046002,0x00053c24,0x00070758,0x00070758,0x00070758]) },
+  { id: 49, name: "Sakura", colors: new Uint32Array([0x00c4130a,0x00d31f13,0x00e12c1b,0x00f03824,0x00fe442c,0x00f83f33,0x00f03a3a,0x00e83441,0x00e02e47,0x00e6354f,0x00ee3e56,0x00f6475e,0x00fe5066,0x00f84354,0x00f0313d,0x00e71e27]) },
+  { id: 50, name: "Aurora", colors: new Uint32Array([0x0001052d,0x00013628,0x00016722,0x0000971d,0x0000c817,0x0000d611,0x0000e40c,0x0000f106,0x0000ff00,0x0000fa11,0x0000f622,0x0000dd25,0x0000a411,0x0000740d,0x00004e18,0x00012823]) },
+  { id: 51, name: "Atlantica", colors: new Uint32Array([0x00001c70,0x00636f2b,0x0082c236,0x00a21442,0x00c1674d,0x00e0b959,0x00ff0c64,0x004d5f0d,0x0051500c,0x0054400a,0x00583008,0x005c2107,0x005d1807,0x00503d1a,0x0042622c,0x0035873f]) },
+  { id: 52, name: "C9 2", colors: new Uint32Array([0x00067e02,0x00067e02,0x00067e02,0x00041e72,0x00041e72,0x00041e72,0x00ff0500,0x00ff0500,0x00ff0500,0x00c43902,0x00c43902,0x00c43902,0x00895502,0x00895502,0x00895502,0x00895502]) },
+  { id: 53, name: "C9 New", colors: new Uint32Array([0x00ff0500,0x00ff0500,0x00ff0500,0x00ff0500,0x0040b505,0x0030b505,0x0020b504,0x0010b504,0x00dfa500,0x005b5900,0x00d70d00,0x0053c100,0x00cf7500,0x004b2900,0x00c7dd00,0x00439100]) },
+  { id: 54, name: "Temperature", colors: new Uint32Array([0x00145cab,0x000e73be,0x000593d8,0x0008aae8,0x001db9d9,0x0048c7c8,0x0080d8b5,0x00b3e481,0x00c7e73c,0x00f4ec18,0x00fdd615,0x00f9b506,0x00f5840c,0x00e85414,0x00d7241c,0x00972623]) },
+  { id: 55, name: "Aurora 2", colors: new Uint32Array([0x0011b10d,0x002bc10b,0x0045d209,0x005fe207,0x0079f205,0x0061e122,0x0049d03f,0x0031be5c,0x0019ad79,0x0051957b,0x008a7d7c,0x00c2657e,0x00fa4d7f,0x00e65397,0x00d259af,0x00be5fc7]) },
+  { id: 56, name: "Retro Clown", colors: new Uint32Array([0x00f2a826,0x00f09c2c,0x00ee8f31,0x00eb8337,0x00e9773d,0x00e76a43,0x00e55e48,0x00e3524e,0x00dd4c5c,0x00d5496c,0x00ce477d,0x00c6448e,0x00bf419f,0x00b73eb0,0x00b03bc0,0x00a839d1]) },
+  { id: 57, name: "Candy", colors: new Uint32Array([0x00f3f217,0x00f1a727,0x00e09435,0x00d08243,0x00bf6f52,0x00af5d60,0x009e4a6e,0x008e387c,0x007d258b,0x006e1597,0x00631597,0x00591696,0x004e1696,0x003d1290,0x00280c87,0x0013067e]) },
+  { id: 58, name: "Toxy Reaf", colors: new Uint32Array([0x0002ef7e,0x000be284,0x0014d589,0x001dc98f,0x0026bc95,0x002faf9b,0x0038a2a0,0x004195a6,0x004a89ac,0x00537cb1,0x005c6fb7,0x006562bd,0x006e55c3,0x007749c8,0x00803cce,0x00892fd4]) },
+  { id: 59, name: "Fairy Reaf", colors: new Uint32Array([0x00dc13bb,0x00c728be,0x00b23cc1,0x009e51c5,0x008965c8,0x00747acb,0x005f8fce,0x004aa3d1,0x0036b8d5,0x0021ccd8,0x000ce1db,0x0040e6dc,0x0074eadd,0x00a7efde,0x00d2f4e3,0x00e9faf2]) },
+  { id: 60, name: "Semi Blue", colors: new Uint32Array([0x00000000,0x001b042a,0x0027063c,0x0033084e,0x00321873,0x002b309f,0x002641bf,0x002152df,0x00264fd4,0x00313ca9,0x003a308d,0x00422573,0x00421c5b,0x00341749,0x00271237,0x00150a1f]) },
+  { id: 61, name: "Pink Candy", colors: new Uint32Array([0x00ffffff,0x00b6bbff,0x006d77ff,0x003b3efc,0x006832eb,0x009627db,0x00c41bca,0x00f210ba,0x00f999e1,0x00fcbfed,0x00e310b8,0x00b10eb0,0x00800da8,0x00903eb8,0x00b680d0,0x00dcc1e8]) },
+  { id: 62, name: "Red Reaf", colors: new Uint32Array([0x00244472,0x00355887,0x00476b9b,0x00587fb0,0x006a92c4,0x007ba6d9,0x008cb9ee,0x009fb0e0,0x00b38bb1,0x00c76682,0x00dc4153,0x00f01c23,0x00f50101,0x00cf0403,0x00a80805,0x00820b07]) },
+  { id: 63, name: "Aqua Flash", colors: new Uint32Array([0x00000000,0x00203b3b,0x003f7577,0x005fb0b2,0x007eebee,0x00bcf89b,0x00ffff35,0x00ffffa8,0x00ffffe3,0x00ffff74,0x00e6fc5b,0x00adf6b3,0x007ae4e6,0x005baaac,0x003c7071,0x001d3637]) },
+  { id: 64, name: "Yelblu Hot", colors: new Uint32Array([0x002b1e39,0x0033164a,0x003c0d5b,0x0044056c,0x004a0073,0x004e0068,0x0051005c,0x00550051,0x00690a41,0x009a232a,0x00c73e16,0x00d4641a,0x00df841c,0x00e99f1e,0x00f0bb1f,0x00f3da1d]) },
+  { id: 65, name: "Lite Light", colors: new Uint32Array([0x00000000,0x001a1a1c,0x0027252a,0x002e2b31,0x002e2b31,0x00342037,0x003b143f,0x00390f3c,0x00320d36,0x002c0c2f,0x00260a28,0x001f0821,0x0019071b,0x00130514,0x000c030d,0x00060206]) },
+  { id: 66, name: "Red Flash", colors: new Uint32Array([0x00000000,0x00270201,0x004e0403,0x00750604,0x009c0805,0x00c40a06,0x00eb0c08,0x00f76749,0x00fcd699,0x00f76b4c,0x00e60b08,0x00bf0906,0x00980805,0x00720604,0x004b0402,0x00240201]) },
+  { id: 67, name: "Blink Red", colors: new Uint32Array([0x00040704,0x00110e1a,0x001f142f,0x002b173a,0x0035132d,0x004f122b,0x00951e48,0x00d73b6f,0x00fd9ab9,0x00e077c2,0x00c254cc,0x00a247d8,0x008244e6,0x00673fe3,0x005e33b0,0x0055287e]) },
+  { id: 68, name: "Red Shift", colors: new Uint32Array([0x0062165d,0x00641656,0x0066164f,0x006c1748,0x00861e43,0x00a1253e,0x00bb2c39,0x00d16539,0x00e6aa3b,0x00e99f32,0x00e67926,0x00e4541b,0x00e44228,0x00c7312a,0x0084201c,0x0041100f]) },
+  { id: 69, name: "Red Tide", colors: new Uint32Array([0x00fb2e00,0x00fd630e,0x00fd9023,0x00f6b153,0x00f5bc61,0x00f3711b,0x00d9520a,0x00b5430b,0x00dba043,0x00f4d864,0x00c77329,0x00c67135,0x00f0d189,0x00fd9643,0x00e54c06,0x00b02905]) },
+  { id: 70, name: "Candy2", colors: new Uint32Array([0x006d6666,0x00424452,0x00423f4b,0x00796054,0x00c6ac2f,0x00e6a622,0x00ba5f31,0x0076493b,0x00323446,0x0084673d,0x00eca531,0x00f7c623,0x00d1bb2c,0x007d735d,0x00534d4c,0x00322f2b]) },
+  { id: 71, name: "Traffic Light", colors: new Uint32Array([0x00000000,0x00003000,0x00006000,0x00009000,0x0000c000,0x0000f000,0x0021ff00,0x0051ff00,0x0081ff00,0x00b1ff00,0x00e1ff00,0x00ffed00,0x00ffbd00,0x00ff8d00,0x00ff5d00,0x00ff2d00]) },
+];
+
+// Interpolate palette color at index 0-255, with optional brightness scaling
+function colorFromPalette(palette, index, brightness = 255) {
+  index = index & 0xFF;
+  const hi4 = index >> 4;       // 0-15
+  const lo4 = index & 0xF;      // 0-15
+  const blend = lo4 * 17;       // 0-255
+  const colors = palette.colors;
+  const entry0 = colors[hi4];
+  const entry1 = colors[(hi4 + 1) & 0xF];
+  const c = color_blend(entry0, entry1, blend);
+  return brightness < 255 ? color_scale(c, brightness) : c;
+}
+
+function color_blend(a, b, ratio) {
+  ratio = ratio & 0xFF;
+  const invR = 256 - ratio;
+  const r = (((a >> 16) & 0xFF) * invR + ((b >> 16) & 0xFF) * ratio) >> 8;
+  const g = (((a >> 8) & 0xFF) * invR + ((b >> 8) & 0xFF) * ratio) >> 8;
+  const bv = ((a & 0xFF) * invR + (b & 0xFF) * ratio) >> 8;
+  const w = (((a >> 24) & 0xFF) * invR + ((b >> 24) & 0xFF) * ratio) >> 8;
+  return ((w & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (bv & 0xFF);
+}
+
+function color_scale(c, s) {
+  s = s & 0xFF;
+  const r = (((c >> 16) & 0xFF) * s) >> 8;
+  const g = (((c >> 8) & 0xFF) * s) >> 8;
+  const b = ((c & 0xFF) * s) >> 8;
+  const w = (((c >> 24) & 0xFF) * s) >> 8;
+  return ((w & 0xFF) << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
+}
+
+
+// ==================== Fonts ====================
+// Auto-generated bitmap font data from wled00/src/font/console_font_*.h
+// 5 fonts, 95 printable ASCII characters each (code 32-126)
+
+const FONTS = [
+  { w: 4, h: 6, data: new Uint8Array([
+    0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x20,0x20,0x00,0x20,0x00,0x50,0x50,0x00,0x00,
+    0x00,0x00,0x50,0x70,0x50,0x70,0x50,0x00,0x20,0x30,0x60,0x30,0x60,0x20,0x40,0x10,
+    0x20,0x40,0x10,0x00,0x20,0x50,0x30,0x50,0x70,0x00,0x60,0x40,0x00,0x00,0x00,0x00,
+    0x20,0x40,0x40,0x40,0x20,0x00,0x40,0x20,0x20,0x20,0x40,0x00,0x50,0x20,0x70,0x20,
+    0x50,0x00,0x00,0x20,0x70,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x60,0x40,0x00,0x00,
+    0x70,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x00,0x10,0x10,0x20,0x40,0x40,0x00,
+    0x30,0x50,0x50,0x50,0x60,0x00,0x20,0x60,0x20,0x20,0x70,0x00,0x60,0x10,0x20,0x40,
+    0x70,0x00,0x60,0x10,0x20,0x10,0x60,0x00,0x10,0x50,0x70,0x10,0x10,0x00,0x70,0x40,
+    0x60,0x10,0x60,0x00,0x20,0x40,0x60,0x50,0x20,0x00,0x70,0x10,0x30,0x20,0x20,0x00,
+    0x20,0x50,0x20,0x50,0x20,0x00,0x20,0x50,0x30,0x10,0x20,0x00,0x00,0x00,0x20,0x00,
+    0x20,0x00,0x00,0x00,0x20,0x00,0x60,0x40,0x10,0x20,0x40,0x20,0x10,0x00,0x00,0x00,
+    0x70,0x00,0x70,0x00,0x40,0x20,0x10,0x20,0x40,0x00,0x60,0x10,0x20,0x00,0x20,0x00,
+    0x70,0x50,0x50,0x40,0x70,0x00,0x20,0x50,0x70,0x50,0x50,0x00,0x60,0x50,0x60,0x50,
+    0x60,0x00,0x30,0x40,0x40,0x40,0x30,0x00,0x60,0x50,0x50,0x50,0x60,0x00,0x70,0x40,
+    0x60,0x40,0x70,0x00,0x70,0x40,0x60,0x40,0x40,0x00,0x30,0x40,0x50,0x50,0x30,0x00,
+    0x50,0x50,0x70,0x50,0x50,0x00,0x70,0x20,0x20,0x20,0x70,0x00,0x10,0x10,0x10,0x50,
+    0x20,0x00,0x50,0x50,0x60,0x50,0x50,0x00,0x40,0x40,0x40,0x40,0x70,0x00,0x50,0x70,
+    0x70,0x50,0x50,0x00,0x50,0x70,0x50,0x50,0x50,0x00,0x20,0x50,0x50,0x50,0x20,0x00,
+    0x60,0x50,0x60,0x40,0x40,0x00,0x20,0x50,0x50,0x70,0x30,0x00,0x60,0x50,0x60,0x50,
+    0x50,0x00,0x30,0x40,0x70,0x10,0x60,0x00,0x70,0x20,0x20,0x20,0x20,0x00,0x50,0x50,
+    0x50,0x50,0x70,0x00,0x50,0x50,0x50,0x50,0x20,0x00,0x50,0x50,0x70,0x70,0x50,0x00,
+    0x50,0x50,0x20,0x50,0x50,0x00,0x50,0x50,0x20,0x20,0x20,0x00,0x70,0x10,0x20,0x40,
+    0x70,0x00,0x60,0x40,0x40,0x40,0x60,0x00,0x40,0x40,0x20,0x10,0x10,0x00,0x60,0x20,
+    0x20,0x20,0x60,0x00,0x20,0x50,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xf0,
+    0x60,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x30,0x50,0x70,0x00,0x40,0x40,0x60,0x50,
+    0x60,0x00,0x00,0x00,0x30,0x40,0x30,0x00,0x10,0x10,0x30,0x50,0x30,0x00,0x00,0x00,
+    0x70,0x60,0x30,0x00,0x10,0x20,0x70,0x20,0x20,0x00,0x00,0x00,0x70,0x50,0x10,0x70,
+    0x40,0x40,0x60,0x50,0x50,0x00,0x20,0x00,0x20,0x20,0x20,0x00,0x20,0x00,0x20,0x20,
+    0x20,0x60,0x40,0x40,0x50,0x60,0x50,0x00,0x20,0x20,0x20,0x20,0x20,0x00,0x00,0x00,
+    0x70,0x70,0x50,0x00,0x00,0x00,0x60,0x50,0x50,0x00,0x00,0x00,0x20,0x50,0x20,0x00,
+    0x00,0x00,0x60,0x50,0x60,0x40,0x00,0x00,0x30,0x50,0x30,0x10,0x00,0x00,0x60,0x40,
+    0x40,0x00,0x00,0x00,0x30,0x20,0x60,0x00,0x00,0x20,0x70,0x20,0x30,0x00,0x00,0x00,
+    0x50,0x50,0x70,0x00,0x00,0x00,0x50,0x50,0x20,0x00,0x00,0x00,0x50,0x70,0x70,0x00,
+    0x00,0x00,0x50,0x20,0x50,0x00,0x00,0x00,0x50,0x50,0x20,0x40,0x00,0x00,0x60,0x20,
+    0x30,0x00,0x30,0x20,0x60,0x20,0x30,0x00,0x20,0x20,0x20,0x20,0x20,0x00,0x60,0x20,
+    0x30,0x20,0x60,0x00,0x50,0xa0,0x00,0x00,0x00,0x00,
+  ])},
+  { w: 5, h: 8, data: new Uint8Array([
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x20,0x20,0x00,0x20,0x00,
+    0x00,0x00,0x50,0x50,0x00,0x00,0x00,0x00,0x00,0x00,0x50,0xf8,0x50,0xf8,0x50,0x00,
+    0x00,0x00,0x20,0x30,0x40,0x30,0x60,0x20,0x00,0x40,0xa8,0x50,0x30,0x68,0x90,0x00,
+    0x00,0x00,0x30,0x40,0x68,0x90,0x68,0x00,0x00,0x20,0x20,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x20,0x40,0x40,0x40,0x20,0x00,0x00,0x00,0x40,0x20,0x20,0x20,0x40,0x00,
+    0x00,0x00,0x50,0x20,0x70,0x20,0x50,0x00,0x00,0x00,0x00,0x20,0x70,0x20,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x40,0x00,0x00,0x00,0xf0,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x00,0x00,0x00,0x10,0x20,0x20,0x40,0x40,0x00,
+    0x00,0x00,0x60,0x90,0x90,0x90,0x60,0x00,0x00,0x00,0x20,0x60,0x20,0x20,0x20,0x00,
+    0x00,0x00,0x60,0x90,0x20,0x40,0xf0,0x00,0x00,0x00,0xe0,0x10,0x60,0x10,0xe0,0x00,
+    0x00,0x00,0x10,0x30,0x50,0xf0,0x10,0x00,0x00,0x00,0xf0,0x80,0xe0,0x10,0xe0,0x00,
+    0x00,0x00,0x60,0x80,0xe0,0x90,0x60,0x00,0x00,0x00,0xf0,0x10,0x20,0x40,0x40,0x00,
+    0x00,0x00,0x60,0x90,0x60,0x90,0x60,0x00,0x00,0x00,0x60,0x90,0x70,0x10,0x60,0x00,
+    0x00,0x00,0x00,0x00,0x20,0x00,0x20,0x00,0x00,0x00,0x00,0x00,0x20,0x00,0x20,0x40,
+    0x00,0x00,0x10,0x20,0x40,0x20,0x10,0x00,0x00,0x00,0x00,0x70,0x00,0x70,0x00,0x00,
+    0x00,0x00,0x40,0x20,0x10,0x20,0x40,0x00,0x00,0x00,0x60,0x10,0x60,0x00,0x40,0x00,
+    0x00,0x00,0x70,0x88,0xb0,0x80,0x70,0x00,0x00,0x00,0x60,0x90,0xf0,0x90,0x90,0x00,
+    0x00,0x00,0xe0,0x90,0xe0,0x90,0xe0,0x00,0x00,0x00,0x70,0x80,0x80,0x80,0x70,0x00,
+    0x00,0x00,0xe0,0x90,0x90,0x90,0xe0,0x00,0x00,0x00,0xf0,0x80,0xe0,0x80,0xf0,0x00,
+    0x00,0x00,0xf0,0x80,0xe0,0x80,0x80,0x00,0x00,0x00,0x60,0x90,0x80,0x90,0x70,0x00,
+    0x00,0x00,0x90,0x90,0xf0,0x90,0x90,0x00,0x00,0x00,0x70,0x20,0x20,0x20,0x70,0x00,
+    0x00,0x00,0x10,0x10,0x90,0x90,0x60,0x00,0x00,0x00,0x90,0xa0,0xc0,0xa0,0x90,0x00,
+    0x00,0x00,0x80,0x80,0x80,0x80,0xf0,0x00,0x00,0x00,0x90,0xf0,0x90,0x90,0x90,0x00,
+    0x00,0x00,0x90,0xd0,0xb0,0x90,0x90,0x00,0x00,0x00,0x60,0x90,0x90,0x90,0x60,0x00,
+    0x00,0x00,0xe0,0x90,0xe0,0x80,0x80,0x00,0x00,0x00,0x60,0x90,0x90,0x90,0x60,0x10,
+    0x00,0x00,0xe0,0x90,0xe0,0x90,0x90,0x00,0x00,0x00,0x70,0x80,0x60,0x10,0xe0,0x00,
+    0x00,0x00,0xf8,0x20,0x20,0x20,0x20,0x00,0x00,0x00,0x90,0x90,0x90,0x90,0x60,0x00,
+    0x00,0x00,0x90,0x90,0x90,0x60,0x60,0x00,0x00,0x00,0x88,0xa8,0xa8,0x50,0x50,0x00,
+    0x00,0x00,0x90,0x90,0x60,0x50,0x90,0x00,0x00,0x00,0x50,0x50,0x50,0x20,0x20,0x00,
+    0x00,0x00,0xf0,0x20,0x40,0x80,0xf0,0x00,0x00,0x00,0x60,0x40,0x40,0x40,0x60,0x00,
+    0x00,0x00,0x40,0x40,0x20,0x20,0x10,0x00,0x00,0x00,0x60,0x20,0x20,0x20,0x60,0x00,
+    0x00,0x00,0x20,0x50,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xf8,
+    0x00,0x00,0x40,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x60,0x10,0x70,0x50,0x00,
+    0x00,0x80,0x80,0xe0,0x90,0x90,0xe0,0x00,0x00,0x00,0x00,0x30,0x40,0x40,0x30,0x00,
+    0x00,0x00,0x10,0x70,0x90,0x90,0x70,0x00,0x00,0x00,0x00,0x60,0xf0,0x80,0x70,0x00,
+    0x00,0x00,0x30,0x40,0xe0,0x40,0x40,0x00,0x00,0x00,0x00,0x70,0x90,0x70,0x10,0x60,
+    0x00,0x00,0x80,0xe0,0x90,0x90,0x90,0x00,0x00,0x20,0x00,0x60,0x20,0x20,0x70,0x00,
+    0x00,0x10,0x00,0x10,0x10,0x10,0x10,0x60,0x00,0x00,0x80,0xa0,0xc0,0xa0,0x90,0x00,
+    0x00,0x60,0x20,0x20,0x20,0x20,0x70,0x00,0x00,0x00,0x00,0x90,0xf0,0x90,0x90,0x00,
+    0x00,0x00,0x00,0xe0,0x90,0x90,0x90,0x00,0x00,0x00,0x00,0x60,0x90,0x90,0x60,0x00,
+    0x00,0x00,0x00,0xe0,0x90,0x90,0xe0,0x80,0x00,0x00,0x00,0x70,0x90,0x90,0x70,0x10,
+    0x00,0x00,0x00,0x50,0x60,0x40,0x40,0x00,0x00,0x00,0x00,0x70,0xc0,0x30,0xe0,0x00,
+    0x00,0x00,0x40,0xf0,0x40,0x40,0x30,0x00,0x00,0x00,0x00,0x90,0x90,0x90,0x70,0x00,
+    0x00,0x00,0x00,0x90,0x90,0x60,0x60,0x00,0x00,0x00,0x00,0x90,0x90,0xf0,0x90,0x00,
+    0x00,0x00,0x00,0x90,0x60,0x60,0x90,0x00,0x00,0x00,0x00,0x90,0x90,0x70,0x10,0x60,
+    0x00,0x00,0x00,0xf0,0x20,0x40,0xf0,0x00,0x00,0x10,0x20,0x40,0x40,0x20,0x10,0x00,
+    0x00,0x20,0x20,0x20,0x20,0x20,0x20,0x00,0x00,0x40,0x20,0x10,0x10,0x20,0x40,0x00,
+    0x00,0x00,0x00,0x50,0xa0,0x00,0x00,0x00,
+  ])},
+  { w: 6, h: 8, data: new Uint8Array([
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x10,0x38,0x38,0x10,0x10,0x00,0x10,0x00,
+    0x6c,0x6c,0x48,0x00,0x00,0x00,0x00,0x00,0x00,0x28,0x7c,0x28,0x28,0x7c,0x28,0x00,
+    0x20,0x38,0x40,0x30,0x08,0x70,0x10,0x00,0x64,0x64,0x08,0x10,0x20,0x4c,0x4c,0x00,
+    0x20,0x50,0x50,0x20,0x54,0x48,0x34,0x00,0x30,0x30,0x20,0x00,0x00,0x00,0x00,0x00,
+    0x10,0x20,0x20,0x20,0x20,0x20,0x10,0x00,0x20,0x10,0x10,0x10,0x10,0x10,0x20,0x00,
+    0x00,0x28,0x38,0x7c,0x38,0x28,0x00,0x00,0x00,0x10,0x10,0x7c,0x10,0x10,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x30,0x30,0x20,0x00,0x00,0x00,0x7c,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x30,0x30,0x00,0x00,0x04,0x08,0x10,0x20,0x40,0x00,0x00,
+    0x38,0x44,0x4c,0x54,0x64,0x44,0x38,0x00,0x10,0x30,0x10,0x10,0x10,0x10,0x38,0x00,
+    0x38,0x44,0x04,0x18,0x20,0x40,0x7c,0x00,0x38,0x44,0x04,0x38,0x04,0x44,0x38,0x00,
+    0x08,0x18,0x28,0x48,0x7c,0x08,0x08,0x00,0x7c,0x40,0x40,0x78,0x04,0x44,0x38,0x00,
+    0x18,0x20,0x40,0x78,0x44,0x44,0x38,0x00,0x7c,0x04,0x08,0x10,0x20,0x20,0x20,0x00,
+    0x38,0x44,0x44,0x38,0x44,0x44,0x38,0x00,0x38,0x44,0x44,0x3c,0x04,0x08,0x30,0x00,
+    0x00,0x00,0x30,0x30,0x00,0x30,0x30,0x00,0x00,0x00,0x30,0x30,0x00,0x30,0x30,0x20,
+    0x08,0x10,0x20,0x40,0x20,0x10,0x08,0x00,0x00,0x00,0x7c,0x00,0x00,0x7c,0x00,0x00,
+    0x20,0x10,0x08,0x04,0x08,0x10,0x20,0x00,0x38,0x44,0x04,0x18,0x10,0x00,0x10,0x00,
+    0x38,0x44,0x5c,0x54,0x5c,0x40,0x38,0x00,0x38,0x44,0x44,0x44,0x7c,0x44,0x44,0x00,
+    0x78,0x44,0x44,0x78,0x44,0x44,0x78,0x00,0x38,0x44,0x40,0x40,0x40,0x44,0x38,0x00,
+    0x78,0x44,0x44,0x44,0x44,0x44,0x78,0x00,0x7c,0x40,0x40,0x78,0x40,0x40,0x7c,0x00,
+    0x7c,0x40,0x40,0x78,0x40,0x40,0x40,0x00,0x38,0x44,0x40,0x5c,0x44,0x44,0x3c,0x00,
+    0x44,0x44,0x44,0x7c,0x44,0x44,0x44,0x00,0x38,0x10,0x10,0x10,0x10,0x10,0x38,0x00,
+    0x04,0x04,0x04,0x04,0x44,0x44,0x38,0x00,0x44,0x48,0x50,0x60,0x50,0x48,0x44,0x00,
+    0x40,0x40,0x40,0x40,0x40,0x40,0x7c,0x00,0x44,0x6c,0x54,0x44,0x44,0x44,0x44,0x00,
+    0x44,0x64,0x54,0x4c,0x44,0x44,0x44,0x00,0x38,0x44,0x44,0x44,0x44,0x44,0x38,0x00,
+    0x78,0x44,0x44,0x78,0x40,0x40,0x40,0x00,0x38,0x44,0x44,0x44,0x54,0x48,0x34,0x00,
+    0x78,0x44,0x44,0x78,0x48,0x44,0x44,0x00,0x38,0x44,0x40,0x38,0x04,0x44,0x38,0x00,
+    0x7c,0x10,0x10,0x10,0x10,0x10,0x10,0x00,0x44,0x44,0x44,0x44,0x44,0x44,0x38,0x00,
+    0x44,0x44,0x44,0x44,0x44,0x28,0x10,0x00,0x44,0x44,0x54,0x54,0x54,0x54,0x28,0x00,
+    0x44,0x44,0x28,0x10,0x28,0x44,0x44,0x00,0x44,0x44,0x44,0x28,0x10,0x10,0x10,0x00,
+    0x78,0x08,0x10,0x20,0x40,0x40,0x78,0x00,0x38,0x20,0x20,0x20,0x20,0x20,0x38,0x00,
+    0x00,0x40,0x20,0x10,0x08,0x04,0x00,0x00,0x38,0x08,0x08,0x08,0x08,0x08,0x38,0x00,
+    0x10,0x28,0x44,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xfc,
+    0x30,0x30,0x10,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x38,0x04,0x3c,0x44,0x3c,0x00,
+    0x40,0x40,0x78,0x44,0x44,0x44,0x78,0x00,0x00,0x00,0x38,0x44,0x40,0x44,0x38,0x00,
+    0x04,0x04,0x3c,0x44,0x44,0x44,0x3c,0x00,0x00,0x00,0x38,0x44,0x78,0x40,0x38,0x00,
+    0x18,0x20,0x20,0x78,0x20,0x20,0x20,0x00,0x00,0x00,0x3c,0x44,0x44,0x3c,0x04,0x38,
+    0x40,0x40,0x70,0x48,0x48,0x48,0x48,0x00,0x10,0x00,0x10,0x10,0x10,0x10,0x18,0x00,
+    0x08,0x00,0x18,0x08,0x08,0x08,0x48,0x30,0x40,0x40,0x48,0x50,0x60,0x50,0x48,0x00,
+    0x10,0x10,0x10,0x10,0x10,0x10,0x18,0x00,0x00,0x00,0x68,0x54,0x54,0x44,0x44,0x00,
+    0x00,0x00,0x70,0x48,0x48,0x48,0x48,0x00,0x00,0x00,0x38,0x44,0x44,0x44,0x38,0x00,
+    0x00,0x00,0x78,0x44,0x44,0x44,0x78,0x40,0x00,0x00,0x3c,0x44,0x44,0x44,0x3c,0x04,
+    0x00,0x00,0x58,0x24,0x20,0x20,0x70,0x00,0x00,0x00,0x38,0x40,0x38,0x04,0x38,0x00,
+    0x00,0x20,0x78,0x20,0x20,0x28,0x10,0x00,0x00,0x00,0x48,0x48,0x48,0x58,0x28,0x00,
+    0x00,0x00,0x44,0x44,0x44,0x28,0x10,0x00,0x00,0x00,0x44,0x44,0x54,0x7c,0x28,0x00,
+    0x00,0x00,0x48,0x48,0x30,0x48,0x48,0x00,0x00,0x00,0x48,0x48,0x48,0x38,0x10,0x60,
+    0x00,0x00,0x78,0x08,0x30,0x40,0x78,0x00,0x18,0x20,0x20,0x60,0x20,0x20,0x18,0x00,
+    0x10,0x10,0x10,0x00,0x10,0x10,0x10,0x00,0x30,0x08,0x08,0x0c,0x08,0x08,0x30,0x00,
+    0x28,0x50,0x00,0x00,0x00,0x00,0x00,0x00,
+  ])},
+  { w: 7, h: 9, data: new Uint8Array([
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x18,0x18,0x18,0x18,0x00,0x18,
+    0x18,0x00,0x00,0x6c,0x6c,0x44,0x00,0x00,0x00,0x00,0x00,0x00,0x6c,0x6c,0xfe,0x6c,
+    0xfe,0x6c,0x6c,0x00,0x08,0x18,0x3c,0x60,0x3c,0x06,0x7c,0x18,0x10,0x70,0x52,0x76,
+    0x0c,0x18,0x3e,0x6a,0x0e,0x00,0x38,0x6c,0x6c,0x38,0x6e,0x6c,0x6c,0x3e,0x00,0x00,
+    0x18,0x18,0x30,0x30,0x00,0x00,0x00,0x00,0x00,0x0c,0x18,0x30,0x30,0x30,0x18,0x0c,
+    0x00,0x00,0x30,0x18,0x0c,0x0c,0x0c,0x18,0x30,0x00,0x00,0x44,0x6c,0x38,0xfe,0x38,
+    0x6c,0x44,0x00,0x00,0x00,0x18,0x18,0x7e,0x7e,0x18,0x18,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x30,0x30,0x60,0x00,0x00,0x00,0x00,0x7c,0x7c,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x30,0x30,0x00,0x00,0x0c,0x0c,0x18,0x18,0x30,0x30,0x60,0x00,
+    0x00,0x3c,0x66,0x6e,0x76,0x66,0x66,0x3c,0x00,0x00,0x18,0x78,0x18,0x18,0x18,0x18,
+    0x7e,0x00,0x00,0x3c,0x66,0x46,0x1c,0x30,0x66,0x7e,0x00,0x00,0x3c,0x66,0x06,0x1c,
+    0x06,0x66,0x3c,0x00,0x00,0x0c,0x1c,0x3c,0x6c,0x7e,0x0c,0x1e,0x00,0x00,0x7e,0x66,
+    0x60,0x7c,0x06,0x66,0x3c,0x00,0x00,0x1c,0x30,0x60,0x7c,0x66,0x66,0x3c,0x00,0x00,
+    0x7e,0x66,0x06,0x0c,0x18,0x18,0x18,0x00,0x00,0x3c,0x66,0x66,0x3c,0x66,0x66,0x3c,
+    0x00,0x00,0x3c,0x66,0x66,0x3e,0x06,0x0c,0x38,0x00,0x00,0x00,0x30,0x30,0x00,0x00,
+    0x30,0x30,0x00,0x00,0x00,0x30,0x30,0x00,0x00,0x30,0x30,0x60,0x00,0x00,0x18,0x30,
+    0x60,0x30,0x18,0x00,0x00,0x00,0x00,0x00,0x7c,0x00,0x7c,0x00,0x00,0x00,0x00,0x00,
+    0x30,0x18,0x0c,0x18,0x30,0x00,0x00,0x00,0x3c,0x66,0x06,0x0c,0x18,0x00,0x18,0x00,
+    0x00,0x3c,0x62,0x6e,0x6a,0x6c,0x62,0x3c,0x00,0x00,0x10,0x38,0x28,0x6c,0x7c,0xc6,
+    0xc6,0x00,0x00,0x7c,0x66,0x66,0x7c,0x66,0x66,0x7c,0x00,0x00,0x3c,0x66,0x60,0x60,
+    0x60,0x66,0x3c,0x00,0x00,0x7c,0x66,0x66,0x66,0x66,0x66,0x7c,0x00,0x00,0x7e,0x66,
+    0x60,0x78,0x60,0x66,0x7e,0x00,0x00,0x7e,0x66,0x60,0x7c,0x60,0x60,0x60,0x00,0x00,
+    0x3c,0x66,0x60,0x6e,0x66,0x66,0x3e,0x00,0x00,0x66,0x66,0x66,0x7e,0x66,0x66,0x66,
+    0x00,0x00,0x3c,0x18,0x18,0x18,0x18,0x18,0x3c,0x00,0x00,0x1e,0x0c,0x0c,0x0c,0x6c,
+    0x6c,0x38,0x00,0x00,0x66,0x6c,0x6c,0x78,0x6c,0x6c,0x66,0x00,0x00,0x60,0x60,0x60,
+    0x60,0x60,0x66,0x7e,0x00,0x00,0xc6,0xc6,0xee,0xfe,0xd6,0xd6,0xd6,0x00,0x00,0x66,
+    0x76,0x76,0x7e,0x6e,0x66,0x66,0x00,0x00,0x3c,0x66,0x66,0x66,0x66,0x66,0x3c,0x00,
+    0x00,0x7c,0x66,0x66,0x66,0x7c,0x60,0x60,0x00,0x00,0x3c,0x66,0x66,0x66,0x76,0x6e,
+    0x3c,0x06,0x00,0x7c,0x66,0x66,0x6c,0x78,0x6c,0x66,0x00,0x00,0x3c,0x66,0x60,0x3c,
+    0x06,0x66,0x3c,0x00,0x00,0x7e,0x5a,0x18,0x18,0x18,0x18,0x3c,0x00,0x00,0x66,0x66,
+    0x66,0x66,0x66,0x66,0x3c,0x00,0x00,0xc6,0xc6,0x6c,0x6c,0x38,0x38,0x10,0x00,0x00,
+    0xc6,0xd6,0xd6,0xd6,0x7c,0x6c,0x44,0x00,0x00,0x66,0x66,0x3c,0x18,0x3c,0x66,0x66,
+    0x00,0x00,0x66,0x66,0x66,0x3c,0x18,0x18,0x3c,0x00,0x00,0x7e,0x66,0x0c,0x18,0x30,
+    0x66,0x7e,0x00,0x00,0x3c,0x30,0x30,0x30,0x30,0x30,0x3c,0x00,0x00,0x60,0x60,0x30,
+    0x30,0x18,0x18,0x0c,0x00,0x00,0x3c,0x0c,0x0c,0x0c,0x0c,0x0c,0x3c,0x00,0x00,0x10,
+    0x38,0x6c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x7c,0x7c,
+    0x00,0x30,0x30,0x18,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x3c,0x06,0x3e,0x66,
+    0x3a,0x00,0x00,0x60,0x60,0x7c,0x66,0x66,0x66,0x5c,0x00,0x00,0x00,0x00,0x3c,0x66,
+    0x60,0x66,0x3c,0x00,0x00,0x06,0x06,0x3e,0x66,0x66,0x66,0x3a,0x00,0x00,0x00,0x00,
+    0x3c,0x66,0x7e,0x60,0x3c,0x00,0x00,0x1c,0x36,0x30,0x7c,0x30,0x30,0x78,0x00,0x00,
+    0x00,0x00,0x3a,0x66,0x66,0x3e,0x06,0x3c,0x00,0x60,0x60,0x6c,0x76,0x66,0x66,0x66,
+    0x00,0x18,0x18,0x00,0x18,0x38,0x18,0x18,0x3c,0x00,0x0c,0x0c,0x00,0x0c,0x3c,0x0c,
+    0x4c,0x6c,0x38,0x00,0x60,0x60,0x66,0x6c,0x78,0x6c,0x66,0x00,0x00,0x18,0x18,0x18,
+    0x18,0x18,0x18,0x3c,0x00,0x00,0x00,0x00,0x6c,0xfe,0xd6,0xd6,0xd6,0x00,0x00,0x00,
+    0x00,0x6c,0x76,0x66,0x66,0x66,0x00,0x00,0x00,0x00,0x3c,0x66,0x66,0x66,0x3c,0x00,
+    0x00,0x00,0x00,0x7c,0x66,0x66,0x76,0x6c,0x60,0x00,0x00,0x00,0x3a,0x66,0x66,0x6e,
+    0x36,0x06,0x00,0x00,0x00,0x26,0x7e,0x30,0x30,0x78,0x00,0x00,0x00,0x00,0x3c,0x60,
+    0x3c,0x06,0x3c,0x00,0x00,0x10,0x30,0xfc,0x30,0x30,0x36,0x1c,0x00,0x00,0x00,0x00,
+    0x66,0x66,0x66,0x6e,0x36,0x00,0x00,0x00,0x00,0xc6,0xc6,0x6c,0x38,0x10,0x00,0x00,
+    0x00,0x00,0xd6,0xd6,0x7c,0x6c,0x44,0x00,0x00,0x00,0x00,0xc6,0x6c,0x38,0x6c,0xc6,
+    0x00,0x00,0x00,0x00,0x66,0x66,0x36,0x1c,0x6c,0x38,0x00,0x00,0x00,0x7e,0x06,0x18,
+    0x30,0x7e,0x00,0x00,0x1c,0x30,0x30,0x60,0x30,0x30,0x1c,0x00,0x18,0x18,0x18,0x18,
+    0x00,0x18,0x18,0x18,0x00,0x00,0x70,0x18,0x18,0x0c,0x18,0x18,0x70,0x00,0x00,0x10,
+    0x3a,0x6e,0x04,0x00,0x00,0x00,0x00,
+  ])},
+  { w: 5, h: 12, data: new Uint8Array([
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x20,0x20,
+    0x20,0x20,0x20,0x00,0x20,0x20,0x00,0x00,0x50,0x50,0x50,0x50,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x50,0x50,0xf8,0x50,0x50,0xf8,0x50,0x50,0x00,0x00,0x00,
+    0x00,0x40,0x60,0x90,0x80,0x40,0x20,0x10,0x90,0x60,0x20,0x00,0x00,0xd0,0xd0,0x20,
+    0x20,0x40,0x40,0x40,0xb0,0xb0,0x00,0x00,0x00,0x40,0xa0,0xa0,0xa0,0x40,0xa8,0x90,
+    0x90,0x68,0x00,0x00,0x30,0x30,0x10,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x20,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x20,0x00,0x00,0x00,0x40,0x20,0x20,
+    0x20,0x20,0x20,0x20,0x20,0x40,0x00,0x00,0x00,0x00,0x20,0xa8,0x70,0x70,0xa8,0x20,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x20,0x20,0xf8,0x20,0x20,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x60,0x60,0x20,0x40,0x00,0x00,0x00,0x00,
+    0x00,0xf0,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x60,0x60,0x00,0x00,0x00,0x10,0x10,0x20,0x20,0x40,0x40,0x40,0x80,0x80,0x00,0x00,
+    0x00,0x70,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0xe0,0x00,0x00,0x00,0x20,0x60,0xa0,
+    0x20,0x20,0x20,0x20,0x20,0xf0,0x00,0x00,0x00,0x60,0x90,0x90,0x10,0x20,0x40,0x80,
+    0x80,0xf0,0x00,0x00,0x00,0x60,0x90,0x10,0x10,0x60,0x10,0x10,0x90,0x60,0x00,0x00,
+    0x00,0x10,0x30,0x50,0x50,0x90,0xf0,0x10,0x10,0x10,0x00,0x00,0x00,0xf0,0x80,0x80,
+    0x80,0xe0,0x10,0x10,0x90,0x60,0x00,0x00,0x00,0x30,0x40,0x80,0xe0,0x90,0x90,0x90,
+    0x90,0x60,0x00,0x00,0x00,0xf0,0x10,0x10,0x10,0x20,0x20,0x40,0x40,0x40,0x00,0x00,
+    0x00,0x60,0x90,0x90,0x90,0x60,0x90,0x90,0x90,0x60,0x00,0x00,0x00,0x60,0x90,0x90,
+    0x90,0x90,0x70,0x10,0x20,0xc0,0x00,0x00,0x00,0x00,0x00,0x00,0x60,0x60,0x00,0x00,
+    0x60,0x60,0x00,0x00,0x00,0x00,0x00,0x00,0x60,0x60,0x00,0x00,0x60,0x60,0x20,0x40,
+    0x00,0x00,0x10,0x20,0x40,0x80,0x80,0x40,0x20,0x10,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xf0,0x00,0xf0,0x00,0x00,0x00,0x00,0x00,0x00,0x80,0x40,0x20,0x10,0x10,0x20,
+    0x40,0x80,0x00,0x00,0x00,0x60,0x90,0x90,0x10,0x20,0x20,0x00,0x20,0x20,0x00,0x00,
+    0x00,0x60,0x90,0x90,0x90,0xb0,0xb0,0x80,0x80,0x70,0x00,0x00,0x00,0x60,0x90,0x90,
+    0x90,0xf0,0x90,0x90,0x90,0x90,0x00,0x00,0x00,0xe0,0x90,0x90,0x90,0xe0,0x90,0x90,
+    0x90,0xe0,0x00,0x00,0x00,0x60,0x90,0x90,0x80,0x80,0x80,0x80,0x90,0x60,0x00,0x00,
+    0x00,0xe0,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0xe0,0x00,0x00,0x00,0xf0,0x80,0x80,
+    0x80,0xf0,0x80,0x80,0x80,0xf0,0x00,0x00,0x00,0xf0,0x80,0x80,0x80,0xf0,0x80,0x80,
+    0x80,0x80,0x00,0x00,0x00,0x60,0x90,0x90,0x80,0x80,0xb0,0x90,0x90,0x60,0x00,0x00,
+    0x00,0x90,0x90,0x90,0x90,0xf0,0x90,0x90,0x90,0x90,0x00,0x00,0x00,0x70,0x20,0x20,
+    0x20,0x20,0x20,0x20,0x20,0x70,0x00,0x00,0x00,0x70,0x20,0x20,0x20,0x20,0x20,0xa0,
+    0xa0,0x40,0x00,0x00,0x00,0x90,0x90,0xa0,0xa0,0xc0,0xa0,0xa0,0x90,0x90,0x00,0x00,
+    0x00,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0x80,0xf0,0x00,0x00,0x00,0x90,0x90,0xf0,
+    0xf0,0x90,0x90,0x90,0x90,0x90,0x00,0x00,0x00,0x90,0x90,0xd0,0xd0,0xb0,0xb0,0x90,
+    0x90,0x90,0x00,0x00,0x00,0x60,0x90,0x90,0x90,0x90,0x90,0x90,0x90,0x60,0x00,0x00,
+    0x00,0xe0,0x90,0x90,0x90,0xe0,0x80,0x80,0x80,0x80,0x00,0x00,0x00,0x60,0x90,0x90,
+    0x90,0x90,0x90,0x90,0x90,0x60,0x20,0x10,0x00,0xe0,0x90,0x90,0x90,0xe0,0xc0,0xa0,
+    0x90,0x90,0x00,0x00,0x00,0x60,0x90,0x90,0x80,0x60,0x10,0x90,0x90,0x60,0x00,0x00,
+    0x00,0xf8,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x00,0x00,0x00,0x90,0x90,0x90,
+    0x90,0x90,0x90,0x90,0x90,0x60,0x00,0x00,0x00,0x90,0x90,0x90,0x90,0x90,0x50,0x50,
+    0x20,0x20,0x00,0x00,0x00,0x90,0x90,0x90,0x90,0x90,0x90,0xf0,0x90,0x90,0x00,0x00,
+    0x00,0x90,0x90,0x90,0x60,0x60,0x60,0x90,0x90,0x90,0x00,0x00,0x00,0x88,0x88,0x88,
+    0x50,0x50,0x20,0x20,0x20,0x20,0x00,0x00,0x00,0xf0,0x10,0x20,0x20,0x40,0x40,0x80,
+    0x80,0xf0,0x00,0x00,0x00,0x60,0x40,0x40,0x40,0x40,0x40,0x40,0x40,0x60,0x00,0x00,
+    0x00,0x80,0x80,0x40,0x40,0x20,0x20,0x20,0x10,0x10,0x00,0x00,0x00,0x60,0x20,0x20,
+    0x20,0x20,0x20,0x20,0x20,0x60,0x00,0x00,0x00,0x20,0x50,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xf8,
+    0x60,0x60,0x40,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x60,0x10,0x70,0x90,0x90,0x70,0x00,0x00,0x00,0x80,0x80,0x80,0xe0,0x90,0x90,0x90,
+    0x90,0xe0,0x00,0x00,0x00,0x00,0x00,0x00,0x70,0x80,0x80,0x80,0x80,0x70,0x00,0x00,
+    0x00,0x10,0x10,0x10,0x70,0x90,0x90,0x90,0x90,0x70,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x60,0x90,0x90,0xf0,0x80,0x70,0x00,0x00,0x00,0x20,0x40,0x40,0xe0,0x40,0x40,0x40,
+    0x40,0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x70,0x90,0x90,0x90,0x90,0x70,0x10,0x60,
+    0x00,0x80,0x80,0x80,0xe0,0x90,0x90,0x90,0x90,0x90,0x00,0x00,0x00,0x00,0x20,0x00,
+    0x20,0x20,0x20,0x20,0x20,0x70,0x00,0x00,0x00,0x00,0x20,0x00,0x20,0x20,0x20,0x20,
+    0x20,0x20,0xa0,0x40,0x00,0x80,0x80,0x80,0x90,0xa0,0xc0,0xc0,0xa0,0x90,0x00,0x00,
+    0x00,0x60,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x70,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x90,0xf0,0x90,0x90,0x90,0x90,0x00,0x00,0x00,0x00,0x00,0x00,0xa0,0xd0,0x90,0x90,
+    0x90,0x90,0x00,0x00,0x00,0x00,0x00,0x00,0x60,0x90,0x90,0x90,0x90,0x60,0x00,0x00,
+    0x00,0x00,0x00,0x00,0xe0,0x90,0x90,0x90,0x90,0xe0,0x80,0x80,0x00,0x00,0x00,0x00,
+    0x70,0x90,0x90,0x90,0x90,0x70,0x10,0x10,0x00,0x00,0x00,0x00,0xb0,0x50,0x40,0x40,
+    0x40,0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x60,0x90,0x40,0x20,0x90,0x60,0x00,0x00,
+    0x00,0x00,0x40,0x40,0xe0,0x40,0x40,0x40,0x40,0x60,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x90,0x90,0x90,0x90,0x90,0x70,0x00,0x00,0x00,0x00,0x00,0x00,0x90,0x90,0x50,0x50,
+    0x20,0x20,0x00,0x00,0x00,0x00,0x00,0x00,0x90,0x90,0x90,0x90,0xf0,0x90,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x90,0x90,0x60,0x60,0x90,0x90,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x90,0x90,0x90,0x90,0x90,0x70,0x10,0xe0,0x00,0x00,0x00,0x00,0xf0,0x10,0x20,0x40,
+    0x80,0xf0,0x00,0x00,0x00,0x20,0x40,0x40,0x40,0x80,0x40,0x40,0x40,0x20,0x00,0x00,
+    0x20,0x20,0x20,0x20,0x00,0x20,0x20,0x20,0x20,0x20,0x00,0x00,0x00,0x40,0x20,0x20,
+    0x20,0x10,0x20,0x20,0x20,0x40,0x00,0x00,0x00,0x50,0xa0,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,
+  ])},
+];
+
+
+// ==================== Sim Engine ====================
+// Browser-compatible WFX VM — ES module
+// Full visual operations: fade, blur, 2D geometry, text, palette interpolation
+
+
+
+// ---- Constants matching wled_vm.h ----
+const REG_COUNT = 0x25;
+const REG_P0 = 0x1C;
+const MAX_CYCLES = 50000;
+const CALL_STACK_DEPTH = 16;
+const FRAMETIME = 42;
+const INT32_MIN = -2147483648;
+const INT32_MAX = 2147483647;
+
+// Register indices
+const REG = {
+  R0: 0x00, R1: 0x01, R2: 0x02, R3: 0x03,
+  R4: 0x04, R5: 0x05, R6: 0x06, R7: 0x07,
+  R8: 0x08, R9: 0x09, R10: 0x0A, R11: 0x0B,
+  R12: 0x0C, R13: 0x0D, R14: 0x0E, R15: 0x0F,
+  F0: 0x10, F1: 0x11, F2: 0x12, F3: 0x13,
+  F4: 0x14, F5: 0x15, F6: 0x16, F7: 0x17,
+  C0: 0x18, C1: 0x19, C2: 0x1A, C3: 0x1B,
+  P0: 0x1C, P1: 0x1D, P2: 0x1E, P3: 0x1F,
+  LEN: 0x20, NOW: 0x21, CALL: 0x22, WIDTH: 0x23, HEIGHT: 0x24,
+};
+
+// Opcodes
+const OP = {
+  ADD: 0x01, SUB: 0x02, MUL: 0x03, DIV: 0x04, MOD: 0x05,
+  AND: 0x06, OR: 0x07, XOR: 0x08, SHL: 0x09, SHR: 0x0A,
+  NEG: 0x0B, NOT: 0x0C,
+  LDI: 0x10, LDI32: 0x11, MOV: 0x12,
+  LDB: 0x13, STB: 0x14, LDW: 0x15, STW: 0x16,
+  GSPD: 0x20, GINT: 0x21, GC1: 0x22, GC2: 0x23, GC3: 0x24,
+  GCHK: 0x25, GCOL: 0x26, GPAL: 0x27,
+  GAUX: 0x28, SAUX: 0x29, GSTP: 0x2A, SSTP: 0x2B,
+  SPXC: 0x30, GPXC: 0x31, SPXY: 0x32, GPXY: 0x33,
+  FILL: 0x34, FADE: 0x35, BLUR: 0x36, BLR2: 0x37,
+  RGB: 0x40, RGBW: 0x41, CBLND: 0x42, CFADE: 0x43,
+  CADD: 0x44, CPAL: 0x45, CPALX: 0x46, CWHL: 0x47,
+  EXTR: 0x48, EXTG: 0x49, EXTB: 0x4A, EXTW: 0x4B,
+  SIN8: 0x50, COS8: 0x51, SIN16: 0x52, BEAT8: 0x53,
+  TRI8: 0x54, QAD8: 0x55, SCL8: 0x56, QADD8: 0x57,
+  QSUB8: 0x58, RND8: 0x59, RND16: 0x5A, RNDR: 0x5B,
+  NOISE: 0x5C, NOI2: 0x5D, NOI3: 0x5E, SQRT: 0x5F,
+  ABS: 0x60, MIN: 0x61, MAX: 0x62,
+  JMP: 0x70, JZ: 0x71, JNZ: 0x72, JLT: 0x73, JGT: 0x74,
+  JEQ: 0x75, JLE: 0x76, JGE: 0x77,
+  CALL: 0x78, RET: 0x79, HALT: 0x7A, HALTS: 0x7B,
+  ALLOC: 0x80,
+  DLINE: 0x90, DCIRC: 0x91, FCIRC: 0x92, MOVEP: 0x93,
+  FADD: 0xA0, FSUB: 0xA1, FMUL: 0xA2, FDIV: 0xA3,
+  ITOF: 0xA4, FTOI: 0xA5, FSIN: 0xA6, FCOS: 0xA7,
+  GVOL: 0xB0, GPEAK: 0xB1, GFFT: 0xB2,
+  ABASS: 0xB3, AMID: 0xB4, ATREB: 0xB5,
+  DCHR: 0xC0, GCHR: 0xC1, GNLN: 0xC2, GFNW: 0xC3, GFNH: 0xC4,
+  NOP: 0xFF,
+};
+
+// WFX header constants
+const WFX = {
+  MAGIC: [0x57, 0x46, 0x58],
+  VERSION: 0x01,
+  FLAG_2D: 0x01,
+  FLAG_PALETTE: 0x02,
+  FLAG_AUDIO: 0x04,
+  HEADER_SIZE: 8,
+};
+
+// ---- Integer helpers ----
+function i32(v) { return v | 0; }
+function u32(v) { return v >>> 0; }
+function u8(v) { return v & 0xFF; }
+function u16(v) { return v & 0xFFFF; }
+
+// ---- FastLED-compatible math ----
+const SIN8_TABLE = new Uint8Array(256);
+for (let i = 0; i < 256; i++) {
+  SIN8_TABLE[i] = Math.round(128 + 127 * Math.sin(i * 2 * Math.PI / 256));
+}
+function sin8(x) { return SIN8_TABLE[u8(x)]; }
+function cos8(x) { return SIN8_TABLE[u8(x + 64)]; }
+
+function sin16(x) {
+  return i32(Math.round(32767 * Math.sin(u16(x) * 2 * Math.PI / 65536)));
+}
+
+function triwave8(x) {
+  const v = u8(x);
+  return v < 128 ? v * 2 : (255 - v) * 2;
+}
+
+function quadwave8(x) { return sin8(triwave8(x)); }
+
+function scale8(a, b) { return u8(Math.floor((u8(a) * u8(b)) / 256)); }
+
+function qadd8(a, b) {
+  const s = u8(a) + u8(b);
+  return s > 255 ? 255 : s;
+}
+
+function qsub8(a, b) {
+  const s = u8(a) - u8(b);
+  return s < 0 ? 0 : s;
+}
+
+function sqrt16(v) {
+  if (v <= 0) return 0;
+  return Math.floor(Math.sqrt(u16(v)));
+}
+
+// PRNG (xorshift32)
+let _rngState = 12345;
+function _nextRng() {
+  let x = _rngState;
+  x ^= x << 13;
+  x ^= x >> 17;
+  x ^= x << 5;
+  _rngState = x;
+  return u32(x);
+}
+function random8() { return _nextRng() & 0xFF; }
+function random16() { return _nextRng() & 0xFFFF; }
+function randomRange(lo, hi) {
+  lo = u8(lo); hi = u8(hi);
+  if (lo >= hi) return lo;
+  return lo + (_nextRng() % (hi - lo));
+}
+
+// Noise (simple hash-based)
+function inoise8_1(x) { return u8((x * 37 + 97) ^ (x >> 3)); }
+function inoise8_2(x, y) { return u8(inoise8_1(x) ^ inoise8_1(y + 53)); }
+function inoise8_3(x, y, z) { return u8(inoise8_2(x, y) ^ inoise8_1(z + 127)); }
+
+// ---- Color helpers ----
+function RGBW32(r, g, b, w) {
+  return u32((u8(w) << 24) | (u8(r) << 16) | (u8(g) << 8) | u8(b));
+}
+function R(c) { return (u32(c) >> 16) & 0xFF; }
+function G(c) { return (u32(c) >> 8) & 0xFF; }
+function B(c) { return u32(c) & 0xFF; }
+function W(c) { return (u32(c) >> 24) & 0xFF; }
+
+function color_fade(c, amount) {
+  const a = u8(amount);
+  return RGBW32(
+    Math.floor(R(c) * a / 256),
+    Math.floor(G(c) * a / 256),
+    Math.floor(B(c) * a / 256),
+    Math.floor(W(c) * a / 256)
+  );
+}
+
+function color_add(a, b) {
+  return RGBW32(
+    Math.min(255, R(a) + R(b)),
+    Math.min(255, G(a) + G(b)),
+    Math.min(255, B(a) + B(b)),
+    Math.min(255, W(a) + W(b))
+  );
+}
+
+function color_wheel(pos) {
+  pos = u8(pos);
+  if (pos < 85) return RGBW32(255 - pos * 3, pos * 3, 0, 0);
+  if (pos < 170) { pos -= 85; return RGBW32(0, 255 - pos * 3, pos * 3, 0); }
+  pos -= 170; return RGBW32(pos * 3, 0, 255 - pos * 3, 0);
+}
+
+// ---- Visual operations (ported from FX_fcn.cpp / FX_2Dfcn.cpp) ----
+
+// fade_out: per-pixel fade toward background color (ported from FX_fcn.cpp)
+// rate: 0 = no fade (max retention), 255 = instant fade (min retention)
+function fade_out_1d(pixels, rate, bgColor) {
+  if (rate === 0) return;
+  // Match WLED C++ mapping: rate = (256-rate)>>1; mappedRate = rate + 1.1
+  const r2 = (256 - rate) >> 1;
+  const mappedRate = r2 + 1.1;
+  const bgR = R(bgColor), bgG = G(bgColor), bgB = B(bgColor), bgW = W(bgColor);
+
+  for (let i = 0; i < pixels.length; i++) {
+    const c = pixels[i];
+    if (c === bgColor) continue;
+
+    let cr = R(c), cg = G(c), cb = B(c), cw = W(c);
+    if (cr === bgR && cg === bgG && cb === bgB && cw === bgW) continue;
+
+    cr = (cr > bgR) ? Math.max(bgR, cr - Math.ceil((cr - bgR) / mappedRate)) : Math.min(bgR, cr + Math.ceil((bgR - cr) / mappedRate));
+    cg = (cg > bgG) ? Math.max(bgG, cg - Math.ceil((cg - bgG) / mappedRate)) : Math.min(bgG, cg + Math.ceil((bgG - cg) / mappedRate));
+    cb = (cb > bgB) ? Math.max(bgB, cb - Math.ceil((cb - bgB) / mappedRate)) : Math.min(bgB, cb + Math.ceil((bgB - cb) / mappedRate));
+    cw = (cw > bgW) ? Math.max(bgW, cw - Math.ceil((cw - bgW) / mappedRate)) : Math.min(bgW, cw + Math.ceil((bgW - cw) / mappedRate));
+
+    pixels[i] = RGBW32(cr, cg, cb, cw);
+  }
+}
+
+function fade_out_2d(pixels2d, w, h, rate, bgColor) {
+  for (let y = 0; y < h; y++) {
+    fade_out_1d(pixels2d[y], rate, bgColor);
+  }
+}
+
+// blur1d: FastLED blur with carryover
+function blur1d(pixels, amount) {
+  if (amount === 0 || pixels.length < 2) return;
+  const keep = 255 - amount;
+  const seep = amount >> 1;
+  let carryR = 0, carryG = 0, carryB = 0, carryW = 0;
+
+  for (let i = 0; i < pixels.length; i++) {
+    const c = pixels[i];
+    const cr = R(c), cg = G(c), cb = B(c), cw = W(c);
+
+    const newR = Math.floor(cr * keep / 256) + carryR;
+    const newG = Math.floor(cg * keep / 256) + carryG;
+    const newB = Math.floor(cb * keep / 256) + carryB;
+    const newW = Math.floor(cw * keep / 256) + carryW;
+
+    carryR = Math.floor(cr * seep / 256);
+    carryG = Math.floor(cg * seep / 256);
+    carryB = Math.floor(cb * seep / 256);
+    carryW = Math.floor(cw * seep / 256);
+
+    pixels[i] = RGBW32(
+      Math.min(255, newR), Math.min(255, newG),
+      Math.min(255, newB), Math.min(255, newW)
+    );
+  }
+}
+
+// blur2d: blur rows then columns
+function blur2d(pixels2d, w, h, amountX, amountY) {
+  // Blur all rows (X direction)
+  for (let y = 0; y < h; y++) {
+    blur1d(pixels2d[y], amountX);
+  }
+  // Blur all columns (Y direction)
+  if (amountY === 0) return;
+  const keep = 255 - amountY;
+  const seep = amountY >> 1;
+  for (let x = 0; x < w; x++) {
+    let carryR = 0, carryG = 0, carryB = 0, carryW = 0;
+    for (let y = 0; y < h; y++) {
+      const c = pixels2d[y][x];
+      const cr = R(c), cg = G(c), cb = B(c), cw = W(c);
+      const newR = Math.floor(cr * keep / 256) + carryR;
+      const newG = Math.floor(cg * keep / 256) + carryG;
+      const newB = Math.floor(cb * keep / 256) + carryB;
+      const newW = Math.floor(cw * keep / 256) + carryW;
+      carryR = Math.floor(cr * seep / 256);
+      carryG = Math.floor(cg * seep / 256);
+      carryB = Math.floor(cb * seep / 256);
+      carryW = Math.floor(cw * seep / 256);
+      pixels2d[y][x] = RGBW32(
+        Math.min(255, newR), Math.min(255, newG),
+        Math.min(255, newB), Math.min(255, newW)
+      );
+    }
+  }
+}
+
+// drawLine: Bresenham's algorithm (from FX_2Dfcn.cpp)
+function drawLine(pixels2d, w, h, x0, y0, x1, y1, color) {
+  const dx = Math.abs(x1 - x0);
+  const dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+
+  for (;;) {
+    if (x0 >= 0 && x0 < w && y0 >= 0 && y0 < h) {
+      pixels2d[y0][x0] = color;
+    }
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+// drawCircle: Bresenham midpoint circle
+function drawCircle(pixels2d, w, h, cx, cy, radius, color) {
+  let x = -radius, y = 0, err = 2 - 2 * radius;
+  while (x < 0) {
+    _setPixel2d(pixels2d, w, h, cx - x, cy + y, color);
+    _setPixel2d(pixels2d, w, h, cx - y, cy - x, color);
+    _setPixel2d(pixels2d, w, h, cx + x, cy - y, color);
+    _setPixel2d(pixels2d, w, h, cx + y, cy + x, color);
+    const r = err;
+    if (r <= y) err += ++y * 2 + 1;
+    if (r > x || err > y) err += ++x * 2 + 1;
+  }
+}
+
+// fillCircle: x^2 + y^2 <= r^2 test
+function fillCircle(pixels2d, w, h, cx, cy, radius, color) {
+  radius = Math.min(Math.abs(radius), Math.max(w, h)); // clamp to grid size
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx * dx + dy * dy <= radius * radius) {
+        _setPixel2d(pixels2d, w, h, cx + dx, cy + dy, color);
+      }
+    }
+  }
+}
+
+function _setPixel2d(pixels2d, w, h, x, y, color) {
+  if (x >= 0 && x < w && y >= 0 && y < h) {
+    pixels2d[y][x] = color;
+  }
+}
+
+// move: 8-direction pixel shift (FX_2Dfcn.cpp:365-434)
+function movePixels(pixels2d, w, h, dir, delta, wrap) {
+  if (delta === 0) return;
+  switch (dir) {
+    case 0: _moveX(pixels2d, w, h, delta, wrap); break;       // right
+    case 1: _moveX(pixels2d, w, h, -delta, wrap); break;      // left
+    case 2: _moveY(pixels2d, w, h, -delta, wrap); break;      // up
+    case 3: _moveY(pixels2d, w, h, delta, wrap); break;       // down
+    case 4: _moveX(pixels2d, w, h, delta, wrap); _moveY(pixels2d, w, h, -delta, wrap); break;  // right-up
+    case 5: _moveX(pixels2d, w, h, -delta, wrap); _moveY(pixels2d, w, h, -delta, wrap); break; // left-up
+    case 6: _moveX(pixels2d, w, h, delta, wrap); _moveY(pixels2d, w, h, delta, wrap); break;   // right-down
+    case 7: _moveX(pixels2d, w, h, -delta, wrap); _moveY(pixels2d, w, h, delta, wrap); break;  // left-down
+  }
+}
+
+function _moveX(pixels2d, w, h, delta, wrap) {
+  for (let y = 0; y < h; y++) {
+    const row = pixels2d[y];
+    if (delta > 0) {
+      for (let x = w - 1; x >= delta; x--) row[x] = row[x - delta];
+      for (let x = 0; x < delta; x++) row[x] = wrap ? row[w - delta + x] : 0;
+    } else {
+      const d = -delta;
+      for (let x = 0; x < w - d; x++) row[x] = row[x + d];
+      for (let x = w - d; x < w; x++) row[x] = wrap ? row[x - w + d] : 0;
+    }
+  }
+}
+
+function _moveY(pixels2d, w, h, delta, wrap) {
+  if (delta > 0) {
+    for (let y = h - 1; y >= delta; y--) {
+      for (let x = 0; x < w; x++) pixels2d[y][x] = pixels2d[y - delta][x];
+    }
+    for (let y = 0; y < delta; y++) {
+      for (let x = 0; x < w; x++) pixels2d[y][x] = wrap ? pixels2d[h - delta + y][x] : 0;
+    }
+  } else {
+    const d = -delta;
+    for (let y = 0; y < h - d; y++) {
+      for (let x = 0; x < w; x++) pixels2d[y][x] = pixels2d[y + d][x];
+    }
+    for (let y = h - d; y < h; y++) {
+      for (let x = 0; x < w; x++) pixels2d[y][x] = wrap ? pixels2d[y - h + d][x] : 0;
+    }
+  }
+}
+
+// drawCharacter: font rendering (from FX_2Dfcn.cpp drawCharacter)
+function drawCharacter(pixels2d, matW, matH, chr, x, y, fontIdx, color) {
+  const font = FONTS[fontIdx];
+  if (!font) return;
+  const fw = font.w, fh = font.h;
+  const charCode = chr - 32;
+  if (charCode < 0 || charCode >= 95) return;
+  const baseOffset = charCode * fh;
+
+  for (let row = 0; row < fh; row++) {
+    const bits = font.data[baseOffset + row];
+    for (let col = 0; col < fw; col++) {
+      // Bits are MSB-first, shifted to align with font width
+      if ((bits >> (7 - col)) & 1) {
+        _setPixel2d(pixels2d, matW, matH, x + col, y + row, color);
+      }
+    }
+  }
+}
+
+// ---- Extract bytecode from .wfx ArrayBuffer ----
+function extractBytecode(arrayBuffer) {
+  const buf = new Uint8Array(arrayBuffer);
+  if (buf.length < WFX.HEADER_SIZE) throw new Error('WFX too short');
+  if (buf[0] !== 0x57 || buf[1] !== 0x46 || buf[2] !== 0x58) throw new Error('Bad WFX magic');
+
+  const flags = buf[4];
+  const dataSize = buf[5] * 16;
+  const bcLen = buf[6] | (buf[7] << 8);
+
+  let metaEnd = WFX.HEADER_SIZE;
+  while (metaEnd < buf.length && buf[metaEnd] !== 0) metaEnd++;
+  const metadata = new TextDecoder().decode(buf.slice(WFX.HEADER_SIZE, metaEnd));
+  metaEnd++;
+
+  const bytecode = buf.slice(metaEnd, metaEnd + bcLen);
+  return { bytecode, metadata, flags, dataSize, bcLen };
+}
+
+// ---- SimState: persistent state across frames ----
+function createState(opts = {}) {
+  const len = opts.LEN || 30;
+  const width = opts.WIDTH || len;
+  const height = opts.HEIGHT || 1;
+  const is2D = opts.is2D || false;
+
+  const pixels1d = new Uint32Array(len);
+  const pixels2d = [];
+  for (let y = 0; y < height; y++) pixels2d.push(new Uint32Array(width));
+
+  return {
+    pixels1d,
+    pixels2d,
+    aux0: 0,
+    aux1: 0,
+    step: 0,
+    call: 0,
+    dataBuf: null,
+    dataLen: 0,
+    LEN: len,
+    WIDTH: width,
+    HEIGHT: height,
+    is2D,
+  };
+}
+
+// ---- SimEngine ----
+class SimEngine {
+  constructor() {
+    this.regs = new Int32Array(REG_COUNT);
+  }
+
+  /**
+   * Execute one frame of bytecode.
+   * @param {Uint8Array} bytecode
+   * @param {object} state - persistent SimState (mutated in-place)
+   * @param {object} opts - segment parameters
+   * @returns {{ delay: number }}
+   */
+  executeFrame(bytecode, state, opts = {}) {
+    const bc = bytecode;
+    const len = bc.length;
+
+    this.regs = new Int32Array(REG_COUNT);
+    const regs = this.regs;
+    let pc = 0;
+    let cycles = 0;
+    const callStack = new Uint16Array(CALL_STACK_DEPTH);
+    let callDepth = 0;
+
+    const seg = {
+      speed:     opts.speed     ?? 128,
+      intensity: opts.intensity ?? 128,
+      custom1:   opts.custom1   ?? 0,
+      custom2:   opts.custom2   ?? 0,
+      custom3:   opts.custom3   ?? 0,
+      check1:    opts.check1    ?? false,
+      check2:    opts.check2    ?? false,
+      check3:    opts.check3    ?? false,
+      palette:   opts.palette   ?? 0,
+      colors:    opts.colors    ?? [0x00FFFFFF, 0x00000000, 0x00000000],
+      name:      opts.name      ?? '',
+    };
+
+    // Use persistent state
+    const pixels = state.pixels1d;
+    const w = state.WIDTH, h = state.HEIGHT;
+    const pixels2d = state.pixels2d;
+    let dataBuf = state.dataBuf;
+    let dataLen = state.dataLen;
+
+    // Get the palette object
+    const palObj = PALETTES[seg.palette] || PALETTES[0];
+
+    // Populate registers from persistent state and opts
+    regs[REG.P0] = seg.speed;
+    regs[REG.P1] = seg.intensity;
+    regs[REG.P2] = seg.custom1;
+    regs[REG.P3] = seg.custom2;
+    regs[REG.LEN]    = state.LEN;
+    regs[REG.NOW]    = i32(opts.NOW ?? 0);
+    regs[REG.CALL]   = i32(state.call);
+    regs[REG.WIDTH]  = w;
+    regs[REG.HEIGHT] = h;
+
+    // Seed RNG with NOW for variation each frame
+    _rngState = (opts.NOW || 1) ^ 0x5DEECE66;
+
+    // Float helpers
+    const floatBuf = new ArrayBuffer(4);
+    const floatView = new DataView(floatBuf);
+    function getFloat(id) {
+      floatView.setInt32(0, getReg(id), true);
+      return floatView.getFloat32(0, true);
+    }
+    function setFloat(id, f) {
+      floatView.setFloat32(0, f, true);
+      setReg(id, floatView.getInt32(0, true));
+    }
+
+    // ---- Read helpers ----
+    function readU8() { return (pc < len) ? bc[pc++] : 0; }
+    function readI16() {
+      if (pc + 2 > len) { pc = len; return 0; }
+      const v = (bc[pc] | (bc[pc + 1] << 8)) << 16 >> 16;
+      pc += 2; return v;
+    }
+    function readU16() {
+      if (pc + 2 > len) { pc = len; return 0; }
+      const v = bc[pc] | (bc[pc + 1] << 8);
+      pc += 2; return v;
+    }
+    function readI32() {
+      if (pc + 4 > len) { pc = len; return 0; }
+      const v = bc[pc] | (bc[pc + 1] << 8) | (bc[pc + 2] << 16) | (bc[pc + 3] << 24);
+      pc += 4; return v;
+    }
+
+    function getReg(id) { return (id < REG_COUNT) ? regs[id] : 0; }
+    function setReg(id, v) {
+      if (id < REG_COUNT && id < REG_P0) regs[id] = i32(v);
+    }
+    function getColor(id) { return u32(getReg(id)); }
+    function setColor(id, c) { setReg(id, i32(u32(c))); }
+
+    // beatsin8: time-dependent
+    function _beatsin8(bpm, lo, hi) {
+      const now = u32(opts.NOW ?? 0);
+      const beat = (now * u8(bpm) * 256) / 60000;
+      const v = sin8(Math.floor(beat) & 0xFF);
+      return u8(lo + scale8(v, hi - lo));
+    }
+
+    // Palette color lookup
+    function palette_color(idx) {
+      return colorFromPalette(palObj, u8(idx), 255);
+    }
+
+    function palette_color_ex(idx, bri, blend) {
+      return colorFromPalette(palObj, u8(idx), u8(bri));
+    }
+
+    // ---- Main loop ----
+    while (pc < len) {
+      if (++cycles > MAX_CYCLES) return finish(FRAMETIME);
+
+      const op = bc[pc++];
+
+      switch (op) {
+        // ---- Arithmetic ----
+        case OP.ADD: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, i32(u32(getReg(a)) + u32(getReg(b)))); } break;
+        case OP.SUB: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, i32(u32(getReg(a)) - u32(getReg(b)))); } break;
+        case OP.MUL: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, i32(Math.imul(getReg(a), getReg(b)))); } break;
+        case OP.DIV: {
+          const d = readU8(), a = readU8(), b = readU8();
+          const av = getReg(a), bv = getReg(b);
+          setReg(d, (bv !== 0 && !(av === INT32_MIN && bv === -1)) ? i32(Math.trunc(av / bv)) : 0);
+        } break;
+        case OP.MOD: {
+          const d = readU8(), a = readU8(), b = readU8();
+          const av = getReg(a), bv = getReg(b);
+          setReg(d, (bv !== 0 && !(av === INT32_MIN && bv === -1)) ? i32(av % bv) : 0);
+        } break;
+        case OP.AND: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, getReg(a) & getReg(b)); } break;
+        case OP.OR:  { const d = readU8(), a = readU8(), b = readU8(); setReg(d, getReg(a) | getReg(b)); } break;
+        case OP.XOR: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, getReg(a) ^ getReg(b)); } break;
+        case OP.SHL: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, i32(u32(getReg(a)) << (getReg(b) & 31))); } break;
+        case OP.SHR: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, i32(u32(getReg(a)) >>> (getReg(b) & 31))); } break;
+        case OP.NEG: { const d = readU8(), a = readU8(); const v = getReg(a); setReg(d, (v === INT32_MIN) ? INT32_MAX : -v); } break;
+        case OP.NOT: { const d = readU8(), a = readU8(); setReg(d, ~getReg(a)); } break;
+
+        // ---- Load/Store ----
+        case OP.LDI:   { const d = readU8(); setReg(d, readI16()); } break;
+        case OP.LDI32: { const d = readU8(); setReg(d, readI32()); } break;
+        case OP.MOV:   { const d = readU8(), a = readU8(); setReg(d, getReg(a)); } break;
+        case OP.LDB: {
+          const d = readU8(), a = readU8(), off = readU8();
+          const addr = u16(getReg(a)) + off;
+          setReg(d, (dataBuf && addr < dataLen) ? dataBuf[addr] : 0);
+        } break;
+        case OP.STB: {
+          const a = readU8(), d = readU8(), off = readU8();
+          const addr = u16(getReg(a)) + off;
+          if (dataBuf && addr < dataLen) dataBuf[addr] = u8(getReg(d));
+        } break;
+        case OP.LDW: {
+          const d = readU8(), a = readU8(), off = readU8();
+          const addr = u16(getReg(a)) + off;
+          if (dataBuf && addr + 3 < dataLen) {
+            setReg(d, dataBuf[addr] | (dataBuf[addr+1]<<8) | (dataBuf[addr+2]<<16) | (dataBuf[addr+3]<<24));
+          } else { setReg(d, 0); }
+        } break;
+        case OP.STW: {
+          const a = readU8(), d = readU8(), off = readU8();
+          const addr = u16(getReg(a)) + off;
+          if (dataBuf && addr + 3 < dataLen) {
+            const v = getReg(d);
+            dataBuf[addr] = v & 0xFF; dataBuf[addr+1] = (v >> 8) & 0xFF;
+            dataBuf[addr+2] = (v >> 16) & 0xFF; dataBuf[addr+3] = (v >> 24) & 0xFF;
+          }
+        } break;
+
+        // ---- Segment Parameters ----
+        case OP.GSPD: { setReg(readU8(), seg.speed); } break;
+        case OP.GINT: { setReg(readU8(), seg.intensity); } break;
+        case OP.GC1:  { setReg(readU8(), seg.custom1); } break;
+        case OP.GC2:  { setReg(readU8(), seg.custom2); } break;
+        case OP.GC3:  { setReg(readU8(), seg.custom3); } break;
+        case OP.GCHK: {
+          const d = readU8(), n = readU8();
+          const v = (n === 0) ? seg.check1 : (n === 1) ? seg.check2 : seg.check3;
+          setReg(d, v ? 1 : 0);
+        } break;
+        case OP.GCOL: {
+          const d = readU8(), n = readU8();
+          setColor(d, seg.colors[n < 3 ? n : 0] || 0);
+        } break;
+        case OP.GPAL: { setReg(readU8(), seg.palette); } break;
+        case OP.GAUX: {
+          const d = readU8(), n = readU8();
+          setReg(d, (n === 0) ? state.aux0 : state.aux1);
+        } break;
+        case OP.SAUX: {
+          const n = readU8(), a = readU8();
+          if (n === 0) state.aux0 = u16(getReg(a));
+          else         state.aux1 = u16(getReg(a));
+        } break;
+        case OP.GSTP: { setReg(readU8(), i32(state.step)); } break;
+        case OP.SSTP: { state.step = u32(getReg(readU8())); } break;
+
+        // ---- Pixel Operations ----
+        case OP.SPXC: {
+          const a = readU8(), c = readU8();
+          const idx = getReg(a);
+          if (idx >= 0 && idx < state.LEN) {
+            const col = getColor(c);
+            pixels[idx] = col;
+            // Mirror 1D write to 2D grid (like WLED's setPixelColor on 2D segments)
+            if (state.is2D) {
+              const px = idx % w, py = Math.floor(idx / w);
+              if (py < h) pixels2d[py][px] = col;
+            }
+          }
+        } break;
+        case OP.GPXC: {
+          const d = readU8(), a = readU8();
+          const idx = getReg(a);
+          if (idx >= 0 && idx < state.LEN) {
+            // In 2D mode, read from the 2D grid (consistent with SPXC mirroring)
+            if (state.is2D) {
+              const px = idx % w, py = Math.floor(idx / w);
+              setColor(d, (py < h) ? pixels2d[py][px] : 0);
+            } else {
+              setColor(d, pixels[idx]);
+            }
+          } else {
+            setColor(d, 0);
+          }
+        } break;
+        case OP.SPXY: {
+          const a = readU8(), b = readU8(), c = readU8();
+          const x = getReg(a), y = getReg(b);
+          if (x >= 0 && x < w && y >= 0 && y < h) pixels2d[y][x] = getColor(c);
+        } break;
+        case OP.GPXY: {
+          const d = readU8(), a = readU8(), b = readU8();
+          const x = getReg(a), y = getReg(b);
+          setColor(d, (x >= 0 && x < w && y >= 0 && y < h) ? pixels2d[y][x] : 0);
+        } break;
+        case OP.FILL: {
+          const c = readU8();
+          const color = getColor(c);
+          pixels.fill(color);
+          for (let y2 = 0; y2 < h; y2++) pixels2d[y2].fill(color);
+        } break;
+        case OP.FADE: {
+          const a = readU8();
+          const rate = u8(getReg(a));
+          const bgColor = seg.colors[1] || 0;
+          if (state.is2D) {
+            fade_out_2d(pixels2d, w, h, rate, bgColor);
+            // Sync pixels1d from pixels2d so 1D reads stay consistent
+            for (let y2 = 0; y2 < h; y2++)
+              for (let x2 = 0; x2 < w; x2++)
+                pixels[y2 * w + x2] = pixels2d[y2][x2];
+          } else {
+            fade_out_1d(pixels, rate, bgColor);
+          }
+        } break;
+        case OP.BLUR: {
+          const a = readU8();
+          const bv = u8(getReg(a));
+          if (state.is2D) {
+            // In 2D mode, blur the 2D grid (1D effects using blur on 2D)
+            blur2d(pixels2d, w, h, bv, bv);
+            for (let y2 = 0; y2 < h; y2++)
+              for (let x2 = 0; x2 < w; x2++)
+                pixels[y2 * w + x2] = pixels2d[y2][x2];
+          } else {
+            blur1d(pixels, bv);
+          }
+        } break;
+        case OP.BLR2: {
+          const a = readU8();
+          const bv = u8(getReg(a));
+          blur2d(pixels2d, w, h, bv, bv);
+        } break;
+
+        // ---- Color Operations ----
+        case OP.RGB: {
+          const d = readU8(), ra = readU8(), rb = readU8(), rc = readU8();
+          setColor(d, RGBW32(u8(getReg(ra)), u8(getReg(rb)), u8(getReg(rc)), 0));
+        } break;
+        case OP.RGBW: {
+          const d = readU8(), ra = readU8(), rb = readU8(), rc = readU8(), rd2 = readU8();
+          setColor(d, RGBW32(u8(getReg(ra)), u8(getReg(rb)), u8(getReg(rc)), u8(getReg(rd2))));
+        } break;
+        case OP.CBLND: {
+          const d = readU8(), ca = readU8(), cb = readU8(), ra = readU8();
+          setColor(d, color_blend(getColor(ca), getColor(cb), u16(getReg(ra))));
+        } break;
+        case OP.CFADE: {
+          const d = readU8(), ca = readU8(), ra = readU8();
+          setColor(d, color_fade(getColor(ca), u8(getReg(ra))));
+        } break;
+        case OP.CADD: {
+          const d = readU8(), ca = readU8(), cb = readU8();
+          setColor(d, color_add(getColor(ca), getColor(cb)));
+        } break;
+        case OP.CPAL: {
+          const d = readU8(), ra = readU8();
+          setColor(d, palette_color(u16(getReg(ra))));
+        } break;
+        case OP.CPALX: {
+          const d = readU8(), ra = readU8(), rb = readU8(), rc = readU8();
+          setColor(d, palette_color_ex(u16(getReg(ra)), u8(getReg(rb)), u8(getReg(rc))));
+        } break;
+        case OP.CWHL: {
+          const d = readU8(), ra = readU8();
+          setColor(d, color_wheel(u8(getReg(ra))));
+        } break;
+        case OP.EXTR: { const d = readU8(), ca = readU8(); setReg(d, R(getColor(ca))); } break;
+        case OP.EXTG: { const d = readU8(), ca = readU8(); setReg(d, G(getColor(ca))); } break;
+        case OP.EXTB: { const d = readU8(), ca = readU8(); setReg(d, B(getColor(ca))); } break;
+        case OP.EXTW: { const d = readU8(), ca = readU8(); setReg(d, W(getColor(ca))); } break;
+
+        // ---- Math ----
+        case OP.SIN8:  { const d = readU8(), a = readU8(); setReg(d, sin8(u8(getReg(a)))); } break;
+        case OP.COS8:  { const d = readU8(), a = readU8(); setReg(d, cos8(u8(getReg(a)))); } break;
+        case OP.SIN16: { const d = readU8(), a = readU8(); setReg(d, sin16(u16(getReg(a)))); } break;
+        case OP.BEAT8: {
+          const d = readU8(), a = readU8(), b = readU8(), c = readU8();
+          setReg(d, _beatsin8(u8(getReg(a)), u8(getReg(b)), u8(getReg(c))));
+        } break;
+        case OP.TRI8:  { const d = readU8(), a = readU8(); setReg(d, triwave8(u8(getReg(a)))); } break;
+        case OP.QAD8:  { const d = readU8(), a = readU8(); setReg(d, quadwave8(u8(getReg(a)))); } break;
+        case OP.SCL8:  { const d = readU8(), a = readU8(), b = readU8(); setReg(d, scale8(u8(getReg(a)), u8(getReg(b)))); } break;
+        case OP.QADD8: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, qadd8(u8(getReg(a)), u8(getReg(b)))); } break;
+        case OP.QSUB8: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, qsub8(u8(getReg(a)), u8(getReg(b)))); } break;
+        case OP.RND8:  { setReg(readU8(), random8()); } break;
+        case OP.RND16: { setReg(readU8(), random16()); } break;
+        case OP.RNDR:  { const d = readU8(), a = readU8(), b = readU8(); setReg(d, randomRange(u8(getReg(a)), u8(getReg(b)))); } break;
+        case OP.NOISE: { const d = readU8(), a = readU8(); setReg(d, inoise8_1(u16(getReg(a)))); } break;
+        case OP.NOI2:  { const d = readU8(), a = readU8(), b = readU8(); setReg(d, inoise8_2(u16(getReg(a)), u16(getReg(b)))); } break;
+        case OP.NOI3:  { const d = readU8(), a = readU8(), b = readU8(), c = readU8(); setReg(d, inoise8_3(u16(getReg(a)), u16(getReg(b)), u16(getReg(c)))); } break;
+        case OP.SQRT: {
+          const d = readU8(), a = readU8();
+          const v = getReg(a);
+          setReg(d, v > 0 ? sqrt16(u16(v)) : 0);
+        } break;
+        case OP.ABS: {
+          const d = readU8(), a = readU8();
+          const v = getReg(a);
+          setReg(d, (v === INT32_MIN) ? INT32_MAX : (v < 0 ? -v : v));
+        } break;
+        case OP.MIN: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, Math.min(getReg(a), getReg(b))); } break;
+        case OP.MAX: { const d = readU8(), a = readU8(), b = readU8(); setReg(d, Math.max(getReg(a), getReg(b))); } break;
+
+        // ---- Control Flow ----
+        case OP.JMP: {
+          const off = readI16();
+          const t = pc + off;
+          if (t < 0 || t > len) return finish(FRAMETIME);
+          pc = t;
+        } break;
+        case OP.JZ: {
+          const a = readU8(), off = readI16();
+          if (getReg(a) === 0) { const t = pc + off; if (t < 0 || t > len) return finish(FRAMETIME); pc = t; }
+        } break;
+        case OP.JNZ: {
+          const a = readU8(), off = readI16();
+          if (getReg(a) !== 0) { const t = pc + off; if (t < 0 || t > len) return finish(FRAMETIME); pc = t; }
+        } break;
+        case OP.JLT: {
+          const a = readU8(), b = readU8(), off = readI16();
+          if (getReg(a) < getReg(b)) { const t = pc + off; if (t < 0 || t > len) return finish(FRAMETIME); pc = t; }
+        } break;
+        case OP.JGT: {
+          const a = readU8(), b = readU8(), off = readI16();
+          if (getReg(a) > getReg(b)) { const t = pc + off; if (t < 0 || t > len) return finish(FRAMETIME); pc = t; }
+        } break;
+        case OP.JEQ: {
+          const a = readU8(), b = readU8(), off = readI16();
+          if (getReg(a) === getReg(b)) { const t = pc + off; if (t < 0 || t > len) return finish(FRAMETIME); pc = t; }
+        } break;
+        case OP.JLE: {
+          const a = readU8(), b = readU8(), off = readI16();
+          if (getReg(a) <= getReg(b)) { const t = pc + off; if (t < 0 || t > len) return finish(FRAMETIME); pc = t; }
+        } break;
+        case OP.JGE: {
+          const a = readU8(), b = readU8(), off = readI16();
+          if (getReg(a) >= getReg(b)) { const t = pc + off; if (t < 0 || t > len) return finish(FRAMETIME); pc = t; }
+        } break;
+        case OP.CALL: {
+          const off = readI16();
+          if (callDepth >= CALL_STACK_DEPTH) return finish(FRAMETIME);
+          callStack[callDepth++] = pc;
+          const target = pc + off;
+          if (target < 0 || target > len) return finish(FRAMETIME);
+          pc = target;
+        } break;
+        case OP.RET: {
+          if (callDepth > 0) pc = callStack[--callDepth];
+          else return finish(FRAMETIME);
+        } break;
+        case OP.HALT: {
+          const a = readU8();
+          const delay = u16(getReg(a));
+          return finish(delay > 0 ? delay : FRAMETIME);
+        } break;
+        case OP.HALTS: {
+          // frame() with no args: compute delay from speed using SPEED_FORMULA_L
+          // Higher speed = shorter delay = faster animation
+          const spd = regs[REG.P0] & 0xFF;
+          return finish(5 + Math.floor((50 * (255 - spd)) / 255));
+        } break;
+
+        // ---- Data Buffer ----
+        case OP.ALLOC: {
+          const a = readU8();
+          const raw = getReg(a);
+          const size = u16(raw > 0 ? Math.min(raw, 4096) : 0);
+          if (size > 0 && !dataBuf) {
+            dataBuf = new Uint8Array(size);
+            dataLen = size;
+            state.dataBuf = dataBuf;
+            state.dataLen = dataLen;
+            setReg(0, 1);
+          } else if (dataBuf) {
+            setReg(0, 1); // already allocated
+          } else {
+            setReg(0, 0);
+          }
+        } break;
+
+        // ---- 2D Geometry ----
+        case OP.DLINE: {
+          const x0r = readU8(), y0r = readU8(), x1r = readU8(), y1r = readU8(), cr = readU8();
+          drawLine(pixels2d, w, h, getReg(x0r), getReg(y0r), getReg(x1r), getReg(y1r), getColor(cr));
+        } break;
+        case OP.DCIRC: {
+          const cxr = readU8(), cyr = readU8(), rr = readU8(), cr = readU8();
+          drawCircle(pixels2d, w, h, getReg(cxr), getReg(cyr), getReg(rr), getColor(cr));
+        } break;
+        case OP.FCIRC: {
+          const cxr = readU8(), cyr = readU8(), rr = readU8(), cr = readU8();
+          fillCircle(pixels2d, w, h, getReg(cxr), getReg(cyr), getReg(rr), getColor(cr));
+        } break;
+        case OP.MOVEP: {
+          const dr = readU8(), delta = readU8(), wrap = readU8();
+          movePixels(pixels2d, w, h, u8(getReg(dr)), u8(getReg(delta)), !!getReg(wrap));
+        } break;
+
+        // ---- Text Operations ----
+        case OP.DCHR: {
+          const chr_r = readU8(), x_r = readU8(), y_r = readU8();
+          const font_r = readU8(), col_r = readU8();
+          const fi = Math.max(0, Math.min(4, getReg(font_r)));
+          drawCharacter(pixels2d, w, h, getReg(chr_r), getReg(x_r), getReg(y_r), fi, getColor(col_r));
+        } break;
+        case OP.GCHR: {
+          const d = readU8(), a = readU8();
+          const idx = getReg(a);
+          const name = seg.name || '';
+          setReg(d, (idx >= 0 && idx < name.length) ? name.charCodeAt(idx) : 0);
+        } break;
+        case OP.GNLN: {
+          const d = readU8();
+          setReg(d, (seg.name || '').length);
+        } break;
+        case OP.GFNW: {
+          const d = readU8(), a = readU8();
+          const fw = [4, 5, 6, 7, 5];
+          setReg(d, fw[Math.max(0, Math.min(4, getReg(a)))]);
+        } break;
+        case OP.GFNH: {
+          const d = readU8(), a = readU8();
+          const fh = [6, 8, 8, 9, 12];
+          setReg(d, fh[Math.max(0, Math.min(4, getReg(a)))]);
+        } break;
+
+        // ---- Float Operations ----
+        case OP.FADD: { const d = readU8(), a = readU8(), b = readU8(); setFloat(d, getFloat(a) + getFloat(b)); } break;
+        case OP.FSUB: { const d = readU8(), a = readU8(), b = readU8(); setFloat(d, getFloat(a) - getFloat(b)); } break;
+        case OP.FMUL: { const d = readU8(), a = readU8(), b = readU8(); setFloat(d, getFloat(a) * getFloat(b)); } break;
+        case OP.FDIV: {
+          const d = readU8(), a = readU8(), b = readU8();
+          const bv = getFloat(b);
+          setFloat(d, bv !== 0 ? getFloat(a) / bv : 0);
+        } break;
+        case OP.ITOF: { const d = readU8(), a = readU8(); setFloat(d, getReg(a)); } break;
+        case OP.FTOI: {
+          const d = readU8(), a = readU8();
+          const fv = getFloat(a);
+          if (isNaN(fv) || !isFinite(fv) || fv > INT32_MAX || fv < INT32_MIN) setReg(d, 0);
+          else setReg(d, i32(Math.trunc(fv)));
+        } break;
+        case OP.FSIN: { const d = readU8(), a = readU8(); setFloat(d, Math.sin(getFloat(a))); } break;
+        case OP.FCOS: { const d = readU8(), a = readU8(); setFloat(d, Math.cos(getFloat(a))); } break;
+
+        // ---- Audio ----
+        case OP.GVOL:  { setReg(readU8(), 0); } break;
+        case OP.GPEAK: { setReg(readU8(), 0); } break;
+        case OP.GFFT:  { const d = readU8(); readU8(); setReg(d, 0); } break;
+        case OP.ABASS: { setReg(readU8(), 0); } break;
+        case OP.AMID:  { setReg(readU8(), 0); } break;
+        case OP.ATREB: { setReg(readU8(), 0); } break;
+
+        case OP.NOP: break;
+
+        default:
+          return finish(FRAMETIME);
+      }
+    }
+
+    return finish(FRAMETIME);
+
+    function finish(delay) {
+      state.call++;
+      return { delay };
+    }
+  }
+}
+
+
+// ==================== Renderer ====================
+// Canvas LED visualization — renders 1D strips or 2D grids
+
+class LEDRenderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.pixelSize = 12;
+    this.gap = 2;
+  }
+
+  configure(opts = {}) {
+    if (opts.pixelSize != null) this.pixelSize = opts.pixelSize;
+    if (opts.gap != null) this.gap = opts.gap;
+  }
+
+  // Convert RGBW32 to CSS color string
+  _toCSS(c) {
+    const w = (c >>> 24) & 0xFF;
+    let r = (c >> 16) & 0xFF;
+    let g = (c >> 8) & 0xFF;
+    let b = c & 0xFF;
+    // Mix white channel into RGB
+    r = Math.min(255, r + w);
+    g = Math.min(255, g + w);
+    b = Math.min(255, b + w);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  // Auto-compute pixel size to fit canvas
+  _autoSize(count, canvasLen) {
+    if (count <= 0) return this.pixelSize;
+    const maxSize = Math.floor((canvasLen - this.gap) / count) - this.gap;
+    return Math.max(2, Math.min(this.pixelSize, maxSize));
+  }
+
+  render(pixels1d, pixels2d, is2D, width, height) {
+    const ctx = this.ctx;
+    const cw = this.canvas.width;
+    const ch = this.canvas.height;
+
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, cw, ch);
+
+    if (is2D && pixels2d && width > 0 && height > 0) {
+      this._render2D(pixels2d, width, height, cw, ch);
+    } else if (pixels1d && pixels1d.length > 0) {
+      this._render1D(pixels1d, cw, ch);
+    }
+  }
+
+  _render1D(pixels, cw, ch) {
+    const ctx = this.ctx;
+    const count = pixels.length;
+    const ps = this._autoSize(count, cw);
+    const gap = this.gap;
+    const totalW = count * (ps + gap) - gap;
+    const startX = Math.max(0, (cw - totalW) / 2);
+    const cy = ch / 2;
+    const radius = ps / 2;
+
+    for (let i = 0; i < count; i++) {
+      const x = startX + i * (ps + gap) + radius;
+      const color = pixels[i];
+      if (color === 0) continue;
+
+      const css = this._toCSS(color);
+
+      // Glow effect
+      ctx.shadowColor = css;
+      ctx.shadowBlur = ps * 0.6;
+      ctx.fillStyle = css;
+      ctx.beginPath();
+      ctx.arc(x, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  _render2D(pixels2d, width, height, cw, ch) {
+    const ctx = this.ctx;
+
+    // For large grids, use imageData for performance
+    if (width > 32 || height > 32) {
+      this._render2DImage(pixels2d, width, height, cw, ch);
+      return;
+    }
+
+    const psX = this._autoSize(width, cw);
+    const psY = this._autoSize(height, ch);
+    const ps = Math.min(psX, psY);
+    const gap = this.gap;
+    const totalW = width * (ps + gap) - gap;
+    const totalH = height * (ps + gap) - gap;
+    const startX = Math.max(0, (cw - totalW) / 2);
+    const startY = Math.max(0, (ch - totalH) / 2);
+    const radius = ps / 2;
+
+    for (let y = 0; y < height; y++) {
+      const row = pixels2d[y];
+      if (!row) continue;
+      for (let x = 0; x < width; x++) {
+        const color = row[x];
+        if (color === 0) continue;
+
+        const css = this._toCSS(color);
+        const px = startX + x * (ps + gap) + radius;
+        const py = startY + y * (ps + gap) + radius;
+
+        ctx.shadowColor = css;
+        ctx.shadowBlur = ps * 0.4;
+        ctx.fillStyle = css;
+        ctx.beginPath();
+        ctx.arc(px, py, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  _render2DImage(pixels2d, width, height, cw, ch) {
+    const ctx = this.ctx;
+    const scaleX = Math.floor(cw / width);
+    const scaleY = Math.floor(ch / height);
+    const scale = Math.max(1, Math.min(scaleX, scaleY));
+    const dw = width * scale;
+    const dh = height * scale;
+    const ox = Math.floor((cw - dw) / 2);
+    const oy = Math.floor((ch - dh) / 2);
+
+    const imgData = ctx.createImageData(dw, dh);
+    const data = imgData.data;
+
+    for (let y = 0; y < height; y++) {
+      const row = pixels2d[y];
+      if (!row) continue;
+      for (let x = 0; x < width; x++) {
+        const c = row[x];
+        const w = (c >>> 24) & 0xFF;
+        const r = Math.min(255, ((c >> 16) & 0xFF) + w);
+        const g = Math.min(255, ((c >> 8) & 0xFF) + w);
+        const b = Math.min(255, (c & 0xFF) + w);
+
+        for (let sy = 0; sy < scale; sy++) {
+          for (let sx = 0; sx < scale; sx++) {
+            const idx = ((y * scale + sy) * dw + x * scale + sx) * 4;
+            data[idx] = r;
+            data[idx + 1] = g;
+            data[idx + 2] = b;
+            data[idx + 3] = 255;
+          }
+        }
+      }
+    }
+
+    ctx.putImageData(imgData, ox, oy);
+  }
+}
+
+
+// ==================== Compiler ====================
+// ============================================================
+// lexer.js
+// ============================================================
+
+const T = {
+  NUMBER: 'NUMBER', STRING: 'STRING', IDENT: 'IDENT',
+  KEYWORD: 'KEYWORD', OP: 'OP', PUNCT: 'PUNCT', EOF: 'EOF',
+};
+
+const KEYWORDS = new Set([
+  'effect', 'meta', 'render', 'data', 'let',
+  'if', 'else', 'for', 'in', 'while', 'step',
+  'frame', 'slider', 'type', 'palette',
+  'true', 'false', 'and', 'or', 'not',
+  'default', 'audio_reactive',
+]);
+
+const TWO_CHAR_OPS = new Set(['==', '!=', '<=', '>=', '<<', '>>', '..']);
+const ONE_CHAR_OPS = new Set(['+', '-', '*', '/', '%', '&', '|', '^', '~', '<', '>', '=', '!']);
+const PUNCTUATION = new Set(['(', ')', '{', '}', '[', ']', ',', ';']);
+
+class Token {
+  constructor(type, value, line, col) {
+    this.type = type; this.value = value; this.line = line; this.col = col;
+  }
+}
+
+class LexerError extends Error {
+  constructor(msg, line, col) {
+    super(`Lexer error at ${line}:${col}: ${msg}`);
+    this.line = line; this.col = col;
+  }
+}
+
+class Lexer {
+  constructor(source) {
+    this.source = source; this.pos = 0; this.line = 1; this.col = 1;
+    this.tokens = []; this._tokenize(); this._index = 0;
+  }
+  _peek() { return this.pos < this.source.length ? this.source[this.pos] : null; }
+  _advance() {
+    const ch = this.source[this.pos++];
+    if (ch === '\n') { this.line++; this.col = 1; } else { this.col++; }
+    return ch;
+  }
+  _skipWhitespace() {
+    while (this.pos < this.source.length) {
+      const ch = this.source[this.pos];
+      if (ch === ' ' || ch === '\t' || ch === '\r' || ch === '\n') { this._advance(); }
+      else if (ch === '/' && this.pos + 1 < this.source.length && this.source[this.pos + 1] === '/') {
+        while (this.pos < this.source.length && this.source[this.pos] !== '\n') this._advance();
+      } else break;
+    }
+  }
+  _readString() {
+    const startLine = this.line, startCol = this.col;
+    const quote = this._advance();
+    let str = '';
+    while (this.pos < this.source.length) {
+      const ch = this.source[this.pos];
+      if (ch === quote) { this._advance(); return new Token(T.STRING, str, startLine, startCol); }
+      if (ch === '\\') {
+        this._advance();
+        const esc = this._advance();
+        switch (esc) {
+          case 'n': str += '\n'; break; case 't': str += '\t'; break;
+          case '\\': str += '\\'; break; case '"': str += '"'; break;
+          case "'": str += "'"; break; default: str += esc;
+        }
+      } else { str += this._advance(); }
+    }
+    throw new LexerError('Unterminated string', startLine, startCol);
+  }
+  _readNumber() {
+    const startLine = this.line, startCol = this.col;
+    let num = '';
+    if (this.source[this.pos] === '0' && this.pos + 1 < this.source.length &&
+        (this.source[this.pos + 1] === 'x' || this.source[this.pos + 1] === 'X')) {
+      num += this._advance(); num += this._advance();
+      while (this.pos < this.source.length && /[0-9a-fA-F]/.test(this.source[this.pos])) num += this._advance();
+      if (num.length === 2) throw new LexerError('Invalid hex literal', startLine, startCol);
+      return new Token(T.NUMBER, parseInt(num, 16), startLine, startCol);
+    }
+    while (this.pos < this.source.length && /[0-9]/.test(this.source[this.pos])) num += this._advance();
+    if ((num === '1' || num === '2') && this.pos < this.source.length && this.source[this.pos] === 'D') {
+      num += this._advance();
+      return new Token(T.KEYWORD, num, startLine, startCol);
+    }
+    return new Token(T.NUMBER, parseInt(num, 10), startLine, startCol);
+  }
+  _readIdentOrKeyword() {
+    const startLine = this.line, startCol = this.col;
+    let word = '';
+    while (this.pos < this.source.length && /[a-zA-Z0-9_]/.test(this.source[this.pos])) word += this._advance();
+    if (word === '1D' || word === '2D') return new Token(T.KEYWORD, word, startLine, startCol);
+    if (KEYWORDS.has(word)) return new Token(T.KEYWORD, word, startLine, startCol);
+    return new Token(T.IDENT, word, startLine, startCol);
+  }
+  _tokenize() {
+    while (this.pos < this.source.length) {
+      this._skipWhitespace();
+      if (this.pos >= this.source.length) break;
+      const ch = this.source[this.pos];
+      const startLine = this.line, startCol = this.col;
+      if (ch === '"' || ch === "'") { this.tokens.push(this._readString()); continue; }
+      if (/[0-9]/.test(ch)) { this.tokens.push(this._readNumber()); continue; }
+      if (/[a-zA-Z_]/.test(ch)) { this.tokens.push(this._readIdentOrKeyword()); continue; }
+      if (this.pos + 1 < this.source.length) {
+        const two = this.source[this.pos] + this.source[this.pos + 1];
+        if (TWO_CHAR_OPS.has(two)) { this._advance(); this._advance(); this.tokens.push(new Token(T.OP, two, startLine, startCol)); continue; }
+      }
+      if (PUNCTUATION.has(ch)) { this._advance(); this.tokens.push(new Token(T.PUNCT, ch, startLine, startCol)); continue; }
+      if (ONE_CHAR_OPS.has(ch)) { this._advance(); this.tokens.push(new Token(T.OP, ch, startLine, startCol)); continue; }
+      throw new LexerError(`Unexpected character '${ch}'`, startLine, startCol);
+    }
+    this.tokens.push(new Token(T.EOF, null, this.line, this.col));
+  }
+  peek() { return this.tokens[this._index]; }
+  next() { return this.tokens[this._index++]; }
+  expect(type, value) {
+    const tok = this.peek();
+    if (tok.type !== type || (value !== undefined && tok.value !== value)) {
+      const expected = value !== undefined ? `${type}(${value})` : type;
+      throw new LexerError(`Expected ${expected}, got ${tok.type}(${tok.value})`, tok.line, tok.col);
+    }
+    return this.next();
+  }
+  check(type, value) {
+    const tok = this.peek();
+    return tok.type === type && (value === undefined || tok.value === value);
+  }
+  match(type, value) { if (this.check(type, value)) return this.next(); return null; }
+}
+
+// ============================================================
+// parser.js
+// ============================================================
+
+class ParseError extends Error {
+  constructor(msg, line, col) {
+    super(`Parse error at ${line}:${col}: ${msg}`);
+    this.line = line; this.col = col;
+  }
+}
+
+function parserError(msg, tok) { throw new ParseError(msg, tok.line, tok.col); }
+
+const Node = {
+  Effect:   (name, meta, dataDecls, renderBody) => ({ type: 'Effect', name, meta, dataDecls, renderBody }),
+  Meta:     (sliders, effectType, palette, audioReactive) => ({ type: 'Meta', sliders, effectType, palette, audioReactive }),
+  Slider:   (name, label, defaultVal) => ({ type: 'Slider', name, label, defaultVal }),
+  DataDecl: (name, sizeExpr) => ({ type: 'DataDecl', name, sizeExpr }),
+  Let:      (name, value) => ({ type: 'Let', name, value }),
+  Assign:   (target, value) => ({ type: 'Assign', target, value }),
+  If:       (cond, thenBody, elseBody) => ({ type: 'If', cond, thenBody, elseBody }),
+  For:      (varName, start, end, step, body) => ({ type: 'For', varName, start, end, step, body }),
+  While:    (cond, body) => ({ type: 'While', cond, body }),
+  Frame:    (delay) => ({ type: 'Frame', delay }),
+  Call:     (name, args) => ({ type: 'Call', name, args }),
+  BinOp:    (op, left, right) => ({ type: 'BinOp', op, left, right }),
+  Unary:    (op, expr) => ({ type: 'Unary', op, expr }),
+  Index:    (array, index) => ({ type: 'Index', array, index }),
+  Ident:    (name) => ({ type: 'Ident', name }),
+  Number:   (value) => ({ type: 'Number', value }),
+  Bool:     (value) => ({ type: 'Bool', value }),
+};
+
+class Parser {
+  constructor(source) { this.lex = new Lexer(source); }
+  parse() { const effect = this._effectDecl(); this.lex.expect(T.EOF); return effect; }
+
+  _effectDecl() {
+    this.lex.expect(T.KEYWORD, 'effect');
+    const name = this.lex.expect(T.STRING).value;
+    this.lex.expect(T.PUNCT, '{');
+    let meta = null; const dataDecls = []; let renderBody = null;
+    while (!this.lex.check(T.PUNCT, '}')) {
+      if (this.lex.check(T.KEYWORD, 'meta')) meta = this._metaBlock();
+      else if (this.lex.check(T.KEYWORD, 'data')) dataDecls.push(this._dataDecl());
+      else if (this.lex.check(T.KEYWORD, 'render')) renderBody = this._renderBlock();
+      else { const tok = this.lex.peek(); parserError(`Unexpected token '${tok.value}' in effect body`, tok); }
+    }
+    this.lex.expect(T.PUNCT, '}');
+    if (!renderBody) parserError('Effect must have a render block', this.lex.peek());
+    return Node.Effect(name, meta, dataDecls, renderBody);
+  }
+
+  _metaBlock() {
+    this.lex.expect(T.KEYWORD, 'meta'); this.lex.expect(T.PUNCT, '{');
+    const sliders = []; let effectType = '1D'; let palette = false; let audioReactive = false;
+    while (!this.lex.check(T.PUNCT, '}')) {
+      if (this.lex.match(T.KEYWORD, 'slider')) {
+        const name = this.lex.expect(T.IDENT).value;
+        const label = this.lex.expect(T.STRING).value;
+        let defaultVal = null;
+        if (this.lex.match(T.KEYWORD, 'default')) defaultVal = this._expr();
+        sliders.push(Node.Slider(name, label, defaultVal));
+      } else if (this.lex.match(T.KEYWORD, 'type')) {
+        const tok = this.lex.expect(T.KEYWORD);
+        if (tok.value !== '1D' && tok.value !== '2D') parserError(`Expected '1D' or '2D', got '${tok.value}'`, tok);
+        effectType = tok.value;
+      } else if (this.lex.match(T.KEYWORD, 'palette')) {
+        const tok = this.lex.expect(T.KEYWORD);
+        palette = tok.value === 'true';
+      } else if (this.lex.match(T.KEYWORD, 'audio_reactive')) {
+        const tok = this.lex.expect(T.KEYWORD);
+        audioReactive = tok.value === 'true';
+      } else { const tok = this.lex.peek(); parserError(`Unexpected token '${tok.value}' in meta block`, tok); }
+    }
+    this.lex.expect(T.PUNCT, '}');
+    return Node.Meta(sliders, effectType, palette, audioReactive);
+  }
+
+  _dataDecl() {
+    this.lex.expect(T.KEYWORD, 'data');
+    const name = this.lex.expect(T.IDENT).value;
+    this.lex.expect(T.PUNCT, '[');
+    const sizeExpr = this._expr();
+    this.lex.expect(T.PUNCT, ']');
+    return Node.DataDecl(name, sizeExpr);
+  }
+
+  _renderBlock() {
+    this.lex.expect(T.KEYWORD, 'render'); this.lex.expect(T.PUNCT, '{');
+    const stmts = this._stmtList(); this.lex.expect(T.PUNCT, '}');
+    return stmts;
+  }
+
+  _stmtList() {
+    const stmts = [];
+    while (!this.lex.check(T.PUNCT, '}') && !this.lex.check(T.EOF)) stmts.push(this._stmt());
+    return stmts;
+  }
+
+  _stmt() {
+    if (this.lex.check(T.KEYWORD, 'let')) return this._letStmt();
+    if (this.lex.check(T.KEYWORD, 'if')) return this._ifStmt();
+    if (this.lex.check(T.KEYWORD, 'for')) return this._forStmt();
+    if (this.lex.check(T.KEYWORD, 'while')) return this._whileStmt();
+    if (this.lex.check(T.KEYWORD, 'frame')) return this._frameStmt();
+    const expr = this._expr();
+    if (this.lex.match(T.OP, '=')) { const value = this._expr(); return Node.Assign(expr, value); }
+    return expr;
+  }
+
+  _letStmt() {
+    this.lex.expect(T.KEYWORD, 'let');
+    const name = this.lex.expect(T.IDENT).value;
+    this.lex.expect(T.OP, '=');
+    return Node.Let(name, this._expr());
+  }
+
+  _ifStmt() {
+    this.lex.expect(T.KEYWORD, 'if');
+    const cond = this._expr();
+    this.lex.expect(T.PUNCT, '{');
+    const thenBody = this._stmtList();
+    this.lex.expect(T.PUNCT, '}');
+    let elseBody = null;
+    if (this.lex.match(T.KEYWORD, 'else')) {
+      if (this.lex.check(T.KEYWORD, 'if')) { elseBody = [this._ifStmt()]; }
+      else { this.lex.expect(T.PUNCT, '{'); elseBody = this._stmtList(); this.lex.expect(T.PUNCT, '}'); }
+    }
+    return Node.If(cond, thenBody, elseBody);
+  }
+
+  _forStmt() {
+    this.lex.expect(T.KEYWORD, 'for');
+    const varName = this.lex.expect(T.IDENT).value;
+    this.lex.expect(T.KEYWORD, 'in');
+    const start = this._expr();
+    this.lex.expect(T.OP, '..');
+    const end = this._expr();
+    let step = null;
+    if (this.lex.match(T.KEYWORD, 'step')) step = this._expr();
+    this.lex.expect(T.PUNCT, '{');
+    const body = this._stmtList();
+    this.lex.expect(T.PUNCT, '}');
+    return Node.For(varName, start, end, step, body);
+  }
+
+  _whileStmt() {
+    this.lex.expect(T.KEYWORD, 'while');
+    const cond = this._expr();
+    this.lex.expect(T.PUNCT, '{');
+    const body = this._stmtList();
+    this.lex.expect(T.PUNCT, '}');
+    return Node.While(cond, body);
+  }
+
+  _frameStmt() {
+    this.lex.expect(T.KEYWORD, 'frame');
+    this.lex.expect(T.PUNCT, '(');
+    let delay = null;
+    if (!this.lex.check(T.PUNCT, ')')) delay = this._expr();
+    this.lex.expect(T.PUNCT, ')');
+    return Node.Frame(delay);
+  }
+
+  _expr() { return this._orExpr(); }
+
+  _orExpr() {
+    let left = this._andExpr();
+    while (this.lex.match(T.KEYWORD, 'or')) left = Node.BinOp('or', left, this._andExpr());
+    return left;
+  }
+
+  _andExpr() {
+    let left = this._cmpExpr();
+    while (this.lex.match(T.KEYWORD, 'and')) left = Node.BinOp('and', left, this._cmpExpr());
+    return left;
+  }
+
+  _cmpExpr() {
+    let left = this._addExpr();
+    const cmpOps = ['==', '!=', '<', '>', '<=', '>='];
+    const tok = this.lex.peek();
+    if (tok.type === T.OP && cmpOps.includes(tok.value)) {
+      const op = this.lex.next().value;
+      left = Node.BinOp(op, left, this._addExpr());
+    }
+    return left;
+  }
+
+  _addExpr() {
+    let left = this._mulExpr();
+    while (true) {
+      const tok = this.lex.peek();
+      if (tok.type === T.OP && (tok.value === '+' || tok.value === '-' || tok.value === '|' || tok.value === '^')) {
+        left = Node.BinOp(this.lex.next().value, left, this._mulExpr());
+      } else break;
+    }
+    return left;
+  }
+
+  _mulExpr() {
+    let left = this._unaryExpr();
+    while (true) {
+      const tok = this.lex.peek();
+      if (tok.type === T.OP && (tok.value === '*' || tok.value === '/' || tok.value === '%' ||
+          tok.value === '&' || tok.value === '<<' || tok.value === '>>')) {
+        left = Node.BinOp(this.lex.next().value, left, this._unaryExpr());
+      } else break;
+    }
+    return left;
+  }
+
+  _unaryExpr() {
+    if (this.lex.check(T.OP, '-')) { this.lex.next(); return Node.Unary('-', this._unaryExpr()); }
+    if (this.lex.check(T.KEYWORD, 'not')) { this.lex.next(); return Node.Unary('not', this._unaryExpr()); }
+    if (this.lex.check(T.OP, '~')) { this.lex.next(); return Node.Unary('~', this._unaryExpr()); }
+    return this._postfixExpr();
+  }
+
+  _postfixExpr() {
+    let expr = this._primary();
+    while (true) {
+      if (this.lex.check(T.PUNCT, '(')) {
+        this.lex.next();
+        const args = [];
+        if (!this.lex.check(T.PUNCT, ')')) {
+          args.push(this._expr());
+          while (this.lex.match(T.PUNCT, ',')) args.push(this._expr());
+        }
+        this.lex.expect(T.PUNCT, ')');
+        if (expr.type === 'Ident') expr = Node.Call(expr.name, args);
+        else parserError('Expected function name before ()', this.lex.peek());
+      } else if (this.lex.check(T.PUNCT, '[')) {
+        this.lex.next();
+        const index = this._expr();
+        this.lex.expect(T.PUNCT, ']');
+        expr = Node.Index(expr, index);
+      } else break;
+    }
+    return expr;
+  }
+
+  _primary() {
+    if (this.lex.check(T.NUMBER)) return Node.Number(this.lex.next().value);
+    if (this.lex.check(T.KEYWORD, 'true')) { this.lex.next(); return Node.Bool(true); }
+    if (this.lex.check(T.KEYWORD, 'false')) { this.lex.next(); return Node.Bool(false); }
+    if (this.lex.check(T.IDENT)) return Node.Ident(this.lex.next().value);
+    if (this.lex.check(T.KEYWORD, 'palette')) return Node.Ident(this.lex.next().value);
+    if (this.lex.match(T.PUNCT, '(')) { const expr = this._expr(); this.lex.expect(T.PUNCT, ')'); return expr; }
+    const tok = this.lex.peek();
+    parserError(`Unexpected token '${tok.value}'`, tok);
+  }
+}
+
+// ============================================================
+// codegen.js
+// ============================================================
+
+class CodegenError extends Error {
+  constructor(msg) { super(`Codegen error: ${msg}`); }
+}
+
+const BUILTINS = {
+  pixel:       { op: OP.SPXC, args: 2, hasDestReg: false, vmOperands: 2 },
+  pixel2d:     { op: OP.SPXY, args: 3, hasDestReg: false, vmOperands: 3 },
+  fill:        { op: OP.FILL, args: 1, hasDestReg: false, vmOperands: 1 },
+  fade:        { op: OP.FADE, args: 1, hasDestReg: false, vmOperands: 1 },
+  blur:        { op: OP.BLUR, args: 1, hasDestReg: false, vmOperands: 1 },
+  blur2d:      { op: OP.BLR2, args: 1, hasDestReg: false, vmOperands: 1 },
+  get_pixel:   { op: OP.GPXC, args: 1, hasDestReg: true, vmOperands: 2 },
+  get_pixel2d: { op: OP.GPXY, args: 2, hasDestReg: true, vmOperands: 3 },
+  rgb:         { op: OP.RGB,   args: 3, hasDestReg: true, vmOperands: 4 },
+  rgbw:        { op: OP.RGBW,  args: 4, hasDestReg: true, vmOperands: 5 },
+  blend:       { op: OP.CBLND, args: 3, hasDestReg: true, vmOperands: 4 },
+  color_fade:  { op: OP.CFADE, args: 2, hasDestReg: true, vmOperands: 3 },
+  color_add:   { op: OP.CADD,  args: 2, hasDestReg: true, vmOperands: 3 },
+  palette:     { op: OP.CPAL,  args: 1, hasDestReg: true, vmOperands: 2 },
+  palette_x:   { op: OP.CPALX, args: 3, hasDestReg: true, vmOperands: 4 },
+  color_wheel: { op: OP.CWHL,  args: 1, hasDestReg: true, vmOperands: 2 },
+  red:         { op: OP.EXTR, args: 1, hasDestReg: true, vmOperands: 2 },
+  green:       { op: OP.EXTG, args: 1, hasDestReg: true, vmOperands: 2 },
+  blue:        { op: OP.EXTB, args: 1, hasDestReg: true, vmOperands: 2 },
+  white:       { op: OP.EXTW, args: 1, hasDestReg: true, vmOperands: 2 },
+  sin8:        { op: OP.SIN8,  args: 1, hasDestReg: true, vmOperands: 2 },
+  cos8:        { op: OP.COS8,  args: 1, hasDestReg: true, vmOperands: 2 },
+  sin16:       { op: OP.SIN16, args: 1, hasDestReg: true, vmOperands: 2 },
+  beat8:       { op: OP.BEAT8, args: 3, hasDestReg: true, vmOperands: 4 },
+  tri8:        { op: OP.TRI8,  args: 1, hasDestReg: true, vmOperands: 2 },
+  quad8:       { op: OP.QAD8,  args: 1, hasDestReg: true, vmOperands: 2 },
+  scale8:      { op: OP.SCL8,  args: 2, hasDestReg: true, vmOperands: 3 },
+  qadd8:       { op: OP.QADD8, args: 2, hasDestReg: true, vmOperands: 3 },
+  qsub8:       { op: OP.QSUB8, args: 2, hasDestReg: true, vmOperands: 3 },
+  random:      { op: OP.RND8,  args: -1, hasDestReg: true, vmOperands: 1 },
+  random16:    { op: OP.RND16, args: 0, hasDestReg: true, vmOperands: 1 },
+  noise:       { op: OP.NOISE, args: 1, hasDestReg: true, vmOperands: 2 },
+  noise2:      { op: OP.NOI2,  args: 2, hasDestReg: true, vmOperands: 3 },
+  noise3:      { op: OP.NOI3,  args: 3, hasDestReg: true, vmOperands: 4 },
+  sqrt:        { op: OP.SQRT,  args: 1, hasDestReg: true, vmOperands: 2 },
+  abs:         { op: OP.ABS,   args: 1, hasDestReg: true, vmOperands: 2 },
+  min:         { op: OP.MIN,   args: 2, hasDestReg: true, vmOperands: 3 },
+  max:         { op: OP.MAX,   args: 2, hasDestReg: true, vmOperands: 3 },
+  fft:          { op: OP.GFFT,  args: 1, hasDestReg: true, vmOperands: 2 },
+  audio_bass:   { op: OP.ABASS, args: 0, hasDestReg: true, vmOperands: 1 },
+  audio_mid:    { op: OP.AMID,  args: 0, hasDestReg: true, vmOperands: 1 },
+  audio_treble: { op: OP.ATREB, args: 0, hasDestReg: true, vmOperands: 1 },
+  alloc:       { op: OP.ALLOC, args: 1, hasDestReg: false, vmOperands: 1 },
+  draw_line:   { op: OP.DLINE, args: 5, hasDestReg: false, vmOperands: 5 },
+  draw_circle: { op: OP.DCIRC, args: 4, hasDestReg: false, vmOperands: 4 },
+  fill_circle: { op: OP.FCIRC, args: 4, hasDestReg: false, vmOperands: 4 },
+  move_pixels: { op: OP.MOVEP, args: 3, hasDestReg: false, vmOperands: 3 },
+  draw_char:   { op: OP.DCHR, args: 5, hasDestReg: false, vmOperands: 5 },
+  name_char:   { op: OP.GCHR, args: 1, hasDestReg: true,  vmOperands: 2 },
+  name_len:    { op: OP.GNLN, args: 0, hasDestReg: true,  vmOperands: 1 },
+  font_w:      { op: OP.GFNW, args: 1, hasDestReg: true,  vmOperands: 2 },
+  font_h:      { op: OP.GFNH, args: 1, hasDestReg: true,  vmOperands: 2 },
+};
+
+const SPECIAL_VARS = {
+  speed: REG.P0, intensity: REG.P1, custom1: REG.P2, custom2: REG.P3,
+  LEN: REG.LEN, NOW: REG.NOW, CALL: REG.CALL, WIDTH: REG.WIDTH, HEIGHT: REG.HEIGHT,
+};
+
+const OPCODE_VARS = {
+  custom3:  { get: OP.GC3 },
+  check1:   { get: OP.GCHK, idx: 0 }, check2: { get: OP.GCHK, idx: 1 }, check3: { get: OP.GCHK, idx: 2 },
+  color0:   { get: OP.GCOL, idx: 0 }, color1: { get: OP.GCOL, idx: 1 }, color2: { get: OP.GCOL, idx: 2 },
+  aux0:     { get: OP.GAUX, set: OP.SAUX, idx: 0 },
+  aux1:     { get: OP.GAUX, set: OP.SAUX, idx: 1 },
+  step_val: { get: OP.GSTP, set: OP.SSTP },
+  volume:   { get: OP.GVOL },
+  peak:     { get: OP.GPEAK },
+};
+
+class Codegen {
+  constructor(ast) {
+    this.ast = ast; this.code = []; this.vars = {}; this.nextReg = 0;
+    this.maxReg = 11; this.tmpBase = 11; this.tmpDepth = 0; this.forNest = 0;
+    this.dataDecls = []; this.labelCounter = 0; this.patches = []; this.labels = {};
+  }
+
+  generate() {
+    const effect = this.ast;
+    const metadata = this._buildMetadata(effect);
+    let dataSize = 0;
+    for (const dd of effect.dataDecls) {
+      this.dataDecls.push(dd);
+      dataSize += this._evalConstExpr(dd.sizeExpr);
+    }
+    const dataSizeUnits = Math.ceil(dataSize / 16);
+    if (dataSize > 0) {
+      this._emitLoadImm(this._pushTmp(), dataSize);
+      this._emitByte(OP.ALLOC); this._emitByte(this._peekTmp()); this._popTmp();
+    }
+    for (const stmt of effect.renderBody) this._genStmt(stmt);
+    this._emitByte(OP.HALTS);
+    this._resolveLabels();
+    return this._buildWfx(metadata, dataSizeUnits);
+  }
+
+  _buildMetadata(effect) {
+    let meta = effect.name;
+    if (effect.meta) {
+      meta += '@';
+      const sliderPos = { speed: 0, intensity: 1, custom1: 2, custom2: 3, custom3: 4 };
+      const labels = ['', '', '', '', ''];
+      for (const s of effect.meta.sliders) {
+        const pos = sliderPos[s.name];
+        if (pos !== undefined) labels[pos] = s.label;
+      }
+      while (labels.length > 0 && labels[labels.length - 1] === '') labels.pop();
+      meta += labels.join(',');
+      meta += ';!';
+      meta += ';' + (effect.meta.palette ? '!' : '');
+      let flags = '';
+      if (effect.meta.audioReactive) flags += 'f';
+      meta += ';' + flags;
+    }
+    return meta;
+  }
+
+  _emitByte(b) { this.code.push(b & 0xFF); }
+  _emitI16(v) { const v16 = v & 0xFFFF; this.code.push(v16 & 0xFF, (v16 >> 8) & 0xFF); }
+  _emitI32(v) { const u = v | 0; this.code.push(u & 0xFF, (u >> 8) & 0xFF, (u >> 16) & 0xFF, (u >> 24) & 0xFF); }
+  _emitArith(op, d, a, b) { this._emitByte(op); this._emitByte(d); this._emitByte(a); this._emitByte(b); }
+  _emitOp2(op, d, a) { this._emitByte(op); this._emitByte(d); this._emitByte(a); }
+
+  _emitLoadImm(reg, value) {
+    if (value >= -32768 && value <= 32767) {
+      this._emitByte(OP.LDI); this._emitByte(reg); this._emitI16(value);
+    } else {
+      this._emitByte(OP.LDI32); this._emitByte(reg); this._emitI32(value);
+    }
+  }
+
+  _newLabel() { return `_L${this.labelCounter++}`; }
+  _placeLabel(label) { this.labels[label] = this.code.length; }
+
+  _emitJmp(label) {
+    this._emitByte(OP.JMP);
+    this.patches.push({ offset: this.code.length, label });
+    this._emitI16(0);
+  }
+  _emitJump1(op, a, label) {
+    this._emitByte(op); this._emitByte(a);
+    this.patches.push({ offset: this.code.length, label });
+    this._emitI16(0);
+  }
+  _emitJump2(op, a, b, label) {
+    this._emitByte(op); this._emitByte(a); this._emitByte(b);
+    this.patches.push({ offset: this.code.length, label });
+    this._emitI16(0);
+  }
+
+  _resolveLabels() {
+    for (const p of this.patches) {
+      const target = this.labels[p.label];
+      if (target === undefined) throw new CodegenError(`Unresolved label: ${p.label}`);
+      const afterOffset = p.offset + 2;
+      const relBytes = target - afterOffset;
+      const rel16 = relBytes & 0xFFFF;
+      this.code[p.offset] = rel16 & 0xFF;
+      this.code[p.offset + 1] = (rel16 >> 8) & 0xFF;
+    }
+  }
+
+  _pushTmp() {
+    if (this.tmpDepth >= 5) throw new CodegenError('Expression too complex (max 5 temp registers)');
+    return this.tmpBase + this.tmpDepth++;
+  }
+  _peekTmp() { return this.tmpBase + this.tmpDepth - 1; }
+  _popTmp() { this.tmpDepth--; }
+
+  _allocVar(name) {
+    if (this.vars[name] !== undefined) return this.vars[name];
+    if (this.nextReg >= this.maxReg) throw new CodegenError(`Out of registers (max ${this.maxReg} variables)`);
+    const reg = this.nextReg++; this.vars[name] = reg; return reg;
+  }
+  _saveScope() { return this.nextReg; }
+  _restoreScope(saved) {
+    for (const [name, reg] of Object.entries(this.vars)) {
+      if (reg >= saved) delete this.vars[name];
+    }
+    this.nextReg = saved;
+  }
+
+  _getVar(name) {
+    if (this.vars[name] !== undefined) return { type: 'reg', reg: this.vars[name] };
+    if (SPECIAL_VARS[name] !== undefined) return { type: 'special', reg: SPECIAL_VARS[name] };
+    if (OPCODE_VARS[name] !== undefined) return { type: 'opcode', info: OPCODE_VARS[name] };
+    for (let i = 0; i < this.dataDecls.length; i++) {
+      if (this.dataDecls[i].name === name) return { type: 'data', index: i };
+    }
+    throw new CodegenError(`Undefined variable '${name}'`);
+  }
+
+  _evalConstExpr(node) {
+    if (node.type === 'Number') return node.value;
+    if (node.type === 'Ident' && node.name === 'LEN') return 255;
+    if (node.type === 'BinOp') {
+      const l = this._evalConstExpr(node.left), r = this._evalConstExpr(node.right);
+      switch (node.op) {
+        case '+': return l + r; case '-': return l - r;
+        case '*': return l * r; case '/': return Math.trunc(l / r);
+      }
+    }
+    throw new CodegenError(`Cannot evaluate as constant: ${node.type}`);
+  }
+
+  _genStmt(stmt) {
+    switch (stmt.type) {
+      case 'Let':    return this._genLet(stmt);
+      case 'Assign': return this._genAssign(stmt);
+      case 'If':     return this._genIf(stmt);
+      case 'For':    return this._genFor(stmt);
+      case 'While':  return this._genWhile(stmt);
+      case 'Frame':  return this._genFrame(stmt);
+      case 'Call':   return this._genCallStmt(stmt);
+      default:       this._genExpr(stmt, this._pushTmp()); this._popTmp();
+    }
+  }
+
+  _genLet(stmt) { const reg = this._allocVar(stmt.name); this._genExpr(stmt.value, reg); }
+
+  _genAssign(stmt) {
+    const target = stmt.target;
+    if (target.type === 'Ident') {
+      const v = this._getVar(target.name);
+      if (v.type === 'reg') { this._genExpr(stmt.value, v.reg); }
+      else if (v.type === 'opcode' && v.info.set) {
+        const valReg = this._pushTmp(); this._genExpr(stmt.value, valReg);
+        if (v.info.set === OP.SAUX) {
+          this._emitByte(v.info.set); this._emitByte(v.info.idx); this._emitByte(valReg);
+        } else { this._emitByte(v.info.set); this._emitByte(valReg); }
+        this._popTmp();
+      } else throw new CodegenError(`Cannot assign to '${target.name}'`);
+    } else if (target.type === 'Index') {
+      const addrReg = this._pushTmp(); this._genExpr(target.index, addrReg);
+      const valReg = this._pushTmp(); this._genExpr(stmt.value, valReg);
+      this._emitByte(OP.STB); this._emitByte(addrReg); this._emitByte(valReg); this._emitByte(0);
+      this._popTmp(); this._popTmp();
+    } else throw new CodegenError(`Invalid assignment target: ${target.type}`);
+  }
+
+  _genIf(stmt) {
+    const elseLabel = this._newLabel(), endLabel = this._newLabel();
+    const condReg = this._pushTmp(); this._genExpr(stmt.cond, condReg);
+    this._emitJump1(OP.JZ, condReg, stmt.elseBody ? elseLabel : endLabel); this._popTmp();
+    const thenScope = this._saveScope();
+    for (const s of stmt.thenBody) this._genStmt(s);
+    this._restoreScope(thenScope);
+    if (stmt.elseBody) {
+      this._emitJmp(endLabel); this._placeLabel(elseLabel);
+      const elseScope = this._saveScope();
+      for (const s of stmt.elseBody) this._genStmt(s);
+      this._restoreScope(elseScope);
+    }
+    this._placeLabel(endLabel);
+  }
+
+  _genFor(stmt) {
+    const depth = this.forNest++;
+    const outerScope = this._saveScope();
+    const varReg = this._allocVar(stmt.varName);
+    const endReg = this._allocVar(`__end_${depth}`);
+    const stepReg = this._allocVar(`__step_${depth}`);
+    const loopTop = this._newLabel(), loopEnd = this._newLabel();
+    this._genExpr(stmt.start, varReg); this._genExpr(stmt.end, endReg);
+    if (stmt.step) this._genExpr(stmt.step, stepReg);
+    else this._emitLoadImm(stepReg, 1);
+    const negativeStep = stmt.step && stmt.step.type === 'Number' && stmt.step.value < 0;
+    const exitOp = negativeStep ? OP.JLE : OP.JGE;
+    this._placeLabel(loopTop); this._emitJump2(exitOp, varReg, endReg, loopEnd);
+    for (const s of stmt.body) this._genStmt(s);
+    this._emitArith(OP.ADD, varReg, varReg, stepReg); this._emitJmp(loopTop);
+    this._placeLabel(loopEnd); this._restoreScope(outerScope); this.forNest--;
+  }
+
+  _genWhile(stmt) {
+    const loopTop = this._newLabel(), loopEnd = this._newLabel();
+    this._placeLabel(loopTop);
+    const condReg = this._pushTmp(); this._genExpr(stmt.cond, condReg);
+    this._emitJump1(OP.JZ, condReg, loopEnd); this._popTmp();
+    const bodyScope = this._saveScope();
+    for (const s of stmt.body) this._genStmt(s);
+    this._restoreScope(bodyScope);
+    this._emitJmp(loopTop); this._placeLabel(loopEnd);
+  }
+
+  _genFrame(stmt) {
+    if (stmt.delay === null) { this._emitByte(OP.HALTS); }
+    else {
+      const delayReg = this._pushTmp(); this._genExpr(stmt.delay, delayReg);
+      this._emitByte(OP.HALT); this._emitByte(delayReg); this._popTmp();
+    }
+  }
+
+  _genCallStmt(stmt) {
+    const fn = BUILTINS[stmt.name];
+    if (fn && !fn.hasDestReg) { this._genCall(stmt, 0); }
+    else { const tmpReg = this._pushTmp(); this._genCall(stmt, tmpReg); this._popTmp(); }
+  }
+
+  _genExpr(node, destReg) {
+    switch (node.type) {
+      case 'Number': this._emitLoadImm(destReg, node.value); return;
+      case 'Bool':   this._emitLoadImm(destReg, node.value ? 1 : 0); return;
+      case 'Ident':  this._genIdent(node.name, destReg); return;
+      case 'BinOp':  this._genBinOp(node, destReg); return;
+      case 'Unary':  this._genUnary(node, destReg); return;
+      case 'Call':   this._genCall(node, destReg); return;
+      case 'Index':  this._genIndex(node, destReg); return;
+      default: throw new CodegenError(`Cannot generate expression for ${node.type}`);
+    }
+  }
+
+  _genIdent(name, destReg) {
+    const v = this._getVar(name);
+    if (v.type === 'reg' || v.type === 'special') {
+      if (v.reg !== destReg) this._emitOp2(OP.MOV, destReg, v.reg);
+    } else if (v.type === 'opcode') {
+      const info = v.info;
+      if (info.idx !== undefined) { this._emitOp2(info.get, destReg, info.idx); }
+      else { this._emitByte(info.get); this._emitByte(destReg); }
+    } else throw new CodegenError(`Cannot read variable '${name}' directly`);
+  }
+
+  _genBinOp(node, destReg) {
+    const opMap = {
+      '+': OP.ADD, '-': OP.SUB, '*': OP.MUL, '/': OP.DIV, '%': OP.MOD,
+      '&': OP.AND, '|': OP.OR, '^': OP.XOR, '<<': OP.SHL, '>>': OP.SHR,
+    };
+    const cmpOps = ['==', '!=', '<', '>', '<=', '>='];
+    if (opMap[node.op]) {
+      if (destReg >= this.tmpBase) {
+        this._genExpr(node.left, destReg);
+        const rightReg = this._pushTmp(); this._genExpr(node.right, rightReg);
+        this._emitArith(opMap[node.op], destReg, destReg, rightReg); this._popTmp();
+      } else {
+        const leftReg = this._pushTmp(); this._genExpr(node.left, leftReg);
+        const rightReg = this._pushTmp(); this._genExpr(node.right, rightReg);
+        this._emitArith(opMap[node.op], destReg, leftReg, rightReg);
+        this._popTmp(); this._popTmp();
+      }
+    } else if (cmpOps.includes(node.op)) { this._genComparison(node, destReg); }
+    else if (node.op === 'and') {
+      const endLabel = this._newLabel();
+      this._genExpr(node.left, destReg); this._emitJump1(OP.JZ, destReg, endLabel);
+      this._genExpr(node.right, destReg); this._placeLabel(endLabel);
+    } else if (node.op === 'or') {
+      const endLabel = this._newLabel();
+      this._genExpr(node.left, destReg); this._emitJump1(OP.JNZ, destReg, endLabel);
+      this._genExpr(node.right, destReg); this._placeLabel(endLabel);
+    } else throw new CodegenError(`Unknown binary operator: ${node.op}`);
+  }
+
+  _genComparison(node, destReg) {
+    this._genExpr(node.left, destReg);
+    const rightReg = this._pushTmp(); this._genExpr(node.right, rightReg);
+    const trueLabel = this._newLabel(), endLabel = this._newLabel();
+    if (node.op === '!=') {
+      const falseLabel = this._newLabel();
+      this._emitJump2(OP.JEQ, destReg, rightReg, falseLabel);
+      this._emitLoadImm(destReg, 1); this._emitJmp(endLabel);
+      this._placeLabel(falseLabel); this._emitLoadImm(destReg, 0);
+      this._placeLabel(endLabel);
+    } else {
+      const jmpOp = { '==': OP.JEQ, '<': OP.JLT, '>': OP.JGT, '<=': OP.JLE, '>=': OP.JGE }[node.op];
+      this._emitJump2(jmpOp, destReg, rightReg, trueLabel);
+      this._emitLoadImm(destReg, 0); this._emitJmp(endLabel);
+      this._placeLabel(trueLabel); this._emitLoadImm(destReg, 1);
+      this._placeLabel(endLabel);
+    }
+    this._popTmp();
+  }
+
+  _genUnary(node, destReg) {
+    this._genExpr(node.expr, destReg);
+    switch (node.op) {
+      case '-':   this._emitOp2(OP.NEG, destReg, destReg); break;
+      case '~': case 'not': this._emitOp2(OP.NOT, destReg, destReg); break;
+      default: throw new CodegenError(`Unknown unary operator: ${node.op}`);
+    }
+  }
+
+  _genCall(node, destReg) {
+    const fn = BUILTINS[node.name];
+    if (!fn) throw new CodegenError(`Unknown function '${node.name}'`);
+    if (node.name === 'random') return this._genRandom(node, destReg);
+    if (fn.args >= 0 && node.args.length !== fn.args)
+      throw new CodegenError(`${node.name}() expects ${fn.args} args, got ${node.args.length}`);
+    const argRegs = [];
+    for (let i = 0; i < node.args.length; i++) {
+      const reg = this._pushTmp(); this._genExpr(node.args[i], reg); argRegs.push(reg);
+    }
+    this._emitByte(fn.op);
+    if (fn.hasDestReg) this._emitByte(destReg);
+    for (const r of argRegs) this._emitByte(r);
+    for (let i = 0; i < node.args.length; i++) this._popTmp();
+  }
+
+  _genRandom(node, destReg) {
+    if (node.args.length === 0) { this._emitByte(OP.RND8); this._emitByte(destReg); }
+    else if (node.args.length === 1) {
+      this._genExpr(node.args[0], destReg);
+      const zeroReg = this._pushTmp(); this._emitLoadImm(zeroReg, 0);
+      this._emitArith(OP.RNDR, destReg, zeroReg, destReg); this._popTmp();
+    } else if (node.args.length === 2) {
+      this._genExpr(node.args[0], destReg);
+      const maxReg = this._pushTmp(); this._genExpr(node.args[1], maxReg);
+      this._emitArith(OP.RNDR, destReg, destReg, maxReg); this._popTmp();
+    } else throw new CodegenError('random() takes 0-2 arguments');
+  }
+
+  _genIndex(node, destReg) {
+    const addrReg = this._pushTmp(); this._genExpr(node.index, addrReg);
+    this._emitByte(OP.LDB); this._emitByte(destReg); this._emitByte(addrReg); this._emitByte(0);
+    this._popTmp();
+  }
+
+  // --- WFX binary builder (browser-compatible, no Buffer) ---
+  _buildWfx(metadata, dataSizeUnits) {
+    const encoder = new TextEncoder();
+    const metaBytes = encoder.encode(metadata + '\0');
+    const bytecodeLen = this.code.length;
+    if (bytecodeLen > 65535) throw new CodegenError(`Bytecode too large: ${bytecodeLen} bytes (max 65535)`);
+
+    const header = new Uint8Array(WFX.HEADER_SIZE);
+    header[0] = WFX.MAGIC[0]; header[1] = WFX.MAGIC[1]; header[2] = WFX.MAGIC[2];
+    header[3] = WFX.VERSION;
+    header[4] = this._getFlags();
+    header[5] = dataSizeUnits & 0xFF;
+    header[6] = bytecodeLen & 0xFF;
+    header[7] = (bytecodeLen >> 8) & 0xFF;
+
+    const result = new Uint8Array(header.length + metaBytes.length + this.code.length);
+    result.set(header, 0);
+    result.set(metaBytes, header.length);
+    result.set(new Uint8Array(this.code), header.length + metaBytes.length);
+    return result;
+  }
+
+  _getFlags() {
+    let flags = 0;
+    if (this.ast.meta) {
+      if (this.ast.meta.effectType === '2D') flags |= WFX.FLAG_2D;
+      if (this.ast.meta.palette) flags |= WFX.FLAG_PALETTE;
+      if (this.ast.meta.audioReactive) flags |= WFX.FLAG_AUDIO;
+    }
+    return flags;
+  }
+}
+
+// ============================================================
+// Public API
+// ============================================================
+
+/**
+ * Compile WLED-Lang source to WFX bytecode.
+ * @param {string} source - The .wled source code
+ * @returns {Uint8Array} - The compiled .wfx binary
+ * @throws {Error} - On lexer, parser, or codegen errors
+ */
+function compile(source) {
+  const parser = new Parser(source);
+  const ast = parser.parse();
+  const codegen = new Codegen(ast);
+  return codegen.generate();
+}
+
+
+// ==================== Application ====================
+// ================ Example Effects ================
+const EXAMPLES = {
+  'Rainbow Chase': `effect "Rainbow Chase" {
+  meta {
+    slider speed "Speed" default 128
+    slider intensity "Scale"
+    palette true
+  }
+
+  render {
+    let offset = NOW * speed / 2048
+
+    for i in 0..LEN {
+      let idx = (i * (intensity / 4 + 2) + offset) % 256
+      pixel(i, palette(idx))
+    }
+    frame()
+  }
+}`,
+
+  'Twinkle Stars': `effect "Twinkle Stars" {
+  meta {
+    slider speed "Fade speed"
+    slider intensity "Density"
+    palette true
+  }
+
+  render {
+    fade(255 - speed / 4)
+
+    let numNew = intensity / 16 + 1
+    for i in 0..numNew {
+      let pos = random(LEN)
+      pixel(pos, palette(random(255)))
+    }
+
+    frame()
+  }
+}`,
+
+  'Breathing': `effect "Breathing" {
+  meta {
+    slider speed "Speed"
+    palette true
+  }
+
+  render {
+    let phase = NOW * speed / 1024
+    let bri = sin8(phase % 256)
+
+    for i in 0..LEN {
+      let c = palette(i * 255 / LEN)
+      pixel(i, color_fade(c, bri))
+    }
+    frame()
+  }
+}`,
+
+  'Color Wipe': `effect "Color Wipe" {
+  meta {
+    slider speed "Speed"
+    palette true
+  }
+
+  render {
+    if CALL == 0 {
+      aux0 = 0
+      aux1 = 0
+    }
+
+    if aux1 == 0 {
+      pixel(aux0, palette(aux0 * 255 / LEN))
+    } else {
+      pixel(aux0, rgb(0, 0, 0))
+    }
+
+    aux0 = aux0 + 1
+    if aux0 >= LEN {
+      aux0 = 0
+      if aux1 == 0 {
+        aux1 = 1
+      } else {
+        aux1 = 0
+      }
+    }
+
+    frame()
+  }
+}`,
+
+  'Bouncing Dot': `effect "Bouncing Dot" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Trail"
+    palette true
+  }
+
+  render {
+    if CALL == 0 {
+      aux0 = 0
+      aux1 = 1
+    }
+
+    fade(240 + intensity / 20)
+
+    let c = palette(aux0 * 255 / LEN)
+    pixel(aux0, c)
+
+    if aux1 == 1 {
+      aux0 = aux0 + 1
+      if aux0 >= LEN - 1 {
+        aux1 = 0
+      }
+    } else {
+      aux0 = aux0 - 1
+      if aux0 <= 0 {
+        aux1 = 1
+      }
+    }
+
+    frame()
+  }
+}`,
+
+  'Fire': `effect "Fire" {
+  meta {
+    slider speed "Cooling"
+    slider intensity "Sparking"
+    palette true
+  }
+
+  data heat[256]
+
+  render {
+    // Cool down
+    for i in 0..LEN {
+      let cooling = random(speed * 10 / LEN + 2)
+      heat[i] = qsub8(heat[i], cooling)
+    }
+
+    // Heat drifts up
+    for k in 2..LEN {
+      let idx = LEN - 1 - k
+      let avg = heat[idx + 1] + heat[idx + 2]
+      heat[idx] = avg / 2
+    }
+
+    // Random sparks at bottom
+    if random(255) < intensity {
+      let pos = random(3)
+      heat[pos] = qadd8(heat[pos], random(160, 255))
+    }
+
+    // Render
+    for j in 0..LEN {
+      pixel(j, palette(heat[j]))
+    }
+
+    frame()
+  }
+}`,
+
+  'Plasma (1D)': `effect "Plasma" {
+  meta {
+    slider speed "Phase"
+    slider intensity "Brightness"
+    palette true
+  }
+
+  render {
+    if CALL == 0 {
+      aux0 = random(2)
+    }
+
+    let tp = beat8(6 + aux0, 0, 128)
+    tp = tp - 64
+    let tt = beat8(7 + aux0, 0, 128)
+    tt = tt - 64
+
+    let briMod = beat8(7, 0, 128 - intensity / 2)
+    let sf1 = 2 + 3 * (speed / 32)
+    let sf2 = 1 + 2 * (speed / 32)
+
+    for i in 0..LEN {
+      let cidx = quad8((i * sf1 + tp) % 256) / 2
+      cidx = cidx + cos8((i * sf2 + tt) % 256) / 2
+      let bri = qsub8(cidx, briMod)
+      pixel(i, color_fade(palette(cidx), bri))
+    }
+
+    frame()
+  }
+}`,
+
+  'Plasma 2D': `effect "Plasma 2D" {
+  meta {
+    slider speed "Speed"
+    slider custom1 "Fade"
+    slider custom2 "Blur"
+    type 2D
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 512
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let v1 = sin8(x * 32 + t)
+        let v2 = cos8(y * 32 + t)
+        let v3 = sin8((x + y) * 16 + t / 2)
+        v1 = (v1 + v2 + v3) / 3
+        pixel2d(x, y, palette(v1))
+      }
+    }
+
+    if custom1 > 0 {
+      fade(255 - custom1)
+    }
+    if custom2 > 0 {
+      blur2d(custom2)
+    }
+
+    frame()
+  }
+}`,
+
+  'Noise Paint 2D': `effect "Noise Paint 2D" {
+  meta {
+    slider speed "Speed"
+    slider intensity "Scale"
+    type 2D
+    palette true
+  }
+
+  render {
+    let t = NOW * speed / 1024
+    let sc = intensity / 4 + 8
+
+    for y in 0..HEIGHT {
+      for x in 0..WIDTH {
+        let n = noise2(x * sc + t, y * sc + t / 2)
+        pixel2d(x, y, palette(n))
+      }
+    }
+
+    frame()
+  }
+}`,
+
+  'Scrolling Text 2D': `effect "Scroll Text 2D" {
+  meta {
+    slider speed "Speed"
+    slider custom1 "Font"
+    type 2D
+    palette true
+  }
+
+  render {
+    if CALL == 0 {
+      step_val = 0
+    }
+
+    fade(200)
+
+    let font = custom1 * 5 / 256
+    let fw = font_w(font)
+    let fh = font_h(font)
+    let tlen = name_len()
+
+    if tlen == 0 {
+      frame()
+    }
+
+    let yoff = (HEIGHT - fh) / 2
+
+    for i in 0..tlen {
+      let cx = i * fw + WIDTH - step_val
+      if cx + fw > 0 {
+        if cx < WIDTH {
+          let ch = name_char(i)
+          let col = palette(i * 255 / tlen)
+          draw_char(ch, cx, yoff, font, col)
+        }
+      }
+    }
+
+    let totalW = tlen * fw + WIDTH
+    step_val = (step_val + speed / 32 + 1) % totalW
+
+    frame()
+  }
+}`,
+};
+
+// ================ State ================
+let bytecode = null;
+let effectMeta = null;
+let effectFlags = 0;
+let effectDataSize = 0;
+let simState = null;
+let playing = false;
+let frameCount = 0;
+let startTime = 0;
+let lastCompiledWfx = null;
+
+let currentFilename = 'untitled.wled';
+
+const engine = new SimEngine();
+const canvas = document.getElementById('led-canvas');
+const renderer = new LEDRenderer(canvas);
+const editorEl = document.getElementById('editor');
+const statusEl = document.getElementById('compile-status');
+const fileLabel = document.getElementById('current-file');
+const exampleBrowser = document.getElementById('example-browser');
+
+// ---- Populate palette selector ----
+const palSelect = document.getElementById('seg-palette');
+for (const p of PALETTES) {
+  const opt = document.createElement('option');
+  opt.value = p.id;
+  opt.textContent = `${p.id}: ${p.name}`;
+  palSelect.appendChild(opt);
+}
+
+// ---- Populate examples dropdown ----
+for (const name of Object.keys(EXAMPLES)) {
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name;
+  exampleBrowser.appendChild(opt);
+}
+
+// ---- Helpers ----
+function hexToRGBW32(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r << 16) | (g << 8) | b;
+}
+
+function is2D() {
+  return document.querySelector('input[name="mode"]:checked').value === '2d';
+}
+function getWidth() { return parseInt(document.getElementById('seg-width').value) || 30; }
+function getHeight() { return is2D() ? (parseInt(document.getElementById('seg-height').value) || 16) : 1; }
+
+function getSegOpts() {
+  return {
+    speed: parseInt(document.getElementById('seg-speed').value),
+    intensity: parseInt(document.getElementById('seg-intensity').value),
+    custom1: parseInt(document.getElementById('seg-c1').value),
+    custom2: parseInt(document.getElementById('seg-c2').value),
+    custom3: parseInt(document.getElementById('seg-c3').value),
+    check1: document.getElementById('seg-check1').checked,
+    check2: document.getElementById('seg-check2').checked,
+    check3: document.getElementById('seg-check3').checked,
+    palette: parseInt(palSelect.value),
+    colors: [
+      hexToRGBW32(document.getElementById('seg-color1').value),
+      hexToRGBW32(document.getElementById('seg-color2').value),
+      hexToRGBW32(document.getElementById('seg-color3').value),
+    ],
+    name: document.getElementById('seg-name').value,
+    NOW: 0,
+  };
+}
+
+function resetState() {
+  const w = getWidth(), h = getHeight();
+  simState = createState({ LEN: is2D() ? (w * h) : w, WIDTH: w, HEIGHT: h, is2D: is2D() });
+  frameCount = 0;
+  startTime = performance.now();
+  updateStats();
+  renderFrame();
+}
+
+function renderFrame() {
+  if (!simState) return;
+  renderer.render(simState.pixels1d, simState.pixels2d, simState.is2D, simState.WIDTH, simState.HEIGHT);
+}
+
+function updateStats() {
+  const elapsed = (performance.now() - startTime) / 1000;
+  const fps = elapsed > 0 ? Math.round(frameCount / elapsed) : 0;
+  document.getElementById('stats').textContent = `FPS: ${fps} | Frame: ${frameCount}`;
+}
+
+function executeOneFrame() {
+  if (!bytecode || !simState) return 0;
+  const opts = getSegOpts();
+  opts.NOW = Math.floor(performance.now() - startTime);
+  const result = engine.executeFrame(bytecode, simState, opts);
+  frameCount++;
+  updateStats();
+  renderFrame();
+  return result.delay || 42;
+}
+
+// ---- Animation loop ----
+let animId = null;
+let nextFrameAt = 0;
+
+function animLoop(timestamp) {
+  if (!playing) return;
+  if (timestamp >= nextFrameAt) {
+    const delay = executeOneFrame();
+    nextFrameAt = timestamp + delay;
+  }
+  animId = requestAnimationFrame(animLoop);
+}
+
+function play() {
+  if (!bytecode) return;
+  playing = true;
+  nextFrameAt = 0;
+  document.getElementById('btn-play').textContent = 'Pause';
+  animId = requestAnimationFrame(animLoop);
+}
+
+function pause() {
+  playing = false;
+  if (animId) cancelAnimationFrame(animId);
+  animId = null;
+  document.getElementById('btn-play').textContent = 'Play';
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ---- Load effect ----
+function loadWfx(arrayBuffer) {
+  try {
+    const result = extractBytecode(arrayBuffer);
+    bytecode = result.bytecode;
+    effectMeta = result.metadata;
+    effectFlags = result.flags;
+    effectDataSize = result.dataSize;
+
+    const name = effectMeta.split(';')[0] || 'Unknown';
+    const flags = [];
+    if (effectFlags & 0x01) flags.push('2D');
+    if (effectFlags & 0x02) flags.push('Palette');
+    if (effectFlags & 0x04) flags.push('Audio');
+    document.getElementById('effect-info').innerHTML =
+      `Effect: <span>${escapeHtml(name)}</span>` +
+      (flags.length ? ` [${flags.join(', ')}]` : '') +
+      ` | ${bytecode.length} bytes`;
+
+    // Auto-switch to 2D if flag set
+    if (effectFlags & 0x01) {
+      document.querySelector('input[name="mode"][value="2d"]').checked = true;
+      document.getElementById('seg-height').disabled = false;
+      if (getHeight() <= 1) document.getElementById('seg-height').value = '16';
+      canvas.height = 400;
+    }
+
+    resetState();
+    if (!playing) play();
+  } catch (e) {
+    alert('Error loading WFX: ' + e.message);
+  }
+}
+
+// ---- In-browser compilation (no server needed) ----
+function compileSource(source) {
+  const binary = compile(source);
+  lastCompiledWfx = binary;
+  return binary.buffer;
+}
+
+function compileAndRun() {
+  const source = editorEl.value.trim();
+  if (!source) {
+    statusEl.textContent = 'Editor is empty';
+    statusEl.className = 'compile-status err';
+    return;
+  }
+  try {
+    const buf = compileSource(source);
+    statusEl.textContent = 'Compiled OK';
+    statusEl.className = 'compile-status ok';
+    loadWfx(buf);
+  } catch (e) {
+    statusEl.textContent = e.message;
+    statusEl.className = 'compile-status err';
+  }
+}
+
+function downloadWfx() {
+  const source = editorEl.value.trim();
+  if (!source) {
+    statusEl.textContent = 'Editor is empty';
+    statusEl.className = 'compile-status err';
+    return;
+  }
+  try {
+    const binary = compile(source);
+    const blob = new Blob([binary], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = currentFilename.replace(/\.wled$/, '.wfx');
+    a.click();
+    URL.revokeObjectURL(url);
+    statusEl.textContent = 'Downloaded: ' + a.download;
+    statusEl.className = 'compile-status ok';
+  } catch (e) {
+    statusEl.textContent = e.message;
+    statusEl.className = 'compile-status err';
+  }
+}
+
+function setEditorSource(source, filename) {
+  editorEl.value = source;
+  currentFilename = filename || 'untitled.wled';
+  fileLabel.textContent = currentFilename;
+  statusEl.textContent = 'Ready';
+  statusEl.className = 'compile-status';
+}
+
+function newFile() {
+  const template = `effect "My Effect" {
+  meta {
+    slider speed "Speed"
+    palette true
+  }
+
+  render {
+    for i in 0..LEN {
+      let idx = (i * 8 + NOW * speed / 256) % 256
+      pixel(i, palette(idx))
+    }
+    frame()
+  }
+}
+`;
+  setEditorSource(template, 'untitled.wled');
+}
+
+// ---- Event handlers ----
+document.getElementById('btn-compile').addEventListener('click', compileAndRun);
+document.getElementById('btn-download').addEventListener('click', downloadWfx);
+document.getElementById('btn-new').addEventListener('click', newFile);
+
+exampleBrowser.addEventListener('change', () => {
+  const name = exampleBrowser.value;
+  if (name && EXAMPLES[name]) {
+    setEditorSource(EXAMPLES[name], name.toLowerCase().replace(/[^a-z0-9]+/g, '_') + '_wfx.wled');
+    compileAndRun();
+  }
+  exampleBrowser.value = '';
+});
+
+// Tab key inserts spaces in editor
+editorEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editorEl.selectionStart;
+    const end = editorEl.selectionEnd;
+    editorEl.value = editorEl.value.substring(0, start) + '  ' + editorEl.value.substring(end);
+    editorEl.selectionStart = editorEl.selectionEnd = start + 2;
+  }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); compileAndRun(); }
+});
+
+document.getElementById('btn-play').addEventListener('click', () => { if (playing) pause(); else play(); });
+document.getElementById('btn-step').addEventListener('click', () => {
+  pause();
+  if (bytecode) { if (!simState) resetState(); executeOneFrame(); }
+});
+document.getElementById('btn-reset').addEventListener('click', () => { pause(); resetState(); });
+
+document.getElementById('btn-load').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.name.endsWith('.wled')) {
+    const text = await file.text();
+    setEditorSource(text, file.name);
+    compileAndRun();
+  } else {
+    const buf = await file.arrayBuffer();
+    loadWfx(buf);
+  }
+  e.target.value = '';
+});
+
+// Drag and drop
+const canvasWrap = document.getElementById('canvas-wrap');
+const dropOverlay = document.getElementById('drop-overlay');
+
+canvasWrap.addEventListener('dragover', (e) => { e.preventDefault(); dropOverlay.style.display = 'flex'; });
+canvasWrap.addEventListener('dragleave', () => { dropOverlay.style.display = 'none'; });
+canvasWrap.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dropOverlay.style.display = 'none';
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  if (file.name.endsWith('.wled')) {
+    const text = await file.text();
+    setEditorSource(text, file.name);
+    compileAndRun();
+  } else {
+    const buf = await file.arrayBuffer();
+    loadWfx(buf);
+  }
+});
+
+// Also allow drop on editor panel
+const editorPanel = document.getElementById('editor-panel');
+editorPanel.addEventListener('dragover', (e) => e.preventDefault());
+editorPanel.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  if (file.name.endsWith('.wled')) {
+    const text = await file.text();
+    setEditorSource(text, file.name);
+    compileAndRun();
+  } else {
+    const buf = await file.arrayBuffer();
+    loadWfx(buf);
+  }
+});
+
+// Slider value displays
+for (const [id, valId] of [
+  ['seg-speed', 'val-speed'], ['seg-intensity', 'val-intensity'],
+  ['seg-c1', 'val-c1'], ['seg-c2', 'val-c2'], ['seg-c3', 'val-c3'],
+]) {
+  document.getElementById(id).addEventListener('input', (e) => {
+    document.getElementById(valId).textContent = e.target.value;
+  });
+}
+
+// Mode toggle
+document.querySelectorAll('input[name="mode"]').forEach(el => {
+  el.addEventListener('change', () => {
+    const two = is2D();
+    document.getElementById('seg-height').disabled = !two;
+    if (two && getHeight() <= 1) document.getElementById('seg-height').value = '16';
+    canvas.height = two ? 400 : 200;
+    resetState();
+  });
+});
+
+document.getElementById('seg-width').addEventListener('change', resetState);
+document.getElementById('seg-height').addEventListener('change', resetState);
+
+// Document-level drag prevention
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => e.preventDefault());
+
+// ---- Resize handle ----
+const resizeHandle = document.getElementById('resize-handle');
+let isResizing = false;
+
+resizeHandle.addEventListener('mousedown', (e) => {
+  isResizing = true;
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isResizing) return;
+  const newWidth = Math.max(280, Math.min(e.clientX, window.innerWidth - 380));
+  document.getElementById('editor-panel').style.width = newWidth + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+});
+
+// ---- Load first example on start ----
+const firstExample = Object.keys(EXAMPLES)[0];
+setEditorSource(EXAMPLES[firstExample], 'rainbow_chase_wfx.wled');
+compileAndRun();
+</script>
+</body>
+</html>
